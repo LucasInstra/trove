@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check version matches the tag
+        shell: bash
+        run: node scripts/sync-version.mjs --check --expect="${{ github.ref_name }}"
+
+      - name: Check the release notes exist
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ ! -f "release-notes/${version}.md" ]; then
+            echo "::error::missing release-notes/${version}.md for ${{ github.ref_name }}"
+            exit 1
+          fi
+
+      - name: Read release notes
+        id: notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo "body<<EOF"
+            cat "release-notes/${version}.md"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: cofre ${{ github.ref_name }} build 1
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          # Our own manifest is the only one, so the action must not upload its own.
+          uploadUpdaterJson: false
+          updaterJsonPreferNsis: true
+
+      - name: Add a stable direct-download asset
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cp "src-tauri/target/release/bundle/nsis/cofre_${version}_x64-setup.exe" cofre-setup.exe
+
+      - name: Add a portable zip
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Compress-Archive -Path "src-tauri/target/release/cofre.exe" -DestinationPath "cofre-portable-x64.zip" -Force
+          gh release upload "${{ github.ref_name }}" "cofre-portable-x64.zip" --clobber
+          gh release upload "${{ github.ref_name }}" cofre-setup.exe --clobber
+
+      - name: Publish the updater manifest
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart("v")
+          $installer = "src-tauri/target/release/bundle/nsis/cofre_${version}_x64-setup.exe"
+          node scripts/updater-json.mjs --tag=$tag --installer="$installer" --signature="$installer.sig" --notes="release-notes/${version}.md"
+          gh release upload $tag latest.json --clobber
