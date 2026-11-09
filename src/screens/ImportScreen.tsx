@@ -4,9 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
 import { Mascot } from "../components/Mascot";
 import { api, type ImportReport, type ImportRow } from "../lib/api";
+import type { KeeperLook } from "../lib/keeper";
 import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
 
-export function ImportScreen({ onImported }: { onImported: () => void }) {
+export function ImportScreen({
+  look,
+  onImported,
+}: {
+  look: KeeperLook;
+  onImported: () => void;
+}) {
   const [reports, setReports] = useState<ImportReport[]>([]);
   const [history, setHistory] = useState<ImportRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -145,7 +152,7 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
         <div className="card report">
           <div className="report-head">
             <div className="report-title">
-              <Mascot mood="celebrate" size={56} />
+              <Mascot look={look} mood="celebrate" size={56} />
               <div>
                 <h2>
                   {inserted} new {inserted === 1 ? "entry" : "entries"}

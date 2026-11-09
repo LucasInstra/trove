@@ -25,7 +25,11 @@ The rule is simple: every number on screen answers "where did this come from". E
 
 <img src="docs/mascot.png" width="620" alt="the keeper in five moods">
 
-A coin with a face guards the trove. It follows the pointer with its pupils, blinks on its own, and changes posture with the month: happy when you spend less than you earn, worried when the month closes negative, sleepy when there is nothing imported yet, and celebrating when a statement lands.
+A piggy bank with a face guards the trove. It is drawn on a canvas, so the body can be grabbed and pulled like silicone, and it has its own habits: it follows the pointer, blinks, looks around when nothing is happening and hops when you boop it.
+
+The mood follows the month: happy when you spend less than you earn, worried when the month closes negative, sleepy when there is nothing imported yet, and celebrating when a statement lands.
+
+Click **Customize** in the sidebar to change the shape, the colour and the eyes (style, size, spacing, tilt and ink), and to turn the snout, ears, coin slot, curl tail and blush on or off. The look is stored locally.
 
 ## What it has today (0.1.0)
 

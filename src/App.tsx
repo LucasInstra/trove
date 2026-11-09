@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { Icon, type IconName } from "./components/Icons";
+import { KeeperPanel } from "./components/KeeperPanel";
 import { Mascot, type Mood } from "./components/Mascot";
 import {
   api,
@@ -12,6 +13,7 @@ import {
 } from "./lib/api";
 import { BUILD_LABEL } from "./lib/build";
 import { currentMonth, formatCents, monthLabel, shiftMonth } from "./lib/format";
+import { loadLook, saveLook, type KeeperLook } from "./lib/keeper";
 import { useUpdater } from "./lib/updater";
 import { ImportScreen } from "./screens/ImportScreen";
 import { LedgerScreen } from "./screens/LedgerScreen";
@@ -59,6 +61,13 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const updater = useUpdater();
   const keeper = describeMonth(totals, month);
+  const [look, setLook] = useState<KeeperLook>(() => loadLook());
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const updateLook = useCallback((next: KeeperLook) => {
+    setLook(next);
+    saveLook(next);
+  }, []);
 
   const reload = useCallback(async (term: string, at: string) => {
     try {
@@ -156,8 +165,17 @@ export function App() {
         <div className="sidebar-spacer" />
 
         <div className="keeper">
-          <Mascot mood={keeper.mood} size={52} />
-          <p className="keeper-line">{keeper.line}</p>
+          <Mascot look={look} mood={keeper.mood} size={66} />
+          <div className="keeper-copy">
+            <p className="keeper-line">{keeper.line}</p>
+            <button
+              type="button"
+              className="keeper-customize"
+              onClick={() => setPanelOpen(true)}
+            >
+              Customize
+            </button>
+          </div>
         </div>
 
         <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
@@ -182,6 +200,7 @@ export function App() {
             totals={totals}
             byCategory={byCategory}
             series={series}
+            look={look}
             month={month}
             search={search}
             loading={loading}
@@ -194,6 +213,7 @@ export function App() {
 
         {route === "import" ? (
           <ImportScreen
+            look={look}
             onImported={() => {
               if (month) void reload(search, month);
               setRoute("ledger");
@@ -203,6 +223,10 @@ export function App() {
 
         {route === "settings" ? <SettingsScreen updater={updater} /> : null}
       </main>
+
+      {panelOpen ? (
+        <KeeperPanel look={look} onChange={updateLook} onClose={() => setPanelOpen(false)} />
+      ) : null}
     </div>
   );
 }
