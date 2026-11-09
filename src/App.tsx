@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { Icon, type IconName } from "./components/Icons";
+import { Mascot, type Mood } from "./components/Mascot";
 import {
   api,
   type Category,
@@ -10,7 +11,7 @@ import {
   type TransactionRow,
 } from "./lib/api";
 import { BUILD_LABEL } from "./lib/build";
-import { currentMonth, shiftMonth } from "./lib/format";
+import { currentMonth, formatCents, monthLabel, shiftMonth } from "./lib/format";
 import { useUpdater } from "./lib/updater";
 import { ImportScreen } from "./screens/ImportScreen";
 import { LedgerScreen } from "./screens/LedgerScreen";
@@ -24,6 +25,27 @@ const NAV: Array<{ route: Route; label: string; icon: IconName }> = [
   { route: "settings", label: "Settings", icon: "settings" },
 ];
 
+function describeMonth(
+  totals: MonthTotals | null,
+  month: string | null,
+): { mood: Mood; line: string } {
+  if (!month) return { mood: "sleepy", line: "Waking up..." };
+  if (!totals || totals.transactionCount === 0) {
+    return { mood: "sleepy", line: `Nothing recorded for ${monthLabel(month)} yet.` };
+  }
+  const net = totals.incomeCents - totals.expenseCents;
+  if (totals.expenseCents === 0 && totals.incomeCents > 0) {
+    return { mood: "happy", line: `No spending in ${monthLabel(month)}. Rare sight.` };
+  }
+  if (net < 0) {
+    return {
+      mood: "worried",
+      line: `You spent ${formatCents(-net)} more than you made this month.`,
+    };
+  }
+  return { mood: "happy", line: `You kept ${formatCents(net)} this month.` };
+}
+
 export function App() {
   const [route, setRoute] = useState<Route>("ledger");
   const [month, setMonth] = useState<string | null>(null);
@@ -36,6 +58,7 @@ export function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const updater = useUpdater();
+  const keeper = describeMonth(totals, month);
 
   const reload = useCallback(async (term: string, at: string) => {
     try {
@@ -131,6 +154,11 @@ export function App() {
         </nav>
 
         <div className="sidebar-spacer" />
+
+        <div className="keeper">
+          <Mascot mood={keeper.mood} size={52} />
+          <p className="keeper-line">{keeper.line}</p>
+        </div>
 
         <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
 

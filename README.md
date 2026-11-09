@@ -21,6 +21,12 @@ Because the existing ones want your bank password, a cloud account and a subscri
 
 The rule is simple: every number on screen answers "where did this come from". Each entry keeps the file and the line that produced it.
 
+## The keeper
+
+<img src="docs/mascot.png" width="620" alt="the keeper in five moods">
+
+A coin with a face guards the trove. It follows the pointer with its pupils, blinks on its own, and changes posture with the month: happy when you spend less than you earn, worried when the month closes negative, sleepy when there is nothing imported yet, and celebrating when a statement lands.
+
 ## What it has today (0.1.0)
 
 - **OFX import**, by dragging the file or picking it from the computer. Reads both the SGML dialect of OFX 1.x and the XML one of OFX 2.x, and accepts several files at once.

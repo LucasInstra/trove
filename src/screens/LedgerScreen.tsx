@@ -1,4 +1,5 @@
 import { Donut } from "../components/Donut";
+import { Mascot } from "../components/Mascot";
 import { Icon } from "../components/Icons";
 import type { Category, CategoryTotal, MonthPoint, MonthTotals, TransactionRow } from "../lib/api";
 import {
@@ -170,9 +171,9 @@ export function LedgerScreen({
 
       {!loading && rows.length === 0 ? (
         <div className="empty">
-          <span className="empty-icon">
-            <Icon name="file" size={22} />
-          </span>
+          <div className="mascot-stage">
+            <Mascot mood="sleepy" size={86} />
+          </div>
           <h2>Nothing here yet</h2>
           <p className="muted">
             Import the OFX file your bank already offers. Nothing leaves this computer.

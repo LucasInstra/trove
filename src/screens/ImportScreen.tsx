@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
+import { Mascot } from "../components/Mascot";
 import { api, type ImportReport, type ImportRow } from "../lib/api";
 import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
 
@@ -143,15 +144,18 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
       {reports.length > 0 ? (
         <div className="card report">
           <div className="report-head">
-            <div>
-              <h2>
-                {inserted} new {inserted === 1 ? "entry" : "entries"}
-              </h2>
-              <p className="muted">
-                {duplicates > 0
-                  ? `${duplicates} were already in the ledger and were skipped.`
-                  : "Nothing was duplicated."}
-              </p>
+            <div className="report-title">
+              <Mascot mood="celebrate" size={56} />
+              <div>
+                <h2>
+                  {inserted} new {inserted === 1 ? "entry" : "entries"}
+                </h2>
+                <p className="muted">
+                  {duplicates > 0
+                    ? `${duplicates} were already in the ledger and were skipped.`
+                    : "Nothing was duplicated."}
+                </p>
+              </div>
             </div>
             <button type="button" className="primary" onClick={onImported}>
               See ledger
