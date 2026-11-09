@@ -26,7 +26,7 @@ const NAV: Array<{ route: Route; label: string; icon: IconName }> = [
 
 export function App() {
   const [route, setRoute] = useState<Route>("ledger");
-  const [month, setMonth] = useState(currentMonth());
+  const [month, setMonth] = useState<string | null>(null);
   const [rows, setRows] = useState<TransactionRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [totals, setTotals] = useState<MonthTotals | null>(null);
@@ -61,27 +61,40 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    void reload("", month);
+    let alive = true;
+    api
+      .latestMonth()
+      .then((value) => {
+        if (alive) setMonth(value ?? currentMonth());
+      })
+      .catch(() => {
+        if (alive) setMonth(currentMonth());
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (month) void reload("", month);
   }, [reload, month]);
 
   const onSearch = useCallback(
     (value: string) => {
       setSearch(value);
-      void reload(value, month);
+      if (month) void reload(value, month);
     },
     [reload, month],
   );
 
-  const onMonth = useCallback(
-    (delta: number) => {
-      setMonth((current) => shiftMonth(current, delta));
-      setLoading(true);
-    },
-    [],
-  );
+  const onMonth = useCallback((delta: number) => {
+    setLoading(true);
+    setMonth((current) => shiftMonth(current ?? currentMonth(), delta));
+  }, []);
 
   const onCategory = useCallback(
     async (transactionId: number, categoryId: number | null) => {
+      if (!month) return;
       try {
         await api.setCategory(transactionId, categoryId);
         await reload(search, month);
@@ -134,7 +147,7 @@ export function App() {
           </div>
         ) : null}
 
-        {route === "ledger" ? (
+        {route === "ledger" && month ? (
           <LedgerScreen
             rows={rows}
             categories={categories}
@@ -154,7 +167,7 @@ export function App() {
         {route === "import" ? (
           <ImportScreen
             onImported={() => {
-              void reload(search, month);
+              if (month) void reload(search, month);
               setRoute("ledger");
             }}
           />

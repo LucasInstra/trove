@@ -877,3 +877,76 @@ select.category {
     grid-template-columns: 1fr;
   }
 }
+
+/* The generic button rules are deliberately broad; these keep the sidebar
+   controls dark when they are hovered or active. */
+.sidebar .nav-item:hover:not(:disabled) {
+  background: #1c1f25;
+  border-color: transparent;
+  color: var(--sidebar-ink);
+}
+
+.sidebar .nav-item.active:not(:disabled),
+.sidebar .nav-item.active:hover:not(:disabled) {
+  background: #232830;
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.sidebar .update-banner:hover:not(:disabled) {
+  background: #1b2c26;
+  border-color: #2f5a48;
+  color: #8fd7b3;
+}
+
+.bar.blank {
+  background: transparent;
+}
+
+select.category {
+  width: 160px;
+}
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.history li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 2px;
+  border-bottom: 1px solid #f0ece5;
+  font-size: 12.5px;
+}
+
+.history li:last-child {
+  border-bottom: 0;
+}
+
+.history-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.history-file svg {
+  color: var(--faint);
+  flex: 0 0 auto;
+}
+
+.history-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

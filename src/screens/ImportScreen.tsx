@@ -2,13 +2,25 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
-import { api, type ImportReport } from "../lib/api";
-import { formatCents, formatDate } from "../lib/format";
+import { api, type ImportReport, type ImportRow } from "../lib/api";
+import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
 
 export function ImportScreen({ onImported }: { onImported: () => void }) {
   const [reports, setReports] = useState<ImportReport[]>([]);
+  const [history, setHistory] = useState<ImportRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const refreshHistory = useCallback(() => {
+    api
+      .imports()
+      .then(setHistory)
+      .catch(() => setHistory([]));
+  }, []);
+
+  useEffect(() => {
+    refreshHistory();
+  }, [refreshHistory]);
 
   const importPaths = useCallback(async (paths: string[]) => {
     if (paths.length === 0) return;
@@ -20,12 +32,13 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
         next.push(await api.importOfx(path));
       }
       setReports(next);
+      refreshHistory();
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [refreshHistory]);
 
   useEffect(() => {
     const unlisten = listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
@@ -96,6 +109,30 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
           </ol>
         </aside>
       </div>
+
+      {history.length > 0 ? (
+        <article className="card">
+          <header className="card-head">
+            <h2>Recent imports</h2>
+            <span className="muted">every number on the ledger comes from one of these</span>
+          </header>
+          <ul className="history">
+            {history.map((row) => (
+              <li key={row.id}>
+                <span className="history-file">
+                  <Icon name="file" size={14} />
+                  {fileName(row.path)}
+                </span>
+                <span className="muted small">{row.accountName}</span>
+                <span className="muted small">{formatDateTime(row.importedAt)}</span>
+                <span className="history-count">
+                  {row.inserted} new · {row.duplicates} repeated
+                </span>
+              </li>
+            ))}
+          </ul>
+        </article>
+      ) : null}
 
       {error ? (
         <div className="alert" role="alert">

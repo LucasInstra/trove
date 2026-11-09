@@ -45,6 +45,14 @@ jobs:
             exit 1
           fi
 
+      - name: Read the build number
+        id: build
+        shell: bash
+        run: |
+          build="$(grep -oE 'BUILD_NUMBER = [0-9]+' src/lib/build.ts | grep -oE '[0-9]+')"
+          echo "number=$build" >> "$GITHUB_OUTPUT"
+          echo "building version ${GITHUB_REF_NAME} build $build"
+
       - name: Read release notes
         id: notes
         shell: bash
@@ -64,7 +72,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: trove ${{ github.ref_name }} build 1
+          releaseName: trove ${{ github.ref_name }} build ${{ steps.build.outputs.number }}
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false

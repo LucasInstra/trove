@@ -27,6 +27,8 @@ The rule is simple: every number on screen answers "where did this come from". E
 - **Account read from the file**: bank, account number, and the difference between a checking account and a credit card.
 - **Real deduplication**: `FITID` when the bank keeps the identifier stable, a fingerprint of the transaction when it does not. Reimporting the same period duplicates nothing.
 - **Ledger with search** by description, merchant or category, with the category editable right on the row.
+- **Month navigation** with a category breakdown and a six month spending series, and the app opens on the most recent month that has data.
+- **Import history**: every file that ever entered the ledger, with how many entries it added and how many were already there.
 - **Clean merchant names**: `IFD*IFOOD SAO PAULO` becomes `IFOOD SAO PAULO`.
 - **In, out and net** for the month, computed from the local database.
 - **Signed auto-update**, checked on launch and available as a manual button in Settings.

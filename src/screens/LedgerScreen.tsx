@@ -100,7 +100,7 @@ export function LedgerScreen({
             <div className="donut-row">
               <Donut segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))} />
               <ul className="legend">
-                {byCategory.slice(0, 6).map((item) => (
+                {byCategory.map((item) => (
                   <li key={`${item.categoryId ?? "none"}-${item.name}`}>
                     <span className="dot" style={{ background: item.color }} />
                     <span className="legend-name">{item.name}</span>
@@ -128,8 +128,19 @@ export function LedgerScreen({
                 </span>
                 <div className="bar-track">
                   <div
-                    className={point.month === month ? "bar current" : "bar"}
-                    style={{ height: `${Math.max(2, (point.expenseCents / peak) * 100)}%` }}
+                    className={
+                      point.expenseCents === 0
+                        ? "bar blank"
+                        : point.month === month
+                          ? "bar current"
+                          : "bar"
+                    }
+                    style={{
+                      height:
+                        point.expenseCents === 0
+                          ? "0%"
+                          : `${Math.max(3, (point.expenseCents / peak) * 100)}%`,
+                    }}
                     title={`${monthLabel(point.month)}: ${formatCents(point.expenseCents)}`}
                   />
                 </div>

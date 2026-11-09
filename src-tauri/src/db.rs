@@ -142,6 +142,17 @@ pub struct MonthPoint {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ImportRow {
+    pub id: i64,
+    pub path: String,
+    pub account_name: String,
+    pub imported_at: String,
+    pub inserted: i64,
+    pub duplicates: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportReport {
     pub account_id: i64,
     pub account_name: String,
@@ -410,8 +421,46 @@ pub fn set_category(
     Ok(())
 }
 
-pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals, String> {
-    let prefix = format!("{month}%");
+/// Every file that ever entered the ledger, newest first.
+pub fn list_imports(connection: &Connection, limit: i64) -> Result<Vec<ImportRow>, String> {
+    let mut statement = connection
+        .prepare(
+            "select i.id, i.path, a.name, i.imported_at, i.inserted, i.duplicates
+             from imports i
+             join accounts a on a.id = i.account_id
+             order by i.imported_at desc
+             limit ?1",
+        )
+        .map_err(|problem| problem.to_string())?;
+
+    let rows = statement
+        .query_map(params![limit], |row| {
+            Ok(ImportRow {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                account_name: row.get(2)?,
+                imported_at: row.get(3)?,
+                inserted: row.get(4)?,
+                duplicates: row.get(5)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+/// The most recent month that actually has an entry, so the app opens on data
+/// instead of on an empty current month.
+pub fn latest_month(connection: &Connection) -> Result<Option<String>, String> {
+    connection
+        .query_row("select max(substr(posted_on, 1, 7)) from transactions", [], |row| {
+            row.get::<_, Option<String>>(0)
+        })
+        .map_err(|problem| problem.to_string())
+}
+
+pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals, String> {    let prefix = format!("{month}%");
     let (income, expense, count) = connection
         .query_row(
             "select

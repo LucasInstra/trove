@@ -60,6 +60,15 @@ export interface ImportReport {
   ledgerBalanceOn: string | null;
 }
 
+export interface ImportRow {
+  id: number;
+  path: string;
+  accountName: string;
+  importedAt: string;
+  inserted: number;
+  duplicates: number;
+}
+
 export const api = {
   importOfx: (path: string) => invoke<ImportReport>("import_ofx", { path }),
   accounts: () => invoke<Account[]>("list_accounts"),
@@ -73,6 +82,8 @@ export const api = {
   categoryTotals: (month: string) => invoke<CategoryTotal[]>("category_totals", { month }),
   monthSeries: (month: string, count = 6) =>
     invoke<MonthPoint[]>("month_series", { month, count }),
+  latestMonth: () => invoke<string | null>("latest_month"),
+  imports: (limit = 12) => invoke<ImportRow[]>("list_imports", { limit }),
   setCategory: (transactionId: number, categoryId: number | null) =>
     invoke<void>("set_category", { transactionId, categoryId }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),
