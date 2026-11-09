@@ -494,8 +494,9 @@ export function Mascot({
       // gaze, the eyes slide further than the snout, and the far eye shrinks.
 
       const turn = gaze.x;
-      const turnShift = turn * radius * 0.16;
-      const turnRise = gaze.y * radius * 0.03;
+      const turnShift = turn * radius * 0.14;
+      const turnRise = gaze.y * radius * 0.05;
+      const turnSquash = 1 - 0.15 * Math.abs(turn);
 
       if (!seesPointer && !moodSleepy) {
         if (lookPhase < 0 && time > nextLook) {
@@ -690,9 +691,9 @@ export function Mascot({
         for (const side of [-1, 1]) {
           const angle = -Math.PI / 2 + side * 0.62;
           const edge = at(angle);
-          const anchor = { x: edge.x + turn * radius * 0.06, y: edge.y };
+          const anchor = { x: edge.x + turn * radius * 0.12, y: edge.y };
           // The ear on the far side loses size, which is what sells the turn.
-          const depth = 1 - 0.16 * Math.max(0, -side * turn);
+          const depth = 1 - 0.22 * Math.max(0, -side * turn);
           context.save();
           context.translate(anchor.x, anchor.y);
           context.rotate(normalAt(angle) + Math.PI / 2 + turn * side * 0.12);
@@ -733,7 +734,7 @@ export function Mascot({
       // The coin slot is the detail that says "piggy bank" before anything else.
       if (slot) {
         const top = at(-Math.PI / 2);
-        const anchor = { x: top.x * 0.84 + turn * radius * 0.05, y: top.y * 0.84 };
+        const anchor = { x: top.x * 0.84 + turn * radius * 0.09, y: top.y * 0.84 };
         const width = radius * 0.5;
         const height = radius * 0.11;
         context.save();
@@ -754,6 +755,9 @@ export function Mascot({
 
       context.save();
       context.translate(turnShift, turnRise);
+      // Foreshortening: the face narrows horizontally instead of the features
+      // drifting apart, which is what a head yaw actually does.
+      context.scale(turnSquash, 1);
 
       const sizeScale =
         (eyeSize === "small" ? 0.82 : eyeSize === "large" ? 1.22 : 1) * (hovering ? 1.035 : 1);
@@ -774,7 +778,7 @@ export function Mascot({
         happy > 0.5 && (eyeStyle === "bars" || eyeStyle === "dots" || eyeStyle === "sleepy");
       const happySpread = happyArcs ? radius * 0.06 * Math.min(1, (happy - 0.5) / 0.5) : 0;
       const eyeOffset = Math.max(radius * spacingScale, baseHalf + radius * minGap) + happySpread;
-      const eyeY = -radius * 0.06 + gaze.y * radius * 0.13 + (sadEyes ? radius * 0.02 : 0);
+      const eyeY = -radius * 0.06 + (sadEyes ? radius * 0.02 : 0);
 
       for (const side of [-1, 1]) {
         const style = eyeStyle === "wink" ? (side === -1 ? "arcs" : "bars") : eyeStyle;
@@ -782,8 +786,7 @@ export function Mascot({
         const eyeWidth = eye.width;
         const eyeHeight = eye.height * (style === "bars" ? 1 + wonder * 0.1 : 1);
         const eyeLift = Math.max(0, eyeHeight / 2 - radius * 0.26);
-        const eyeX = side * eyeOffset + gaze.x * radius * 0.2;
-        const near = 1 + 0.07 * side * turn;
+        const eyeX = side * eyeOffset;
         const closed = winking && side === -1;
         const cheerful =
           happy > 0.55 && (style === "bars" || style === "dots" || style === "sleepy");
@@ -793,10 +796,7 @@ export function Mascot({
         context.save();
         context.translate(position.x, position.y);
         context.rotate(sadEyes ? side * 0.14 : side * tiltAngle);
-        context.scale(
-          near * (1 - 0.05 * Math.abs(turn)),
-          Math.max(0.08, eyeOpen) * near,
-        );
+        context.scale(1, Math.max(0.08, eyeOpen));
 
         if (sadEyes) {
           const half = radius * 0.23;
