@@ -91,6 +91,32 @@ export function outlineCentroid(points: Point[]): Point {
 }
 
 /**
+ * Local displacement of one point, with the same Gaussian the outline uses.
+ * Face features and decorations go through this so nothing stays behind when
+ * the body is pulled.
+ */
+export function deformPoint(
+  point: Point,
+  anchorX: number,
+  anchorY: number,
+  pullX: number,
+  pullY: number,
+  radius: number,
+): Point {
+  const amount = Math.hypot(pullX, pullY);
+  if (!Number.isFinite(amount) || amount < 0.01) return point;
+
+  const safe = safeRadius(radius);
+  const ratio = clamp(amount / (safe * GRAB.maxPull), 0, 1);
+  const sigma = safe * (GRAB.falloffNear + (GRAB.falloffFar - GRAB.falloffNear) * ratio);
+  const denominator = 2 * sigma * sigma;
+  const dx = point.x - anchorX;
+  const dy = point.y - anchorY;
+  const weight = Math.exp(-(dx * dx + dy * dy) / denominator);
+  return { x: point.x + pullX * weight, y: point.y + pullY * weight };
+}
+
+/**
  * Deforms the sampled body outline with a Gaussian falloff around the grabbed
  * point. The anchor moves exactly by the pull, points near it follow most of
  * the way, and the far side barely moves. A wider falloff at bigger pulls keeps
@@ -107,20 +133,9 @@ export function deformOutline(
   const amount = Math.hypot(pullX, pullY);
   if (!Number.isFinite(amount) || amount < 0.01) return points;
 
-  const safe = safeRadius(radius);
-  const ratio = clamp(amount / (safe * GRAB.maxPull), 0, 1);
-  const sigma = safe * (GRAB.falloffNear + (GRAB.falloffFar - GRAB.falloffNear) * ratio);
-  const denominator = 2 * sigma * sigma;
-
-  return points.map((point) => {
-    const dx = point.x - anchorX;
-    const dy = point.y - anchorY;
-    const weight = Math.exp(-(dx * dx + dy * dy) / denominator);
-    return {
-      x: point.x + pullX * weight,
-      y: point.y + pullY * weight,
-    };
-  });
+  return points.map((point) =>
+    deformPoint(point, anchorX, anchorY, pullX, pullY, radius),
+  );
 }
 
 export interface GripPhysics {

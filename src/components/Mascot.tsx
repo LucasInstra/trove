@@ -5,7 +5,7 @@ import {
   deformOutline,
   followTarget,
   gripPhysics,
-  outlineCentroid,
+  deformPoint,
   pullTarget,
   type Point,
 } from "../lib/grab";
@@ -345,17 +345,8 @@ export function Mascot({
     const gaze = { x: 0, y: 0, tx: 0, ty: 0, seen: -10 };
     const radius = size * 0.3;
     const outline = bodyOutline(shape, radius);
-    const baseCenter = outlineCentroid(outline);
     // Decorations anchor to the real silhouette, so a pill or a star does not
     // leave the ears, the tail or the feet floating in empty space.
-    const pointAt = (angle: number): Point => {
-      if (outline.length === 0) {
-        return { x: Math.cos(angle) * radius * 0.92, y: Math.sin(angle) * radius * 0.92 };
-      }
-      const wrapped = ((angle % TAU) + TAU) % TAU;
-      const index = Math.round((wrapped / TAU) * outline.length) % outline.length;
-      return outline[index];
-    };
     const start = performance.now();
     let frame = 0;
     let nextBlink = 1.8;
@@ -400,6 +391,7 @@ export function Mascot({
       state.velocity += force * dt;
       state.value += state.velocity * dt;
     };
+
 
     const onPointerMove = (event: PointerEvent) => {
       const rect = hit.getBoundingClientRect();
@@ -608,12 +600,73 @@ export function Mascot({
 
       const bodyShade = shade(color, 0.82, 1);
 
+      // Everything below is anchored to the deformed outline, so the whole pig
+      // moves as one piece instead of leaving an ear, the slot or the snout
+      // behind when the body is pulled.
+      const deformed = deformOutline(
+        outline,
+        drag.anchorX,
+        drag.anchorY,
+        pullX.value,
+        pullY.value,
+        radius,
+      );
+      const body = outline.length > 0 ? pathFromPoints(deformed) : bodyPath(shape, radius);
+
+      const at = (angle: number): Point => {
+        if (deformed.length === 0) {
+          return { x: Math.cos(angle) * radius * 0.92, y: Math.sin(angle) * radius * 0.92 };
+        }
+        const wrapped = ((angle % TAU) + TAU) % TAU;
+        const index = Math.round((wrapped / TAU) * deformed.length) % deformed.length;
+        return deformed[index];
+      };
+      const move = (x: number, y: number) =>
+        deformPoint({ x, y }, drag.anchorX, drag.anchorY, pullX.value, pullY.value, radius);
+      // Rest position on the undeformed silhouette, scaled inwards, so a
+      // decoration starts buried in the body and is then moved by the same
+      // Gaussian the surface uses.
+      const restAt = (angle: number, scale = 1): Point => {
+        if (outline.length === 0) {
+          return {
+            x: Math.cos(angle) * radius * 0.92 * scale,
+            y: Math.sin(angle) * radius * 0.92 * scale,
+          };
+        }
+        const wrapped = ((angle % TAU) + TAU) % TAU;
+        const index = Math.round((wrapped / TAU) * outline.length) % outline.length;
+        const point = outline[index];
+        return { x: point.x * scale, y: point.y * scale };
+      };
+      const place = (angle: number, scale = 1): Point => {
+        const rest = restAt(angle, scale);
+        return move(rest.x, rest.y);
+      };
+      // Outward normal of the deformed surface, so a decoration stays glued to
+      // the silhouette instead of keeping the angle it had at rest.
+      const normalAt = (angle: number): number => {
+        if (deformed.length < 3) return angle;
+        const wrapped = ((angle % TAU) + TAU) % TAU;
+        const index = Math.round((wrapped / TAU) * deformed.length) % deformed.length;
+        const count = deformed.length;
+        const previous = deformed[(index - 1 + count) % count];
+        const next = deformed[(index + 1) % count];
+        const tangent = Math.atan2(next.y - previous.y, next.x - previous.x);
+        return tangent - Math.PI / 2;
+      };
+
       // Tail sits behind the body, on the right hip.
       if (tail) {
-        const anchor = pointAt(0.22);
+        const edge = at(0.22);
+        const normal = normalAt(0.22);
+        const inward = radius * 0.16;
+        const anchor = {
+          x: edge.x - Math.cos(normal) * inward,
+          y: edge.y - Math.sin(normal) * inward,
+        };
         context.save();
-        context.translate(anchor.x * 0.97, anchor.y * 0.97);
-        context.rotate(Math.atan2(anchor.y, anchor.x));
+        context.translate(anchor.x, anchor.y);
+        context.rotate(normal + Math.PI / 2);
         context.strokeStyle = bodyShade;
         context.lineWidth = Math.max(1.4, radius * 0.1);
         context.lineCap = "round";
@@ -629,10 +682,11 @@ export function Mascot({
       // Ears sit behind the body too, so only the tips show.
       if (ears) {
         for (const side of [-1, 1]) {
-          const anchor = pointAt(-Math.PI / 2 + side * 0.62);
+          const angle = -Math.PI / 2 + side * 0.62;
+          const anchor = at(angle);
           context.save();
-          context.translate(anchor.x * 0.98, anchor.y * 0.98);
-          context.rotate(Math.atan2(anchor.y, anchor.x) + Math.PI / 2);
+          context.translate(anchor.x, anchor.y);
+          context.rotate(normalAt(angle) + Math.PI / 2);
           context.beginPath();
           context.moveTo(-radius * 0.24, radius * 0.08);
           context.quadraticCurveTo(-radius * 0.2, -radius * 0.4, 0, -radius * 0.46);
@@ -653,21 +707,6 @@ export function Mascot({
         }
       }
 
-      const deformed = deformOutline(
-        outline,
-        drag.anchorX,
-        drag.anchorY,
-        pullX.value,
-        pullY.value,
-        radius,
-      );
-      const body = outline.length > 0 ? pathFromPoints(deformed) : bodyPath(shape, radius);
-      const deformedCenter = outlineCentroid(deformed);
-      const faceShift = {
-        x: deformedCenter.x - baseCenter.x,
-        y: deformedCenter.y - baseCenter.y,
-      };
-
       context.fillStyle = color;
       context.fill(body);
 
@@ -683,14 +722,15 @@ export function Mascot({
 
       // The coin slot is the detail that says "piggy bank" before anything else.
       if (slot) {
-        const anchor = pointAt(-Math.PI / 2);
+        const top = at(-Math.PI / 2);
+        const anchor = { x: top.x * 0.84, y: top.y * 0.84 };
         const width = radius * 0.5;
         const height = radius * 0.11;
         context.save();
         // The slot belongs to the body, so a star or a drop must clip it.
         context.clip(body);
-        context.translate(anchor.x * 0.82, anchor.y * 0.82);
-        context.rotate(Math.atan2(anchor.y, anchor.x) + Math.PI / 2);
+        context.translate(anchor.x, anchor.y);
+        context.rotate(normalAt(-Math.PI / 2) + Math.PI / 2);
         context.fillStyle = shade(color, 0.4, 1);
         context.beginPath();
         context.roundRect(-width / 2, -height / 2, width, height, height / 2);
@@ -701,9 +741,6 @@ export function Mascot({
         context.fill();
         context.restore();
       }
-
-      context.save();
-      context.translate(faceShift.x, faceShift.y);
 
       const sizeScale =
         (eyeSize === "small" ? 0.82 : eyeSize === "large" ? 1.22 : 1) * (hovering ? 1.035 : 1);
@@ -737,9 +774,10 @@ export function Mascot({
         const cheerful =
           happy > 0.55 && (style === "bars" || style === "dots" || style === "sleepy");
         const drawArc = closed || cheerful || style === "arcs";
+        const position = move(eyeX, eyeY - eyeLift);
 
         context.save();
-        context.translate(eyeX, eyeY - eyeLift);
+        context.translate(position.x, position.y);
         context.rotate(sadEyes ? side * 0.14 : side * tiltAngle);
         context.scale(1, Math.max(0.08, eyeOpen));
 
@@ -786,25 +824,19 @@ export function Mascot({
       if (blush) {
         context.fillStyle = "rgba(226, 110, 138, 0.3)";
         for (const side of [-1, 1]) {
+          const position = move(side * radius * 0.52, radius * 0.2);
           context.beginPath();
-          context.ellipse(
-            side * radius * 0.52,
-            radius * 0.2,
-            radius * 0.115,
-            radius * 0.065,
-            0,
-            0,
-            TAU,
-          );
+          context.ellipse(position.x, position.y, radius * 0.115, radius * 0.065, 0, 0, TAU);
           context.fill();
         }
       }
 
       if (snout) {
         const snoutY = radius * 0.4;
+        const centerPoint = move(0, snoutY);
         context.fillStyle = lighten(color, 0.3);
         context.beginPath();
-        context.ellipse(0, snoutY, radius * 0.36, radius * 0.25, 0, 0, TAU);
+        context.ellipse(centerPoint.x, centerPoint.y, radius * 0.36, radius * 0.25, 0, 0, TAU);
         context.fill();
         context.strokeStyle = shade(color, 0.7, 0.75);
         context.lineWidth = Math.max(1, radius * 0.02);
@@ -812,41 +844,33 @@ export function Mascot({
 
         context.fillStyle = shade(color, 0.4, 1);
         for (const side of [-1, 1]) {
+          const nostril = move(side * radius * 0.1, snoutY);
           context.beginPath();
-          context.ellipse(
-            side * radius * 0.1,
-            snoutY,
-            radius * 0.042,
-            radius * 0.055,
-            0,
-            0,
-            TAU,
-          );
+          context.ellipse(nostril.x, nostril.y, radius * 0.042, radius * 0.055, 0, 0, TAU);
           context.fill();
         }
       }
 
       if (moodSad) {
+        const frown = move(0, radius * 0.66);
         context.strokeStyle = shade(color, 0.35, 0.9);
         context.lineWidth = Math.max(1.1, radius * 0.03);
         context.lineCap = "round";
         context.beginPath();
-        context.arc(0, radius * 0.66, radius * 0.08, Math.PI * 1.15, Math.PI * 1.85);
+        context.arc(frown.x, frown.y, radius * 0.08, Math.PI * 1.15, Math.PI * 1.85);
         context.stroke();
       }
-
-      context.restore();
 
       // Feet come last so they sit in front of the belly.
       context.fillStyle = bodyShade;
       for (const side of [-1, 1]) {
-        const anchor = pointAt(Math.PI / 2 - side * 0.42);
+        const anchor = place(Math.PI / 2 - side * 0.42, 0.97);
         context.beginPath();
         context.ellipse(
-          anchor.x * 0.92,
-          anchor.y * 0.92,
-          radius * 0.15,
-          radius * 0.075,
+          anchor.x,
+          anchor.y,
+          radius * 0.16,
+          radius * 0.085,
           0,
           0,
           TAU,
@@ -860,8 +884,9 @@ export function Mascot({
           [-0.9, -0.9, 0.14],
           [0.92, -0.66, 0.1],
         ]) {
+          const position = move(radius * x, radius * y);
           context.save();
-          context.translate(radius * x, radius * y);
+          context.translate(position.x, position.y);
           sparklePath(context, radius * scale * 2, radius * scale * 2);
           context.fill();
           context.restore();
@@ -869,6 +894,7 @@ export function Mascot({
       }
 
       context.restore();
+
       if (animate) frame = requestAnimationFrame(draw);
     };
 
