@@ -11,9 +11,9 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 type Route = "ledger" | "import" | "settings";
 
 const NAV: Array<{ route: Route; label: string }> = [
-  { route: "ledger", label: "Extrato" },
-  { route: "import", label: "Importar" },
-  { route: "settings", label: "Configurações" },
+  { route: "ledger", label: "Ledger" },
+  { route: "import", label: "Import" },
+  { route: "settings", label: "Settings" },
 ];
 
 export function App() {
@@ -79,7 +79,7 @@ export function App() {
           <span className="brand-mark">c</span>
           <div>
             <strong>cofre</strong>
-            <span>finanças locais</span>
+            <span>local finance</span>
           </div>
         </div>
 
@@ -99,7 +99,7 @@ export function App() {
         <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
 
         <div className="sidebar-foot">
-          versão {updater.currentVersion || "0.1.0"} · {BUILD_LABEL}
+          version {updater.currentVersion || "0.1.0"} · {BUILD_LABEL}
         </div>
       </aside>
 

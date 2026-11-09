@@ -64,18 +64,18 @@ create table if not exists settings (
 "#;
 
 const SEED_CATEGORIES: &[(&str, &str, &str)] = &[
-    ("Mercado", "expense", "#4c9f70"),
-    ("Alimentação", "expense", "#d98c3f"),
-    ("Transporte", "expense", "#4a7fd4"),
-    ("Moradia", "expense", "#8a6fd1"),
-    ("Saúde", "expense", "#d1536f"),
-    ("Educação", "expense", "#3f9ba6"),
-    ("Lazer", "expense", "#c96fb4"),
-    ("Assinaturas", "expense", "#b58b2e"),
-    ("Impostos", "expense", "#7a7f8a"),
-    ("Outros", "expense", "#8b93a1"),
-    ("Salário", "income", "#3f9f5f"),
-    ("Transferência", "transfer", "#6f7b8b"),
+    ("Groceries", "expense", "#4c9f70"),
+    ("Food", "expense", "#d98c3f"),
+    ("Transport", "expense", "#4a7fd4"),
+    ("Housing", "expense", "#8a6fd1"),
+    ("Health", "expense", "#d1536f"),
+    ("Education", "expense", "#3f9ba6"),
+    ("Leisure", "expense", "#c96fb4"),
+    ("Subscriptions", "expense", "#b58b2e"),
+    ("Taxes", "expense", "#7a7f8a"),
+    ("Other", "expense", "#8b93a1"),
+    ("Salary", "income", "#3f9f5f"),
+    ("Transfer", "transfer", "#6f7b8b"),
 ];
 
 #[derive(Debug, Serialize)]
@@ -181,9 +181,9 @@ fn decode(bytes: &[u8]) -> String {
 
 fn account_label(account: &ofx::OfxAccount) -> String {
     if account.is_credit_card {
-        format!("Cartão {}", account.acct_id)
+        format!("Card {}", account.acct_id)
     } else {
-        format!("Conta {}", account.acct_id)
+        format!("Account {}", account.acct_id)
     }
 }
 
@@ -382,7 +382,7 @@ pub fn set_category(
         )
         .map_err(|problem| problem.to_string())?;
     if affected == 0 {
-        return Err(format!("transação {} não existe", transaction_id));
+        return Err(format!("transaction {} does not exist", transaction_id));
     }
     Ok(())
 }

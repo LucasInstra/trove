@@ -16,10 +16,10 @@ export function UpdateBanner({
 
   const label =
     updater.status === "downloading"
-      ? `baixando ${updater.progress >= 0 ? `${updater.progress}%` : "..."}`
+      ? `downloading ${updater.progress >= 0 ? `${updater.progress}%` : "..."}`
       : updater.status === "ready"
-        ? "reiniciando"
-        : `versão ${updater.version} disponível`;
+        ? "restarting"
+        : `version ${updater.version} available`;
 
   return (
     <button type="button" className="update-banner" onClick={onOpen}>

@@ -33,11 +33,11 @@ pub struct OfxStatement {
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum OfxError {
-    #[error("o arquivo não tem um corpo OFX")]
+    #[error("the file has no OFX body")]
     Empty,
-    #[error("o arquivo não tem bloco de conta (BANKACCTFROM ou CCACCTFROM)")]
+    #[error("the file has no account block (BANKACCTFROM or CCACCTFROM)")]
     NoAccount,
-    #[error("o arquivo não tem transações")]
+    #[error("the file has no transactions")]
     NoTransactions,
 }
 

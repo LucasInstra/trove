@@ -45,7 +45,7 @@ const notesFile = notesPath ? join(root, notesPath) : null;
 const notes =
   notesFile && existsSync(notesFile)
     ? readFileSync(notesFile, "utf8").trim()
-    : "Veja os arquivos da release.";
+    : "See the release assets.";
 
 const manifest = {
   version,

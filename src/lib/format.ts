@@ -20,23 +20,25 @@ export function currentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 export function monthLabel(month: string): string {
   const [year, value] = month.split("-");
-  const names = [
-    "janeiro",
-    "fevereiro",
-    "março",
-    "abril",
-    "maio",
-    "junho",
-    "julho",
-    "agosto",
-    "setembro",
-    "outubro",
-    "novembro",
-    "dezembro",
-  ];
   const index = Number(value) - 1;
-  if (!names[index] || !year) return month;
-  return `${names[index]} de ${year}`;
+  const name = MONTHS[index];
+  if (!name || !year) return month;
+  return `${name} ${year}`;
 }

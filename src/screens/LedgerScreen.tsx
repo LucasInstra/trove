@@ -32,29 +32,29 @@ export function LedgerScreen({
     <section className="screen">
       <header className="screen-head">
         <div>
-          <h1>Extrato</h1>
+          <h1>Ledger</h1>
           <p className="muted">{monthLabel(month)}</p>
         </div>
         <button type="button" className="primary" onClick={onImport}>
-          Importar extrato
+          Import statement
         </button>
       </header>
 
       <div className="cards">
         <article className="card">
-          <span>Entradas</span>
+          <span>In</span>
           <strong className="positive">{formatCents(income)}</strong>
         </article>
         <article className="card">
-          <span>Saídas</span>
+          <span>Out</span>
           <strong className="negative">{formatCents(expense)}</strong>
         </article>
         <article className="card">
-          <span>Resultado</span>
+          <span>Net</span>
           <strong className={result < 0 ? "negative" : "positive"}>{formatSignedCents(result)}</strong>
         </article>
         <article className="card">
-          <span>Lançamentos</span>
+          <span>Entries</span>
           <strong>{totals?.transactionCount ?? 0}</strong>
         </article>
       </div>
@@ -62,22 +62,22 @@ export function LedgerScreen({
       <div className="toolbar">
         <input
           type="search"
-          placeholder="Buscar por descrição, estabelecimento ou categoria"
+          placeholder="Search by description, merchant or category"
           value={search}
           onChange={(event) => onSearch(event.target.value)}
         />
       </div>
 
-      {loading ? <p className="muted">Carregando...</p> : null}
+      {loading ? <p className="muted">Loading...</p> : null}
 
       {!loading && rows.length === 0 ? (
         <div className="empty">
-          <h2>Nenhum lançamento ainda</h2>
+          <h2>Nothing here yet</h2>
           <p className="muted">
-            Importe o arquivo OFX que o seu banco oferece. Nada sai deste computador.
+            Import the OFX file your bank already offers. Nothing leaves this computer.
           </p>
           <button type="button" className="primary" onClick={onImport}>
-            Escolher arquivo
+            Choose a file
           </button>
         </div>
       ) : null}
@@ -87,11 +87,11 @@ export function LedgerScreen({
           <table>
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Lançamento</th>
-                <th>Conta</th>
-                <th>Categoria</th>
-                <th className="right">Valor</th>
+                <th>Date</th>
+                <th>Entry</th>
+                <th>Account</th>
+                <th>Category</th>
+                <th className="right">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -115,11 +115,9 @@ export function LedgerScreen({
                           event.target.value === "" ? null : Number(event.target.value),
                         )
                       }
-                      style={
-                        row.categoryColor ? { borderColor: row.categoryColor } : undefined
-                      }
+                      style={row.categoryColor ? { borderColor: row.categoryColor } : undefined}
                     >
-                      <option value="">Sem categoria</option>
+                      <option value="">No category</option>
                       {categories.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.name}

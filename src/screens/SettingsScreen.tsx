@@ -6,21 +6,19 @@ import type { UpdaterState } from "../lib/updater";
 function statusText(updater: UpdaterState): string {
   switch (updater.status) {
     case "checking":
-      return "Verificando...";
+      return "Checking...";
     case "current":
-      return "Você está na versão mais recente.";
+      return "You are on the latest version.";
     case "available":
-      return `Versão ${updater.version} build ${updater.build} disponível.`;
+      return `Version ${updater.version} build ${updater.build} is available.`;
     case "downloading":
-      return updater.progress >= 0
-        ? `Baixando ${updater.progress}%...`
-        : "Baixando...";
+      return updater.progress >= 0 ? `Downloading ${updater.progress}%...` : "Downloading...";
     case "ready":
-      return "Instalado. Reiniciando o cofre...";
+      return "Installed. Restarting...";
     case "error":
       return updater.error;
     default:
-      return "Ainda não verificado.";
+      return "Not checked yet.";
   }
 }
 
@@ -40,19 +38,17 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
     <section className="screen">
       <header className="screen-head">
         <div>
-          <h1>Configurações</h1>
-          <p className="muted">Tudo local. Nenhuma conta, nenhum servidor.</p>
+          <h1>Settings</h1>
+          <p className="muted">Everything local. No account, no server.</p>
         </div>
       </header>
 
       <article className="panel">
-        <h2>Atualizações</h2>
+        <h2>Updates</h2>
         <p>
-          Versão {updater.currentVersion || "0.1.0"} · {BUILD_LABEL}
+          Version {updater.currentVersion || "0.1.0"} · {BUILD_LABEL}
         </p>
-        <p className={updater.status === "error" ? "negative" : "muted"}>
-          {statusText(updater)}
-        </p>
+        <p className={updater.status === "error" ? "negative" : "muted"}>{statusText(updater)}</p>
 
         {updater.status === "downloading" ? (
           <div className="progress">
@@ -65,34 +61,30 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
         ) : null}
 
         <div className="row">
-          <button
-            type="button"
-            onClick={() => void updater.checkNow()}
-            disabled={busy}
-          >
-            Verificar agora
+          <button type="button" onClick={() => void updater.checkNow()} disabled={busy}>
+            Check now
           </button>
           {updater.status === "available" ? (
             <button type="button" className="primary" onClick={() => void updater.install()}>
-              Baixar e instalar
+              Download and install
             </button>
           ) : null}
         </div>
       </article>
 
       <article className="panel">
-        <h2>Dados</h2>
+        <h2>Data</h2>
         <p className="muted">
-          O banco fica neste arquivo. Faça backup dele para não perder o histórico.
+          The database lives in this file. Back it up so you do not lose your history.
         </p>
         <code className="path">{databasePath || "..."}</code>
       </article>
 
       <article className="panel">
-        <h2>Sobre</h2>
+        <h2>About</h2>
         <p className="muted">
-          O cofre lê extratos OFX e guarda tudo em SQLite no seu computador. Nenhum dado
-          financeiro sai da máquina, e não existe login.
+          This app reads OFX statements and stores everything in SQLite on your computer. No
+          financial data leaves the machine, and there is no login.
         </p>
       </article>
     </section>

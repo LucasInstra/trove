@@ -2,7 +2,7 @@
 
 # cofre
 
-**Um app de finanças pessoais que roda no seu computador, sem conta e sem servidor.**
+**A personal finance app that runs on your computer, with no account and no server.**
 
 [![CI](https://github.com/LucasInstra/cofre/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasInstra/cofre/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/LucasInstra/cofre?color=4c9f70)](https://github.com/LucasInstra/cofre/releases)
@@ -15,89 +15,89 @@
 
 </div>
 
-## Por que outro app de finanças
+## Why another finance app
 
-Porque os apps existentes querem a sua senha do banco, uma conta na nuvem e uma assinatura. O cofre vai pelo caminho contrário: você importa o arquivo OFX que o banco **já entrega**, e os dados ficam num arquivo SQLite no seu computador.
+Because the existing ones want your bank password, a cloud account and a subscription. This one goes the other way: you import the OFX file the bank **already gives you**, and the data stays in a SQLite file on your machine.
 
-A regra é simples: todo número na tela responde "de onde veio". Cada lançamento guarda o arquivo e a linha que o geraram.
+The rule is simple: every number on screen answers "where did this come from". Each entry keeps the file and the line that produced it.
 
-## O que tem hoje (0.1.0)
+## What it has today (0.1.0)
 
-- **Importação de OFX**, arrastando o arquivo ou escolhendo no computador. Lê o dialeto SGML do OFX 1.x e o XML do OFX 2.x, e aceita vários arquivos de uma vez.
-- **Conta reconhecida do arquivo**: banco, agência, número e a diferença entre conta corrente e cartão de crédito.
-- **Deduplicação de verdade**: `FITID` quando o banco mantém o identificador estável, impressão digital da transação quando não mantém. Reimportar o mesmo período não duplica nada.
-- **Extrato com busca** por descrição, estabelecimento ou categoria, com a categoria editável direto na linha.
-- **Estabelecimento limpo**: `IFD*IFOOD SAO PAULO` vira `IFOOD SAO PAULO`.
-- **Entradas, saídas e resultado do mês**, calculados do banco local.
-- **Atualização automática assinada**, com verificação ao abrir e botão manual nas configurações.
+- **OFX import**, by dragging the file or picking it from the computer. Reads both the SGML dialect of OFX 1.x and the XML one of OFX 2.x, and accepts several files at once.
+- **Account read from the file**: bank, account number, and the difference between a checking account and a credit card.
+- **Real deduplication**: `FITID` when the bank keeps the identifier stable, a fingerprint of the transaction when it does not. Reimporting the same period duplicates nothing.
+- **Ledger with search** by description, merchant or category, with the category editable right on the row.
+- **Clean merchant names**: `IFD*IFOOD SAO PAULO` becomes `IFOOD SAO PAULO`.
+- **In, out and net** for the month, computed from the local database.
+- **Signed auto-update**, checked on launch and available as a manual button in Settings.
 
-## O que ainda não tem
+## What it does not have yet
 
-CSV e PDF, painel por categoria, projeção de fim de mês, radar de assinatura, recibos e etiqueta fiscal, notas de corretagem. A ordem está no [roadmap](#roadmap).
+CSV and PDF import, category dashboard, end-of-month projection, subscription radar, receipts and tax tags, brokerage notes. The order is in the [roadmap](#roadmap).
 
-## Instalar
+## Install
 
-Baixe o `cofre_x.y.z_x64-setup.exe` na página de [releases](https://github.com/LucasInstra/cofre/releases). Também existe `cofre-portable-x64.zip`, que é o executável sozinho.
+Download `cofre_x.y.z_x64-setup.exe` from the [releases](https://github.com/LucasInstra/cofre/releases) page. There is also `cofre-portable-x64.zip`, which is the executable alone.
 
-O build não tem assinatura de código, então o Windows SmartScreen pode avisar na primeira execução.
+The build is not code signed, so Windows SmartScreen may warn on first run.
 
-## Rodar do código
+## Run from source
 
-Pré-requisitos: Node 20+, Rust stable (toolchain MSVC) e Visual Studio Build Tools com a carga de trabalho C++.
+Requirements: Node 20+, Rust stable (MSVC toolchain) and Visual Studio Build Tools with the C++ workload.
 
 ```powershell
 npm install
 npm run tauri dev
 ```
 
-Para testar sem extrato do banco, arraste [`fixtures/exemplo.ofx`](fixtures/exemplo.ofx) na tela Importar. Importe o mesmo arquivo duas vezes: a segunda deve dizer que os oito lançamentos já existiam.
+To test without a bank statement, drag [`fixtures/sample.ofx`](fixtures/sample.ofx) onto the Import screen. Import the same file twice: the second time it should say all eight entries were already there.
 
-## Verificações
+## Checks
 
 ```powershell
-npm run test:unit                          # front, incluindo comparação de versão e build
+npm run test:unit                          # front, including the version and build comparison
 npm run lint
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml   # parser OFX, deduplicação e banco
-npm run version:check                      # as quatro cópias da versão em sincronia
+cargo test --manifest-path src-tauri/Cargo.toml   # OFX parser, deduplication and database
+npm run version:check                      # all four copies of the version in sync
 ```
 
 ## Release
 
-1. `npm version patch` (ou `minor`), que sincroniza `package.json`, `Cargo.toml`, `Cargo.lock` e `tauri.conf.json`, e reseta o build para 1.
-2. Escreva `release-notes/<versão>.md`.
-3. `git tag v<versão>` e `git push --follow-tags`.
+1. `npm version patch` (or `minor`), which syncs `package.json`, `Cargo.toml`, `Cargo.lock` and `tauri.conf.json`, and resets the build to 1.
+2. Write `release-notes/<version>.md`.
+3. `git tag v<version>` and `git push --follow-tags`.
 
-Build de correção sem mudar a versão: suba `BUILD_NUMBER` em `src/lib/build.ts` e publique a tag de novo. O manifesto anuncia `0.1.0 build 2` e o app compara semver mais o build, então quem já está em `0.1.0 build 1` recebe a correção.
+A fix build without changing the version: bump `BUILD_NUMBER` in `src/lib/build.ts` and publish the tag again. The manifest announces `0.1.0 build 2`, and the app compares semver plus build, so a machine already on `0.1.0 build 1` receives the fix.
 
-O updater é assinado com minisign. A chave pública fica em `src-tauri/tauri.conf.json`; a privada vai no secret `TAURI_SIGNING_PRIVATE_KEY` do repositório.
+Updates are signed with minisign. The public key lives in `src-tauri/tauri.conf.json`; the private one goes in the `TAURI_SIGNING_PRIVATE_KEY` repository secret.
 
 ## Roadmap
 
-- [x] OFX, deduplicação, extrato e categorias
-- [ ] CSV com mapeamento de coluna por banco
-- [ ] Painel por categoria, comparação com a média e projeção de fim de mês
-- [ ] Radar de assinatura e alerta de aumento de preço
-- [ ] Recibos com OCR, etiqueta fiscal e dossiê para o contador
-- [ ] Notas de corretagem, posição e curva de patrimônio
+- [x] OFX, deduplication, ledger and categories
+- [ ] CSV with per-bank column mapping
+- [ ] Category dashboard, comparison against the average and end-of-month projection
+- [ ] Subscription radar and price-increase alerts
+- [ ] Receipts with OCR, tax tags and a dossier for the accountant
+- [ ] Brokerage notes, positions and a net-worth curve
 
-## Privacidade
+## Privacy
 
-Nenhum dado financeiro sai do computador. Não existe login, telemetria ou requisição para servidor nosso; a única chamada de rede é a verificação de atualização no GitHub. O banco fica em `%APPDATA%\com.lucas.cofre\cofre.db`, e a pasta aparece nas configurações do app.
+No financial data leaves the computer. There is no login, no telemetry and no request to a server of ours; the only network call is the update check against GitHub. The database lives in `%APPDATA%\com.lucas.cofre\cofre.db`, and Settings shows the folder.
 
-## Estrutura
+## Structure
 
 ```
-src/                      front em React + TypeScript
-  lib/updater.ts          verificação, download e instalação
-  lib/release.ts          comparação de semver e build
-src-tauri/src/            núcleo em Rust
-  ofx.rs                  parser dos dois dialetos de OFX
-  db.rs                   schema, importação e consultas
-scripts/                  sincronização de versão e manifesto do updater
-fixtures/                 extrato de exemplo
+src/                      React + TypeScript front end
+  lib/updater.ts          check, download and install
+  lib/release.ts          semver and build comparison
+src-tauri/src/            Rust core
+  ofx.rs                  parser for both OFX dialects
+  db.rs                   schema, import and queries
+scripts/                  version sync and updater manifest
+fixtures/                 sample statement
 ```
 
-## Licença
+## License
 
-MIT. Veja [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

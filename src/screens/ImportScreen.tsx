@@ -38,7 +38,7 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
   const pickFile = useCallback(async () => {
     const selected = await open({
       multiple: true,
-      filters: [{ name: "Extrato OFX", extensions: ["ofx"] }],
+      filters: [{ name: "OFX statement", extensions: ["ofx"] }],
     });
     if (!selected) return;
     const paths = Array.isArray(selected) ? selected : [selected];
@@ -52,14 +52,14 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
     <section className="screen">
       <header className="screen-head">
         <div>
-          <h1>Importar</h1>
-          <p className="muted">Arraste um ou mais arquivos OFX, ou escolha no computador.</p>
+          <h1>Import</h1>
+          <p className="muted">Drop one or more OFX files, or pick them from this computer.</p>
         </div>
       </header>
 
       <button type="button" className="dropzone" onClick={() => void pickFile()} disabled={busy}>
-        <strong>{busy ? "Lendo o arquivo..." : "Solte o extrato aqui"}</strong>
-        <span className="muted">ou clique para escolher. Aceita vários arquivos de uma vez.</span>
+        <strong>{busy ? "Reading the file..." : "Drop the statement here"}</strong>
+        <span className="muted">or click to choose. Multiple files are fine.</span>
       </button>
 
       {error ? <div className="alert">{error}</div> : null}
@@ -69,16 +69,16 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
           <div className="report-head">
             <div>
               <h2>
-                {inserted} lançamento{inserted === 1 ? "" : "s"} novo{inserted === 1 ? "" : "s"}
+                {inserted} new {inserted === 1 ? "entry" : "entries"}
               </h2>
               <p className="muted">
                 {duplicates > 0
-                  ? `${duplicates} já estavam no cofre e foram ignorados.`
-                  : "Nada estava duplicado."}
+                  ? `${duplicates} were already in the ledger and were skipped.`
+                  : "Nothing was duplicated."}
               </p>
             </div>
             <button type="button" className="primary" onClick={onImported}>
-              Ver extrato
+              See ledger
             </button>
           </div>
 
@@ -88,14 +88,14 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
                 <div>
                   <strong>{report.accountName}</strong>
                   <span className="muted">
-                    {report.inserted} novos, {report.duplicates} repetidos
+                    {report.inserted} new, {report.duplicates} repeated
                   </span>
                 </div>
                 {report.ledgerBalanceCents !== null ? (
                   <div className="right">
                     <strong>{formatCents(report.ledgerBalanceCents)}</strong>
                     <span className="muted">
-                      saldo em {report.ledgerBalanceOn ? formatDate(report.ledgerBalanceOn) : ""}
+                      balance on {report.ledgerBalanceOn ? formatDate(report.ledgerBalanceOn) : ""}
                     </span>
                   </div>
                 ) : null}

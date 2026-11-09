@@ -29,7 +29,7 @@ export interface UpdaterState {
 function describe(problem: unknown): string {
   if (typeof problem === "string") return problem;
   if (problem instanceof Error) return problem.message;
-  return "Não foi possível verificar as atualizações.";
+  return "Could not check for updates.";
 }
 
 export function useUpdater(): UpdaterState {
