@@ -490,6 +490,12 @@ export function Mascot({
       const happy = Math.max(0, Math.min(1, (happyUntil - time) / 0.5), moodHappy ? 1 : 0);
       const winking = winkUntil > time;
       const seesPointer = time - gaze.seen < 2.5;
+      // A flat mascot reads as a head turning when the face slides with the
+      // gaze, the eyes slide further than the snout, and the far eye shrinks.
+
+      const turn = gaze.x;
+      const turnShift = turn * radius * 0.16;
+      const turnRise = gaze.y * radius * 0.03;
 
       if (!seesPointer && !moodSleepy) {
         if (lookPhase < 0 && time > nextLook) {
@@ -683,10 +689,14 @@ export function Mascot({
       if (ears) {
         for (const side of [-1, 1]) {
           const angle = -Math.PI / 2 + side * 0.62;
-          const anchor = at(angle);
+          const edge = at(angle);
+          const anchor = { x: edge.x + turn * radius * 0.06, y: edge.y };
+          // The ear on the far side loses size, which is what sells the turn.
+          const depth = 1 - 0.16 * Math.max(0, -side * turn);
           context.save();
           context.translate(anchor.x, anchor.y);
-          context.rotate(normalAt(angle) + Math.PI / 2);
+          context.rotate(normalAt(angle) + Math.PI / 2 + turn * side * 0.12);
+          context.scale(depth, depth);
           context.beginPath();
           context.moveTo(-radius * 0.24, radius * 0.08);
           context.quadraticCurveTo(-radius * 0.2, -radius * 0.4, 0, -radius * 0.46);
@@ -723,7 +733,7 @@ export function Mascot({
       // The coin slot is the detail that says "piggy bank" before anything else.
       if (slot) {
         const top = at(-Math.PI / 2);
-        const anchor = { x: top.x * 0.84, y: top.y * 0.84 };
+        const anchor = { x: top.x * 0.84 + turn * radius * 0.05, y: top.y * 0.84 };
         const width = radius * 0.5;
         const height = radius * 0.11;
         context.save();
@@ -741,6 +751,9 @@ export function Mascot({
         context.fill();
         context.restore();
       }
+
+      context.save();
+      context.translate(turnShift, turnRise);
 
       const sizeScale =
         (eyeSize === "small" ? 0.82 : eyeSize === "large" ? 1.22 : 1) * (hovering ? 1.035 : 1);
@@ -769,7 +782,8 @@ export function Mascot({
         const eyeWidth = eye.width;
         const eyeHeight = eye.height * (style === "bars" ? 1 + wonder * 0.1 : 1);
         const eyeLift = Math.max(0, eyeHeight / 2 - radius * 0.26);
-        const eyeX = side * eyeOffset + gaze.x * radius * 0.24;
+        const eyeX = side * eyeOffset + gaze.x * radius * 0.2;
+        const near = 1 + 0.07 * side * turn;
         const closed = winking && side === -1;
         const cheerful =
           happy > 0.55 && (style === "bars" || style === "dots" || style === "sleepy");
@@ -779,7 +793,10 @@ export function Mascot({
         context.save();
         context.translate(position.x, position.y);
         context.rotate(sadEyes ? side * 0.14 : side * tiltAngle);
-        context.scale(1, Math.max(0.08, eyeOpen));
+        context.scale(
+          near * (1 - 0.05 * Math.abs(turn)),
+          Math.max(0.08, eyeOpen) * near,
+        );
 
         if (sadEyes) {
           const half = radius * 0.23;
@@ -836,7 +853,15 @@ export function Mascot({
         const centerPoint = move(0, snoutY);
         context.fillStyle = lighten(color, 0.3);
         context.beginPath();
-        context.ellipse(centerPoint.x, centerPoint.y, radius * 0.36, radius * 0.25, 0, 0, TAU);
+        context.ellipse(
+          centerPoint.x,
+          centerPoint.y,
+          radius * 0.36 * (1 - 0.12 * Math.abs(turn)),
+          radius * 0.25,
+          0,
+          0,
+          TAU,
+        );
         context.fill();
         context.strokeStyle = shade(color, 0.7, 0.75);
         context.lineWidth = Math.max(1, radius * 0.02);
@@ -846,7 +871,15 @@ export function Mascot({
         for (const side of [-1, 1]) {
           const nostril = move(side * radius * 0.1, snoutY);
           context.beginPath();
-          context.ellipse(nostril.x, nostril.y, radius * 0.042, radius * 0.055, 0, 0, TAU);
+          context.ellipse(
+            nostril.x,
+            nostril.y,
+            radius * 0.042 * (1 - 0.12 * Math.abs(turn)),
+            radius * 0.055,
+            0,
+            0,
+            TAU,
+          );
           context.fill();
         }
       }
@@ -860,6 +893,8 @@ export function Mascot({
         context.arc(frown.x, frown.y, radius * 0.08, Math.PI * 1.15, Math.PI * 1.85);
         context.stroke();
       }
+
+      context.restore();
 
       // Feet come last so they sit in front of the belly.
       context.fillStyle = bodyShade;
