@@ -125,6 +125,23 @@ pub struct MonthTotals {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CategoryTotal {
+    pub category_id: Option<i64>,
+    pub name: String,
+    pub color: String,
+    pub total_cents: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonthPoint {
+    pub month: String,
+    pub income_cents: i64,
+    pub expense_cents: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportReport {
     pub account_id: i64,
     pub account_name: String,
@@ -325,12 +342,17 @@ pub fn list_categories(connection: &Connection) -> Result<Vec<Category>, String>
 pub fn list_transactions(
     connection: &Connection,
     search: Option<&str>,
+    month: Option<&str>,
     limit: i64,
 ) -> Result<Vec<TransactionRow>, String> {
     let pattern = search
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(|value| format!("%{}%", value));
+    let month_pattern = month
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("{value}%"));
 
     let mut statement = connection
         .prepare(
@@ -343,13 +365,14 @@ pub fn list_transactions(
                     or t.description like ?1 collate nocase
                     or t.merchant like ?1 collate nocase
                     or c.name like ?1 collate nocase)
+               and (?2 is null or t.posted_on like ?2)
              order by t.posted_on desc, t.id desc
-             limit ?2",
+             limit ?3",
         )
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![pattern, limit], |row| {
+        .query_map(params![pattern, month_pattern, limit], |row| {
             Ok(TransactionRow {
                 id: row.get(0)?,
                 account_id: row.get(1)?,
@@ -416,6 +439,100 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
     })
 }
 
+/// Expense per category for one month, biggest first. Uncategorized spending is
+/// kept as its own row so the numbers on screen always add up to the total.
+pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<CategoryTotal>, String> {
+    let prefix = format!("{month}%");
+    let mut statement = connection
+        .prepare(
+            "select c.id, coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
+                    sum(-t.amount_cents) as total
+             from transactions t
+             left join categories c on c.id = t.category_id
+             where t.posted_on like ?1 and t.amount_cents < 0
+             group by c.id
+             order by total desc",
+        )
+        .map_err(|problem| problem.to_string())?;
+
+    let rows = statement
+        .query_map(params![prefix], |row| {
+            Ok(CategoryTotal {
+                category_id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                total_cents: row.get(3)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+/// A calendar window ending at `end_month`, with empty months filled in so the
+/// chart never jumps around while there is little history.
+pub fn month_series(
+    connection: &Connection,
+    end_month: &str,
+    count: i64,
+) -> Result<Vec<MonthPoint>, String> {
+    if count <= 0 {
+        return Ok(Vec::new());
+    }
+
+    let end = chrono::NaiveDate::parse_from_str(&format!("{end_month}-01"), "%Y-%m-%d")
+        .map_err(|_| format!("invalid month: {end_month}"))?;
+    let start = end - chrono::Months::new((count - 1) as u32);
+
+    let mut points: Vec<MonthPoint> = (0..count)
+        .map(|step| {
+            let date = start + chrono::Months::new(step as u32);
+            MonthPoint {
+                month: date.format("%Y-%m").to_string(),
+                income_cents: 0,
+                expense_cents: 0,
+            }
+        })
+        .collect();
+
+    let from = points
+        .first()
+        .map(|point| format!("{}-01", point.month))
+        .unwrap_or_else(|| format!("{end_month}-01"));
+
+    let mut statement = connection
+        .prepare(
+            "select substr(posted_on, 1, 7) as month,
+                    coalesce(sum(case when amount_cents > 0 then amount_cents else 0 end), 0),
+                    coalesce(sum(case when amount_cents < 0 then -amount_cents else 0 end), 0)
+             from transactions
+             where posted_on >= ?1
+             group by month",
+        )
+        .map_err(|problem| problem.to_string())?;
+
+    let rows = statement
+        .query_map(params![from], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })
+        .map_err(|problem| problem.to_string())?;
+
+    for row in rows {
+        let (month, income_cents, expense_cents) = row.map_err(|problem| problem.to_string())?;
+        if let Some(point) = points.iter_mut().find(|point| point.month == month) {
+            point.income_cents = income_cents;
+            point.expense_cents = expense_cents;
+        }
+    }
+
+    Ok(points)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,7 +540,7 @@ mod tests {
 
     fn temporary_database(name: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("cofre-test-{}-{}.db", name, std::process::id()));
+        path.push(format!("trove-test-{}-{}.db", name, std::process::id()));
         let _ = std::fs::remove_file(&path);
         path
     }
@@ -453,13 +570,42 @@ mod tests {
         assert_eq!(second.inserted, 0);
         assert_eq!(second.duplicates, 2);
 
-        let rows = list_transactions(&connection, None, 50).expect("should list");
+        let rows = list_transactions(&connection, None, None, 50).expect("should list");
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].merchant, "SALARIO");
 
         let totals = month_totals(&connection, "2024-03").expect("should total");
         assert_eq!(totals.income_cents, 150000);
         assert_eq!(totals.expense_cents, 2390);
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn reports_category_totals_and_a_month_series() {
+        let path = temporary_database("charts");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        import_ofx(&mut connection, &file).expect("should import");
+
+        let totals = category_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.len(), 1);
+        assert_eq!(totals[0].name, "Uncategorized");
+        assert_eq!(totals[0].total_cents, 2390);
+
+        let series = month_series(&connection, "2024-03", 3).expect("should build the series");
+        assert_eq!(series.len(), 3);
+        assert_eq!(series[0].month, "2024-01");
+        assert_eq!(series[2].month, "2024-03");
+        assert_eq!(series[2].income_cents, 150000);
+        assert_eq!(series[2].expense_cents, 2390);
+        assert_eq!(series[0].expense_cents, 0);
+
+        let empty_month = list_transactions(&connection, None, Some("2024-04"), 50).expect("should list");
+        assert!(empty_month.is_empty());
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);
@@ -488,11 +634,11 @@ mod tests {
 
         let mut connection = open(&path).expect("should open");
         import_ofx(&mut connection, &file).expect("should import");
-        let rows = list_transactions(&connection, None, 10).expect("should list");
+        let rows = list_transactions(&connection, None, None, 10).expect("should list");
         let categories = list_categories(&connection).expect("should list");
 
         set_category(&connection, rows[0].id, Some(categories[0].id)).expect("should categorize");
-        let after = list_transactions(&connection, Some(categories[0].name.as_str()), 10)
+        let after = list_transactions(&connection, Some(categories[0].name.as_str()), None, 10)
             .expect("should filter");
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].category_id, Some(categories[0].id));

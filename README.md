@@ -1,11 +1,11 @@
 <div align="center">
 
-# cofre
+# trove
 
 **A personal finance app that runs on your computer, with no account and no server.**
 
-[![CI](https://github.com/LucasInstra/cofre/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasInstra/cofre/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/LucasInstra/cofre?color=4c9f70)](https://github.com/LucasInstra/cofre/releases)
+[![CI](https://github.com/LucasInstra/trove/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasInstra/trove/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/LucasInstra/trove?color=4c9f70)](https://github.com/LucasInstra/trove/releases)
 [![license](https://img.shields.io/badge/license-MIT-4c9f70)](LICENSE)
 
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
@@ -37,7 +37,7 @@ CSV and PDF import, category dashboard, end-of-month projection, subscription ra
 
 ## Install
 
-Download `cofre_x.y.z_x64-setup.exe` from the [releases](https://github.com/LucasInstra/cofre/releases) page. There is also `cofre-portable-x64.zip`, which is the executable alone.
+Download `trove_x.y.z_x64-setup.exe` from the [releases](https://github.com/LucasInstra/trove/releases) page. There is also `trove-portable-x64.zip`, which is the executable alone.
 
 The build is not code signed, so Windows SmartScreen may warn on first run.
 
@@ -83,7 +83,7 @@ Updates are signed with minisign. The public key lives in `src-tauri/tauri.conf.
 
 ## Privacy
 
-No financial data leaves the computer. There is no login, no telemetry and no request to a server of ours; the only network call is the update check against GitHub. The database lives in `%APPDATA%\com.lucas.cofre\cofre.db`, and Settings shows the folder.
+No financial data leaves the computer. There is no login, no telemetry and no request to a server of ours; the only network call is the update check against GitHub. The database lives in `%APPDATA%\com.lucas.trove\trove.db`, and Settings shows the folder.
 
 ## Structure
 

@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "../components/Icons";
 import { api, type ImportReport } from "../lib/api";
 import { formatCents, formatDate } from "../lib/format";
 
@@ -53,19 +54,57 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
       <header className="screen-head">
         <div>
           <h1>Import</h1>
-          <p className="muted">Drop one or more OFX files, or pick them from this computer.</p>
+          <p className="sub">Bring in the statement your bank already gives you.</p>
         </div>
       </header>
 
-      <button type="button" className="dropzone" onClick={() => void pickFile()} disabled={busy}>
-        <strong>{busy ? "Reading the file..." : "Drop the statement here"}</strong>
-        <span className="muted">or click to choose. Multiple files are fine.</span>
-      </button>
+      <div className="import-grid">
+        <button type="button" className="dropzone" onClick={() => void pickFile()} disabled={busy}>
+          <span className="drop-icon">
+            <Icon name="import" size={22} />
+          </span>
+          <strong>{busy ? "Reading the file..." : "Drop your statement here"}</strong>
+          <span className="muted">
+            or click to choose. OFX 1.x and 2.x, as many files as you want.
+          </span>
+        </button>
 
-      {error ? <div className="alert">{error}</div> : null}
+        <aside className="card how">
+          <h2>How it works</h2>
+          <ol className="steps">
+            <li>
+              <span className="step-number">1</span>
+              <div>
+                <strong>Download the OFX file</strong>
+                <span className="muted">Every Brazilian bank offers it, usually under "export statement".</span>
+              </div>
+            </li>
+            <li>
+              <span className="step-number">2</span>
+              <div>
+                <strong>Drop it here</strong>
+                <span className="muted">The account, dates and amounts come from the file itself.</span>
+              </div>
+            </li>
+            <li>
+              <span className="step-number">3</span>
+              <div>
+                <strong>Import again whenever you want</strong>
+                <span className="muted">The same entry is never stored twice, even if the periods overlap.</span>
+              </div>
+            </li>
+          </ol>
+        </aside>
+      </div>
+
+      {error ? (
+        <div className="alert" role="alert">
+          {error}
+        </div>
+      ) : null}
 
       {reports.length > 0 ? (
-        <div className="report">
+        <div className="card report">
           <div className="report-head">
             <div>
               <h2>
@@ -85,7 +124,10 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
           <ul className="report-list">
             {reports.map((report, index) => (
               <li key={`${report.accountId}-${index}`}>
-                <div>
+                <span className="report-check">
+                  <Icon name="check" size={14} />
+                </span>
+                <div className="report-main">
                   <strong>{report.accountName}</strong>
                   <span className="muted">
                     {report.inserted} new, {report.duplicates} repeated
@@ -94,7 +136,7 @@ export function ImportScreen({ onImported }: { onImported: () => void }) {
                 {report.ledgerBalanceCents !== null ? (
                   <div className="right">
                     <strong>{formatCents(report.ledgerBalanceCents)}</strong>
-                    <span className="muted">
+                    <span className="muted small">
                       balance on {report.ledgerBalanceOn ? formatDate(report.ledgerBalanceOn) : ""}
                     </span>
                   </div>

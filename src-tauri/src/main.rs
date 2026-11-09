@@ -1,3 +1,3 @@
 fn main() {
-    cofre_lib::run()
+    trove_lib::run()
 }

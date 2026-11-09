@@ -40,7 +40,7 @@ const lock = readFileSync(lockPath, "utf8");
 // verifying anything, so fail loudly when a file no longer has the field.
 const cargoMatch = /^version = "([^"]+)"/m.exec(cargo);
 const configMatch = /"version":\s*"([^"]+)"/.exec(config);
-const lockMatch = /name = "cofre"\nversion = "([^"]+)"/.exec(lock);
+const lockMatch = /name = "trove"\nversion = "([^"]+)"/.exec(lock);
 const missing = [
   ["src-tauri/Cargo.toml", cargoMatch],
   ["src-tauri/tauri.conf.json", configMatch],
@@ -55,7 +55,7 @@ if (missing.length > 0) {
 
 const cargoNext = cargo.replace(/^version = "[^"]+"/m, `version = "${version}"`);
 const configNext = config.replace(/("version":\s*")[^"]+(")/, `$1${version}$2`);
-const lockNext = lock.replace(/(name = "cofre"\nversion = ")[^"]+(")/, `$1${version}$2`);
+const lockNext = lock.replace(/(name = "trove"\nversion = ")[^"]+(")/, `$1${version}$2`);
 
 const mismatches = [
   ["src-tauri/Cargo.toml", cargo === cargoNext],

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { BUILD_LABEL } from "../lib/build";
+import { BUILD_LABEL, BUILD_NUMBER } from "../lib/build";
 import type { UpdaterState } from "../lib/updater";
 
 function statusText(updater: UpdaterState): string {
@@ -39,16 +39,30 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
       <header className="screen-head">
         <div>
           <h1>Settings</h1>
-          <p className="muted">Everything local. No account, no server.</p>
+          <p className="sub">Everything local. No account, no server.</p>
         </div>
       </header>
 
-      <article className="panel">
-        <h2>Updates</h2>
-        <p>
-          Version {updater.currentVersion || "0.1.0"} · {BUILD_LABEL}
-        </p>
-        <p className={updater.status === "error" ? "negative" : "muted"}>{statusText(updater)}</p>
+      <article className="card">
+        <header className="card-head">
+          <h2>Updates</h2>
+          <span className="pill">build {BUILD_NUMBER}</span>
+        </header>
+
+        <div className="kv">
+          <span className="kv-label">Version</span>
+          <span>{updater.currentVersion || "0.1.0"}</span>
+        </div>
+        <div className="kv">
+          <span className="kv-label">Build</span>
+          <span>{BUILD_LABEL}</span>
+        </div>
+        <div className="kv">
+          <span className="kv-label">Status</span>
+          <span className={updater.status === "error" ? "negative" : "muted"}>
+            {statusText(updater)}
+          </span>
+        </div>
 
         {updater.status === "downloading" ? (
           <div className="progress">
@@ -72,19 +86,24 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
         </div>
       </article>
 
-      <article className="panel">
-        <h2>Data</h2>
+      <article className="card">
+        <header className="card-head">
+          <h2>Data</h2>
+        </header>
         <p className="muted">
           The database lives in this file. Back it up so you do not lose your history.
         </p>
         <code className="path">{databasePath || "..."}</code>
       </article>
 
-      <article className="panel">
-        <h2>About</h2>
+      <article className="card">
+        <header className="card-head">
+          <h2>About</h2>
+        </header>
         <p className="muted">
           This app reads OFX statements and stores everything in SQLite on your computer. No
-          financial data leaves the machine, and there is no login.
+          financial data leaves the machine, and there is no login. The only network call is the
+          update check against GitHub.
         </p>
       </article>
     </section>

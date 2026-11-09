@@ -22,7 +22,7 @@ const installer = arg("installer");
 const signaturePath = arg("signature");
 const notesPath = arg("notes");
 const out = arg("out", "latest.json");
-const repo = arg("repo", process.env.GITHUB_REPOSITORY ?? "LucasInstra/cofre");
+const repo = arg("repo", process.env.GITHUB_REPOSITORY ?? "LucasInstra/trove");
 
 if (!installer || !signaturePath) {
   console.error(

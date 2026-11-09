@@ -10,7 +10,7 @@ fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .path()
         .app_data_dir()
         .map_err(|problem| problem.to_string())?;
-    Ok(directory.join("cofre.db"))
+    Ok(directory.join("trove.db"))
 }
 
 fn connection(app: &tauri::AppHandle) -> Result<Connection, String> {
@@ -39,10 +39,27 @@ fn list_categories(app: tauri::AppHandle) -> Result<Vec<db::Category>, String> {
 fn list_transactions(
     app: tauri::AppHandle,
     search: Option<String>,
+    month: Option<String>,
     limit: Option<i64>,
 ) -> Result<Vec<db::TransactionRow>, String> {
     let connection = connection(&app)?;
-    db::list_transactions(&connection, search.as_deref(), limit.unwrap_or(500))
+    db::list_transactions(&connection, search.as_deref(), month.as_deref(), limit.unwrap_or(500))
+}
+
+#[tauri::command]
+fn category_totals(app: tauri::AppHandle, month: String) -> Result<Vec<db::CategoryTotal>, String> {
+    let connection = connection(&app)?;
+    db::category_totals(&connection, &month)
+}
+
+#[tauri::command]
+fn month_series(
+    app: tauri::AppHandle,
+    month: String,
+    count: Option<i64>,
+) -> Result<Vec<db::MonthPoint>, String> {
+    let connection = connection(&app)?;
+    db::month_series(&connection, &month, count.unwrap_or(6))
 }
 
 #[tauri::command]
@@ -82,10 +99,12 @@ pub fn run() {
             list_accounts,
             list_categories,
             list_transactions,
+            category_totals,
+            month_series,
             set_category,
             month_totals,
             database_location
         ])
         .run(tauri::generate_context!())
-        .expect("error while running cofre");
+        .expect("error while running trove");
 }

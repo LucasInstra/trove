@@ -37,6 +37,19 @@ export interface MonthTotals {
   transactionCount: number;
 }
 
+export interface CategoryTotal {
+  categoryId: number | null;
+  name: string;
+  color: string;
+  totalCents: number;
+}
+
+export interface MonthPoint {
+  month: string;
+  incomeCents: number;
+  expenseCents: number;
+}
+
 export interface ImportReport {
   accountId: number;
   accountName: string;
@@ -51,8 +64,15 @@ export const api = {
   importOfx: (path: string) => invoke<ImportReport>("import_ofx", { path }),
   accounts: () => invoke<Account[]>("list_accounts"),
   categories: () => invoke<Category[]>("list_categories"),
-  transactions: (search?: string, limit = 500) =>
-    invoke<TransactionRow[]>("list_transactions", { search: search ?? null, limit }),
+  transactions: (search?: string, month?: string, limit = 500) =>
+    invoke<TransactionRow[]>("list_transactions", {
+      search: search ?? null,
+      month: month ?? null,
+      limit,
+    }),
+  categoryTotals: (month: string) => invoke<CategoryTotal[]>("category_totals", { month }),
+  monthSeries: (month: string, count = 6) =>
+    invoke<MonthPoint[]>("month_series", { month, count }),
   setCategory: (transactionId: number, categoryId: number | null) =>
     invoke<void>("set_category", { transactionId, categoryId }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),

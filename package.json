@@ -1,9 +1,9 @@
 {
-  "name": "cofre",
+  "name": "trove",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "cofre - a local-first personal finance app",
+  "description": "trove - a local-first personal finance app",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
