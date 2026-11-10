@@ -29,3 +29,25 @@ export function invoiceWindow(closingDay: number, dueDay: number, month: string)
 export function isInsideWindow(date: string, window: InvoiceWindow): boolean {
   return date > window.from && date <= window.to;
 }
+
+export interface InvoiceEntry {
+  postedOn: string;
+  amountCents: number;
+}
+
+/** What the card moved inside the window: purchases minus credits, never below zero. */
+export function invoiceUsage(entries: InvoiceEntry[], window: InvoiceWindow): number {
+  let total = 0;
+  for (const entry of entries) {
+    if (!isInsideWindow(entry.postedOn, window)) continue;
+    // A purchase is negative and adds to the invoice; a payment subtracts.
+    total -= entry.amountCents;
+  }
+  return Math.max(0, total);
+}
+
+export function invoiceLines<T extends InvoiceEntry>(entries: T[], window: InvoiceWindow): T[] {
+  return entries
+    .filter((entry) => isInsideWindow(entry.postedOn, window))
+    .sort((left, right) => left.postedOn.localeCompare(right.postedOn));
+}

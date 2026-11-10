@@ -142,7 +142,7 @@ export function OverviewScreen({
         </article>
 
         <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />
-        <CardsCard cards={cards} onAdd={onAddCard} onEdit={onEditCard} />
+        <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} />
         <HousingCard plan={plan} onEdit={onEditHousing} />
         <GoalsCard plan={plan} onAdd={onAddGoal} />
 

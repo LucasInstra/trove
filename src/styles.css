@@ -2870,3 +2870,324 @@ select.tx-category {
 .card-head .muted {
   white-space: nowrap;
 }
+
+
+/* ---------- Phase A: card carousel, invoice panel, upcoming invoices ---------- */
+
+.cards-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.round-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.round-button:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.round-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.outline-button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.outline-button:hover {
+  background: var(--surface-soft);
+}
+
+.cards-track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+}
+
+.cards-track::-webkit-scrollbar {
+  display: none;
+}
+
+.credit-card {
+  position: relative;
+  flex: 0 0 325px;
+  width: 325px;
+  height: 205px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--card-color, #2b2b2d);
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  scroll-snap-align: start;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.18);
+}
+
+.credit-texture {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 7px),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.45));
+}
+
+.credit-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.credit-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.credit-brand {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.credit-state {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.credit-middle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.credit-number {
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  opacity: 0.82;
+}
+
+.credit-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.credit-field {
+  display: grid;
+  gap: 3px;
+}
+
+.credit-field.end {
+  text-align: right;
+}
+
+.credit-field em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.credit-field b {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Upcoming invoices */
+
+.upcoming {
+  display: grid;
+  gap: 6px;
+}
+
+.upcoming-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.upcoming-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 44px;
+}
+
+.upcoming-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.upcoming-tile {
+  height: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.upcoming-tile:hover {
+  border-color: var(--line-strong);
+}
+
+.upcoming-tile.active {
+  border: 2px solid var(--primary);
+  padding: 11px;
+  background-image: linear-gradient(to top, var(--primary-soft), transparent 72%);
+}
+
+.upcoming-month {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.upcoming-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.upcoming-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.upcoming-tile.active .upcoming-value {
+  color: var(--primary);
+}
+
+/* Invoice panel */
+
+.invoice-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.invoice-summary strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-dates {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.invoice-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.invoice-list li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+}
+
+.invoice-list li:last-child {
+  border-bottom: 0;
+}
+
+.invoice-date {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-foot {
+  text-align: right;
+}
+
+[data-theme="dark"] .credit-card {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.credit-card {
+  align-items: stretch;
+}

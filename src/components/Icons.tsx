@@ -18,7 +18,15 @@ export type IconName =
   | "flow"
   | "sun"
   | "moon"
-  | "plus";
+  | "plus"
+  | "chevron-left"
+  | "chevron-right"
+  | "chevron-down"
+  | "x"
+  | "file-text"
+  | "contactless"
+  | "arrow-right"
+  | "scale";
 
 const ICONS: Record<IconName, ReactNode> = {
   ledger: (
@@ -120,9 +128,42 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="M5 12h14" />
     </>
   ),
+  "chevron-left": <path d="m15 18-6-6 6-6" />,
+  "chevron-right": <path d="m9 18 6-6-6-6" />,
+  "chevron-down": <path d="m6 9 6 6 6-6" />,
+  x: <path d="M18 6 6 18M6 6l12 12" />,
+  "file-text": (
+    <>
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8" />
+    </>
+  ),
+  contactless: (
+    <>
+      <path d="M8 6c3 3 3 9 0 12" />
+      <path d="M12 4c4.5 4.5 4.5 11.5 0 16" />
+      <path d="M16 2c6 6 6 14 0 20" />
+    </>
+  ),
+  "arrow-right": <path d="M5 12h14M12 5l7 7-7 7" />,
+  scale: (
+    <>
+      <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+      <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+      <path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+    </>
+  ),
 };
 
-export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+export function Icon({
+  name,
+  size = 16,
+  strokeWidth = 1.75,
+}: {
+  name: IconName;
+  size?: number;
+  strokeWidth?: number;
+}) {
   return (
     <svg
       width={size}
@@ -130,7 +171,7 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

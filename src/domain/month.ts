@@ -22,3 +22,8 @@ export function dateInMonth(month: string, day: number): string {
   const [year, index] = month.split("-").map(Number);
   return `${month}-${pad2(Math.min(Math.max(1, day), daysInMonth(year, index)))}`;
 }
+
+/** `count` month keys starting at `start`, in order. */
+export function monthRange(start: string, count: number): string[] {
+  return Array.from({ length: Math.max(0, count) }, (_value, index) => addMonths(start, index));
+}
