@@ -10,6 +10,14 @@ export type IconName =
   | "file"
   | "check"
   | "trend"
+  | "card"
+  | "home"
+  | "target"
+  | "calendar"
+  | "bell"
+  | "flow"
+  | "sun"
+  | "moon"
   | "plus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -56,6 +64,56 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="M15 7.5h5v5" />
     </>
   ),
+  card: (
+    <>
+      <rect x="3" y="6" width="18" height="12" rx="2.5" />
+      <path d="M3 10h18" />
+      <path d="M7 15h4" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="m4 10 8-6 8 6" />
+      <path d="M6 10v9h12v-9" />
+      <path d="M10 19v-5h4v5" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="0.6" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 10h17" />
+      <path d="M8 3v4M16 3v4" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6 16v-5a6 6 0 1 1 12 0v5l1.5 2.5h-15z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </>
+  ),
+  flow: (
+    <>
+      <path d="M4 18V9" />
+      <path d="M9 18V5" />
+      <path d="M14 18v-6" />
+      <path d="M19 18v-9" />
+      <path d="M3 20h18" />
+    </>
+  ),
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
+    </>
+  ),
+  moon: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />,
   plus: (
     <>
       <path d="M12 5v14" />
@@ -76,7 +134,6 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      focusable="false"
     >
       {ICONS[name]}
     </svg>

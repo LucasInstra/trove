@@ -41,10 +41,17 @@ fn list_transactions(
     app: tauri::AppHandle,
     search: Option<String>,
     month: Option<String>,
+    account_id: Option<i64>,
     limit: Option<i64>,
 ) -> Result<Vec<db::TransactionRow>, String> {
     let connection = connection(&app)?;
-    db::list_transactions(&connection, search.as_deref(), month.as_deref(), limit.unwrap_or(500))
+    db::list_transactions(
+        &connection,
+        search.as_deref(),
+        month.as_deref(),
+        account_id,
+        limit.unwrap_or(500),
+    )
 }
 
 #[tauri::command]

@@ -69,14 +69,146 @@ export interface ImportRow {
   duplicates: number;
 }
 
+export interface Income {
+  id: number;
+  name: string;
+  amountCents: number;
+  frequency: string;
+  payDay: number;
+  accountId: number | null;
+  active: boolean;
+}
+
+export interface Bill {
+  id: number;
+  name: string;
+  amountCents: number;
+  dueDay: number;
+  frequency: string;
+  categoryId: number | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+  accountId: number | null;
+  goalId: number | null;
+  startsOn: string;
+  endsOn: string | null;
+  active: boolean;
+}
+
+export interface BillPayment {
+  id: number;
+  billId: number;
+  month: string;
+  paidOn: string;
+  amountCents: number;
+}
+
+export interface CardMeta {
+  id: number;
+  accountId: number;
+  accountName: string;
+  brand: string;
+  last4: string;
+  limitCents: number;
+  closingDay: number;
+  dueDay: number;
+  color: string;
+  texture: string;
+}
+
+export interface Goal {
+  id: number;
+  name: string;
+  kind: string;
+  targetCents: number;
+  monthlyCents: number;
+  startsOn: string;
+  accountId: number | null;
+  color: string;
+}
+
+export interface GoalTotal {
+  goalId: number;
+  paidCents: number;
+  payments: number;
+}
+
+export interface PlannerState {
+  incomes: Income[];
+  bills: Bill[];
+  payments: BillPayment[];
+  cards: CardMeta[];
+  goals: Goal[];
+  goalTotals: GoalTotal[];
+  reads: string[];
+}
+
+export interface IncomeInput {
+  id: number | null;
+  name: string;
+  amountCents: number;
+  frequency: string;
+  payDay: number;
+  accountId: number | null;
+  active: boolean;
+}
+
+export interface BillInput {
+  id: number | null;
+  name: string;
+  amountCents: number;
+  dueDay: number;
+  frequency: string;
+  categoryId: number | null;
+  accountId: number | null;
+  goalId: number | null;
+  startsOn: string;
+  endsOn: string | null;
+  active: boolean;
+}
+
+export interface CardInput {
+  id: number | null;
+  accountId: number;
+  brand: string;
+  last4: string;
+  limitCents: number;
+  closingDay: number;
+  dueDay: number;
+  color: string;
+  texture: string;
+}
+
+export interface GoalInput {
+  id: number | null;
+  name: string;
+  kind: string;
+  targetCents: number;
+  monthlyCents: number;
+  startsOn: string;
+  accountId: number | null;
+  color: string;
+}
+
+export const EMPTY_PLANNER: PlannerState = {
+  incomes: [],
+  bills: [],
+  payments: [],
+  cards: [],
+  goals: [],
+  goalTotals: [],
+  reads: [],
+};
+
 export const api = {
   importOfx: (path: string) => invoke<ImportReport>("import_ofx", { path }),
   accounts: () => invoke<Account[]>("list_accounts"),
   categories: () => invoke<Category[]>("list_categories"),
-  transactions: (search?: string, month?: string, limit = 500) =>
+  transactions: (search?: string, month?: string, accountId?: number | null, limit = 500) =>
     invoke<TransactionRow[]>("list_transactions", {
       search: search ?? null,
       month: month ?? null,
+      accountId: accountId ?? null,
       limit,
     }),
   categoryTotals: (month: string) => invoke<CategoryTotal[]>("category_totals", { month }),
@@ -88,4 +220,20 @@ export const api = {
     invoke<void>("set_category", { transactionId, categoryId }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),
   databaseLocation: () => invoke<string>("database_location"),
+
+  plannerState: (month: string) => invoke<PlannerState>("planner_state", { month }),
+  saveIncome: (input: IncomeInput) => invoke<number>("save_income", { input }),
+  deleteIncome: (id: number) => invoke<void>("delete_income", { id }),
+  saveBill: (input: BillInput) => invoke<number>("save_bill", { input }),
+  deleteBill: (id: number) => invoke<void>("delete_bill", { id }),
+  setBillPaid: (billId: number, month: string, paid: boolean) =>
+    invoke<void>("set_bill_paid", { billId, month, paid }),
+  saveCard: (input: CardInput) => invoke<number>("save_card", { input }),
+  saveGoal: (input: GoalInput) => invoke<number>("save_goal", { input }),
+  cardUsage: (accountId: number, from: string, to: string) =>
+    invoke<number>("card_usage", { accountId, from, to }),
+  markNotificationsRead: (keys: string[]) =>
+    invoke<void>("mark_notifications_read", { keys }),
+  getSetting: (key: string) => invoke<string | null>("get_setting", { key }),
+  setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
 };

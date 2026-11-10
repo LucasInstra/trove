@@ -632,6 +632,7 @@ pub fn list_transactions(
     connection: &Connection,
     search: Option<&str>,
     month: Option<&str>,
+    account_id: Option<i64>,
     limit: i64,
 ) -> Result<Vec<TransactionRow>, String> {
     let pattern = search
@@ -655,15 +656,16 @@ pub fn list_transactions(
                     or t.merchant like ?1 collate nocase
                     or c.name like ?1 collate nocase)
                and (?2 is null or t.posted_on like ?2)
+               and (?3 is null or t.account_id = ?3)
                and t.deleted_at is null
                and a.deleted_at is null
              order by t.posted_on desc, t.id desc
-             limit ?3",
+             limit ?4",
         )
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![pattern, month_pattern, limit], |row| {
+        .query_map(params![pattern, month_pattern, account_id, limit], |row| {
             Ok(TransactionRow {
                 id: row.get(0)?,
                 account_id: row.get(1)?,
@@ -926,7 +928,7 @@ mod tests {
         assert_eq!(second.inserted, 0);
         assert_eq!(second.duplicates, 2);
 
-        let rows = list_transactions(&connection, None, None, 50).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 50).expect("should list");
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].merchant, "SALARIO");
 
@@ -960,7 +962,7 @@ mod tests {
         assert_eq!(series[2].expense_cents, 2390);
         assert_eq!(series[0].expense_cents, 0);
 
-        let empty_month = list_transactions(&connection, None, Some("2024-04"), 50).expect("should list");
+        let empty_month = list_transactions(&connection, None, Some("2024-04"), None, 50).expect("should list");
         assert!(empty_month.is_empty());
 
         let _ = std::fs::remove_file(&file);
@@ -990,11 +992,11 @@ mod tests {
 
         let mut connection = open(&path).expect("should open");
         import_ofx(&mut connection, &file).expect("should import");
-        let rows = list_transactions(&connection, None, None, 10).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 10).expect("should list");
         let categories = list_categories(&connection).expect("should list");
 
         set_category(&connection, rows[0].id, Some(categories[0].id)).expect("should categorize");
-        let after = list_transactions(&connection, Some(categories[0].name.as_str()), None, 10)
+        let after = list_transactions(&connection, Some(categories[0].name.as_str()), None, None, 10)
             .expect("should filter");
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].category_id, Some(categories[0].id));
@@ -1105,7 +1107,7 @@ mod tests {
 
         let mut connection = open(&path).expect("should open");
         import_ofx(&mut connection, &file).expect("should import");
-        let rows = list_transactions(&connection, None, None, 10).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 10).expect("should list");
         assert_eq!(rows.len(), 2);
 
         let expense = rows
@@ -1114,7 +1116,7 @@ mod tests {
             .expect("should have an expense");
         soft_delete_transaction(&connection, expense.id).expect("should delete");
 
-        let alive = list_transactions(&connection, None, None, 10).expect("should list");
+        let alive = list_transactions(&connection, None, None, None, 10).expect("should list");
         assert_eq!(alive.len(), 1, "a tombstone must not be listed");
         let totals = month_totals(&connection, "2024-03").expect("should total");
         assert_eq!(totals.expense_cents, 0, "a tombstone must not count");
@@ -1126,7 +1128,7 @@ mod tests {
         assert_eq!(third.inserted, 1);
         assert_eq!(third.duplicates, 1);
         assert_eq!(
-            list_transactions(&connection, None, None, 10)
+            list_transactions(&connection, None, None, None, 10)
                 .expect("should list")
                 .len(),
             2
