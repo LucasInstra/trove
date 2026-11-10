@@ -265,7 +265,7 @@ export function Mascot({
     const hit = hitRef.current;
     if (!canvas || !context || !hit) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    let dpr = window.devicePixelRatio || 1;
     canvas.width = canvasSize * dpr;
     canvas.height = canvasSize * dpr;
     let cancelled = false;
@@ -444,10 +444,11 @@ export function Mascot({
       // to follow or the mascot goes blurry.
       liveDpr = window.devicePixelRatio || 1;
       if (liveDpr !== dpr) {
-        canvas.width = canvasSize * liveDpr;
-        canvas.height = canvasSize * liveDpr;
+        dpr = liveDpr;
+        canvas.width = canvasSize * dpr;
+        canvas.height = canvasSize * dpr;
       }
-      context.setTransform(liveDpr, 0, 0, liveDpr, 0, 0);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
       const {
         shape,
         color,
