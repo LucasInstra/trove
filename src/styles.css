@@ -2973,7 +2973,7 @@ select.tx-category {
   padding: 16px 18px;
   border: 0;
   border-radius: 18px;
-  background: linear-gradient(145deg, var(--credit-start), var(--credit-end));
+  background: var(--card-color, var(--credit-start));
   color: #ffffff;
   text-align: left;
   cursor: pointer;
@@ -3927,4 +3927,10 @@ button.primary:hover:not(:disabled) {
 /* A light blue tile with a white letter is too weak in the dark theme. */
 [data-theme="dark"] .brand-mark {
   background: var(--primary);
+}
+
+
+/* Month tiles read as labels, so they are capitalised like the rest. */
+.upcoming-month {
+  text-transform: capitalize;
 }

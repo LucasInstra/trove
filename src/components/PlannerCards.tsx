@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Bill, CardMeta, Goal, Person, Share, TransactionRow } from "../lib/api";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
@@ -107,8 +107,8 @@ interface CardsProps {
   onEdit: (card: CardMeta) => void;
 }
 
-const CARD_WIDTH = 280;
 const CARD_GAP = 12;
+const CARD_FALLBACK = 280;
 
 export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
   const { lang, t } = useLanguage();
@@ -193,16 +193,24 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
   const lines = list ? invoiceLines(list, window) : [];
   const canScroll = cards.length > 1;
 
+  // The step comes from the card the browser laid out, so a change in the CSS
+  // width cannot desync the arrows from the snap points.
+  const cardStep = () => {
+    const track = trackRef.current;
+    const card = track?.querySelector<HTMLElement>(".credit-card");
+    return (card?.offsetWidth ?? CARD_FALLBACK) + CARD_GAP;
+  };
+
   const scrollToCard = (next: number) => {
     const clamped = Math.min(Math.max(0, next), cards.length - 1);
     setActiveCard(clamped);
-    trackRef.current?.scrollTo({ left: clamped * (CARD_WIDTH + CARD_GAP), behavior: "smooth" });
+    trackRef.current?.scrollTo({ left: clamped * cardStep(), behavior: "smooth" });
   };
 
   const onScroll = () => {
     const track = trackRef.current;
     if (!track) return;
-    const next = Math.round(track.scrollLeft / (CARD_WIDTH + CARD_GAP));
+    const next = Math.round(track.scrollLeft / cardStep());
     if (next !== activeCard) setActiveCard(next);
   };
 
@@ -264,6 +272,7 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
               key={meta.id}
               type="button"
               className="credit-card"
+              style={{ "--card-color": meta.color } as CSSProperties}
               onClick={() => onEdit(meta)}
             >
               <span className="credit-texture" aria-hidden="true" />
@@ -336,8 +345,12 @@ interface HousingProps {
 }
 
 export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const ratioPct = scope === "primary" ? plan.housingRatioPrimaryPct : plan.housingRatioPct;
+  // 36,8 in Portuguese, 36.8 in English.
+  const ratioText = ratioPct.toLocaleString(lang === "pt" ? "pt-BR" : "en-US", {
+    maximumFractionDigits: 1,
+  });
   const ratio = Math.min(100, ratioPct);
   const over = ratioPct > plan.ceilingPct;
   return (
@@ -356,7 +369,7 @@ export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
         <strong>{formatCents(plan.housingCents)}</strong>
         <span className={over ? "delta-line down" : "delta-line"}>
           <Icon name="check" size={14} />
-          {t("planner.housingRatio", { percent: ratioPct, ceiling: plan.ceilingPct })}
+          {t("planner.housingRatio", { percent: ratioText, ceiling: plan.ceilingPct })}
         </span>
       </div>
 
