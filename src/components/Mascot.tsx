@@ -9,6 +9,7 @@ import {
   pullTarget,
   type Point,
 } from "../lib/grab";
+import { featureDepth, pitchFor, pitchScale, projectFeature, yawFor } from "../lib/head";
 import type { KeeperLook } from "../lib/keeper";
 
 export type Mood = "idle" | "happy" | "worried" | "sleepy" | "celebrate";
@@ -271,12 +272,13 @@ function bodyOutline(shape: string, radius: number): Point[] {
   return points;
 }
 
-function pathFromPoints(points: Point[]): Path2D {
+function pathFromPoints(points: Point[], shear = 0): Path2D {
   const path = new Path2D();
   if (points.length === 0) return path;
-  path.moveTo(points[0].x, points[0].y);
+  path.moveTo(points[0].x + shear * points[0].y, points[0].y);
   for (let index = 1; index < points.length; index += 1) {
-    path.lineTo(points[index].x, points[index].y);
+    // A one line shear is what makes a flat silhouette lean with the yaw.
+    path.lineTo(points[index].x + shear * points[index].y, points[index].y);
   }
   path.closePath();
   return path;
@@ -393,14 +395,22 @@ export function Mascot({
       const rect = hitRect;
       const halfWidth = rect.width / 2 || 1;
       const halfHeight = rect.height / 2 || 1;
-      gaze.tx = Math.max(-1, Math.min(1, (event.clientX - (rect.left + halfWidth)) / halfWidth));
-      gaze.ty = Math.max(-1, Math.min(1, (event.clientY - (rect.top + halfHeight)) / halfHeight));
-      gaze.seen = (performance.now() - start) / 1000;
       const distance = Math.hypot(
         event.clientX - (rect.left + halfWidth),
         event.clientY - (rect.top + halfHeight),
       );
-      if (distance < rect.width * 0.85) hoverSeen = gaze.seen;
+      const near = distance < Math.max(rect.width * 2.5, 220);
+      if (!near) return;
+
+      // A fixed arena instead of the widget box: the same mouse distance turns
+      // the 34px pill and the 148px preview by the same amount.
+      const arena = Math.max(0.18 * window.innerWidth, 220);
+      const pointerDx = event.clientX - (rect.left + halfWidth);
+      const pointerDy = event.clientY - (rect.top + halfHeight);
+      gaze.tx = Math.tanh(pointerDx / arena);
+      gaze.ty = Math.tanh(pointerDy / arena);
+      gaze.seen = (performance.now() - start) / 1000;
+      hoverSeen = gaze.seen;
 
       if (!drag.active) return;
       const dx = event.clientX - drag.startX;
@@ -519,13 +529,14 @@ export function Mascot({
       // A flat mascot reads as a head turning when the face slides with the
       // gaze, the eyes slide further than the snout, and the far eye shrinks.
 
-      const turn = gaze.x;
-      // The whole body yaws; the face adds a small extra slide on top of it.
-      const bodyYaw = turn * radius * 0.06;
-      const bodySquash = 1 - 0.06 * Math.abs(turn);
-      const turnShift = turn * radius * 0.05;
-      const turnRise = gaze.y * radius * 0.05;
-      const turnSquash = 1 - 0.03 * Math.abs(turn);
+      const turn = reduceMotion ? 0 : gaze.x;
+      const yaw = yawFor(turn);
+      const pitch = pitchFor(reduceMotion ? 0 : gaze.y);
+      const bodyWidth = Math.cos(yaw);
+      const bodyHeight = pitchScale(pitch);
+      const faceRadius = radius * 0.95;
+      const project = (x: number, y: number) => projectFeature(x, y, faceRadius, yaw);
+      const shear = Math.sin(yaw) * 0.12;
 
       if (!seesPointer && !moodSleepy && !reduceMotion) {
         if (lookPhase < 0 && time > nextLook) {
@@ -614,8 +625,7 @@ export function Mascot({
         .translateSelf(rootX, rootY)
         .rotateSelf((rootRotation * 180) / Math.PI)
         .scaleSelf(1 / breathe, breathe)
-        .translateSelf(bodyYaw, turnRise)
-        .scaleSelf(bodySquash, 1);
+        .scaleSelf(bodyWidth, bodyHeight);
 
       context.save();
       context.translate(rootX, rootY);
@@ -646,8 +656,7 @@ export function Mascot({
 
       // A head yaw reads as the silhouette narrowing and shifting, not as a
       // face sliding over a static body.
-      context.translate(bodyYaw, turnRise);
-      context.scale(bodySquash, 1);
+      context.scale(bodyWidth, bodyHeight);
 
       const bodyShade = shade(color, 0.82, 1);
 
@@ -662,7 +671,7 @@ export function Mascot({
         pullY.value,
         radius,
       );
-      const body = outline.length > 0 ? pathFromPoints(deformed) : bodyPath(shape, radius);
+      const body = outline.length > 0 ? pathFromPoints(deformed, shear) : bodyPath(shape, radius);
 
       const at = (angle: number): Point => {
         if (deformed.length === 0) {
@@ -670,7 +679,8 @@ export function Mascot({
         }
         const wrapped = ((angle % TAU) + TAU) % TAU;
         const index = Math.round((wrapped / TAU) * deformed.length) % deformed.length;
-        return deformed[index];
+        const point = deformed[index];
+        return { x: point.x + shear * point.y, y: point.y };
       };
       const move = (x: number, y: number) =>
         deformPoint({ x, y }, drag.anchorX, drag.anchorY, pullX.value, pullY.value, radius);
@@ -687,11 +697,12 @@ export function Mascot({
         const wrapped = ((angle % TAU) + TAU) % TAU;
         const index = Math.round((wrapped / TAU) * outline.length) % outline.length;
         const point = outline[index];
-        return { x: point.x * scale, y: point.y * scale };
+        return { x: point.x * scale + shear * point.y * scale, y: point.y * scale };
       };
       const place = (angle: number, scale = 1): Point => {
         const rest = restAt(angle, scale);
-        return move(rest.x, rest.y);
+        const projected = project(rest.x, rest.y);
+        return move(projected.x, projected.y);
       };
       // Outward normal of the deformed surface, so a decoration stays glued to
       // the silhouette instead of keeping the angle it had at rest.
@@ -734,13 +745,14 @@ export function Mascot({
       if (ears) {
         for (const side of [-1, 1]) {
           const angle = -Math.PI / 2 + side * 0.62;
-          const edge = at(angle);
-          const anchor = { x: edge.x + turnShift, y: edge.y };
-          // The ear on the far side loses size, which is what sells the turn.
-          const depth = 1 - 0.22 * Math.max(0, -side * turn);
+          const rest = restAt(angle);
+          const projected = project(rest.x, rest.y);
+          const anchor = move(projected.x, projected.y);
+          const azimuth = Math.asin(Math.max(-1, Math.min(1, rest.x / faceRadius)));
+          const depth = 0.78 + 0.22 * featureDepth(azimuth, yaw);
           context.save();
           context.translate(anchor.x, anchor.y);
-          context.rotate(normalAt(angle) + Math.PI / 2 + turn * side * 0.12);
+          context.rotate(normalAt(angle) + Math.PI / 2 + yaw * side * 0.3);
           context.scale(depth, depth);
           context.beginPath();
           context.moveTo(-radius * 0.24, radius * 0.08);
@@ -776,8 +788,6 @@ export function Mascot({
       context.restore();
 
       context.save();
-      context.translate(turnShift, 0);
-      context.scale(turnSquash, 1);
 
       const sizeScale =
         (eyeSize === "small" ? 0.82 : eyeSize === "large" ? 1.22 : 1) * (hovering ? 1.035 : 1);
@@ -798,7 +808,8 @@ export function Mascot({
         happy > 0.5 && (eyeStyle === "bars" || eyeStyle === "dots" || eyeStyle === "sleepy");
       const happySpread = happyArcs ? radius * 0.06 * Math.min(1, (happy - 0.5) / 0.5) : 0;
       const eyeOffset = Math.max(radius * spacingScale, baseHalf + radius * minGap) + happySpread;
-      const eyeY = -radius * 0.06 + (sadEyes ? radius * 0.02 : 0);
+      const eyeY =
+        -radius * 0.06 + Math.sin(pitch) * radius * 0.2 + (sadEyes ? radius * 0.02 : 0);
 
       for (const side of [-1, 1]) {
         const style = eyeStyle;
@@ -809,12 +820,15 @@ export function Mascot({
         const eyeX = side * eyeOffset;
         const closed = winking && side === -1;
         const drawArc = closed || style === "arcs";
-        const position = move(eyeX, eyeY - eyeLift);
+        const projected = project(eyeX, eyeY);
+        const position = move(projected.x, projected.y - eyeLift);
+        const azimuth = Math.asin(Math.max(-1, Math.min(1, eyeX / faceRadius)));
+        const eyeDepth = 0.82 + 0.18 * featureDepth(azimuth, yaw);
 
         context.save();
         context.translate(position.x, position.y);
         context.rotate(sadEyes ? side * 0.14 : side * tiltAngle);
-        context.scale(1, Math.max(0.08, eyeOpen));
+        context.scale(eyeDepth, Math.max(0.08, eyeOpen));
 
         if (sadEyes) {
           const half = radius * 0.23;
@@ -853,7 +867,8 @@ export function Mascot({
       if (blush) {
         context.fillStyle = "rgba(226, 110, 138, 0.3)";
         for (const side of [-1, 1]) {
-          const position = move(side * radius * 0.52, radius * 0.2);
+          const projected = project(side * radius * 0.52, radius * 0.2 + Math.sin(pitch) * radius * 0.08);
+          const position = move(projected.x, projected.y);
           context.beginPath();
           context.ellipse(position.x, position.y, radius * 0.115, radius * 0.065, 0, 0, TAU);
           context.fill();
@@ -861,15 +876,15 @@ export function Mascot({
       }
 
       if (snout) {
-        const snoutY = radius * 0.4;
-        const muzzleLead = turn * radius * 0.035;
-        const centerPoint = move(muzzleLead, snoutY);
+        const snoutY = radius * 0.4 + Math.sin(pitch) * radius * 0.1;
+        const snoutProjected = project(0, snoutY);
+        const centerPoint = move(snoutProjected.x, snoutProjected.y);
         context.fillStyle = lighten(color, 0.3);
         context.beginPath();
         context.ellipse(
           centerPoint.x,
           centerPoint.y,
-          radius * 0.36 * (1 - 0.12 * Math.abs(turn)),
+          radius * 0.36 * (0.9 + 0.1 * snoutProjected.depth),
           radius * 0.25,
           0,
           0,
@@ -882,12 +897,13 @@ export function Mascot({
 
         context.fillStyle = shade(color, 0.4, 1);
         for (const side of [-1, 1]) {
-          const nostril = move(side * radius * 0.1 + muzzleLead, snoutY);
+          const nostrilProjected = project(side * radius * 0.1, snoutY);
+          const nostril = move(nostrilProjected.x, nostrilProjected.y);
           context.beginPath();
           context.ellipse(
             nostril.x,
             nostril.y,
-            radius * 0.042 * (1 - 0.12 * Math.abs(turn)),
+            radius * 0.042 * (0.9 + 0.1 * nostrilProjected.depth),
             radius * 0.055,
             0,
             0,
@@ -896,6 +912,23 @@ export function Mascot({
           context.fill();
         }
       }
+
+      if (feeling === "celebrate") {
+        context.fillStyle = "rgba(255,255,255,0.9)";
+        for (const [x, y, scale] of [
+          [-0.9, -0.9, 0.14],
+          [0.92, -0.66, 0.1],
+        ]) {
+          const position = move(radius * x, radius * y);
+          context.save();
+          context.translate(position.x, position.y);
+          sparklePath(context, radius * scale * 2, radius * scale * 2);
+          context.fill();
+          context.restore();
+        }
+      }
+
+      context.restore();
 
       // Feet come last so they sit in front of the belly.
       context.fillStyle = bodyShade;
@@ -918,21 +951,6 @@ export function Mascot({
         context.moveTo(anchor.x - radius * 0.015, anchor.y - radius * 0.05);
         context.lineTo(anchor.x - radius * 0.015, anchor.y + radius * 0.05);
         context.stroke();
-      }
-
-      if (feeling === "celebrate") {
-        context.fillStyle = "rgba(255,255,255,0.9)";
-        for (const [x, y, scale] of [
-          [-0.9, -0.9, 0.14],
-          [0.92, -0.66, 0.1],
-        ]) {
-          const position = move(radius * x, radius * y);
-          context.save();
-          context.translate(position.x, position.y);
-          sparklePath(context, radius * scale * 2, radius * scale * 2);
-          context.fill();
-          context.restore();
-        }
       }
 
       context.restore();
