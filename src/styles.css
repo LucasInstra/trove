@@ -2865,3 +2865,8 @@ select.tx-category {
 .legend-share {
   font-size: 11.5px;
 }
+
+
+.card-head .muted {
+  white-space: nowrap;
+}

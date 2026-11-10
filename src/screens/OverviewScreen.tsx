@@ -154,6 +154,9 @@ export function OverviewScreen({
             </div>
             <span className="muted">{t("ledger.spending")}</span>
           </header>
+          {series.every((point) => point.expenseCents === 0) ? (
+            <p className="card-empty">{t("ledger.noSpending")}</p>
+          ) : (
           <div className="bars">
             {series.slice(-6).map((point) => (
               <button
@@ -191,6 +194,7 @@ export function OverviewScreen({
               </button>
             ))}
           </div>
+          )}
         </article>
         <article className="card">
           <header className="card-head">
