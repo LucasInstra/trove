@@ -37,6 +37,7 @@ import { planMonth } from "./domain/projection";
 import { buildNotifications } from "./domain/notifications";
 import { loadLook, saveLook, type KeeperLook } from "./lib/keeper";
 import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
+import { SHOW_KEEPER } from "./lib/features";
 import type { Mood } from "./components/Mascot";
 import { BUILD_LABEL } from "./lib/build";
 
@@ -339,21 +340,23 @@ export function App() {
 
           <div className="rail-spacer" />
 
-          <div className="keeper">
-            <Mascot
-              look={look}
-              mood={keeper.mood}
-              size={58}
-              animate={!panelOpen}
-              hint={t("keeper.hint")}
-            />
-            <div className="keeper-copy">
-              <p className="keeper-line">{keeper.line}</p>
-              <button type="button" className="keeper-customize" onClick={() => setPanelOpen(true)}>
-                {t("common.customize")}
-              </button>
+          {SHOW_KEEPER ? (
+            <div className="keeper">
+              <Mascot
+                look={look}
+                mood={keeper.mood}
+                size={58}
+                animate={!panelOpen}
+                hint={t("keeper.hint")}
+              />
+              <div className="keeper-copy">
+                <p className="keeper-line">{keeper.line}</p>
+                <button type="button" className="keeper-customize" onClick={() => setPanelOpen(true)}>
+                  {t("common.customize")}
+                </button>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
 
@@ -471,7 +474,7 @@ export function App() {
         </main>
       </div>
 
-      {panelOpen ? (
+      {SHOW_KEEPER && panelOpen ? (
         <KeeperPanel look={look} onChange={updateLook} onClose={() => setPanelOpen(false)} />
       ) : null}
 

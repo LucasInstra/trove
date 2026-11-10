@@ -8,6 +8,7 @@ import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../comp
 import { TransactionsPanel } from "../components/TransactionsPanel";
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
+import { SHOW_KEEPER } from "../lib/features";
 import type { MonthPlan } from "../domain/projection";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -140,9 +141,11 @@ export function OverviewScreen({
             ) : null}
           </div>
 
-          <div className="account-figure" aria-hidden="true">
-            <Mascot look={look} size={112} animate={false} boopable={false} fps={30} />
-          </div>
+          {SHOW_KEEPER ? (
+            <div className="account-figure" aria-hidden="true">
+              <Mascot look={look} size={112} animate={false} boopable={false} fps={30} />
+            </div>
+          ) : null}
 
           <CompositionBar parts={plan.composition} format={formatCents} />
 

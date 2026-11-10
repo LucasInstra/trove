@@ -178,7 +178,7 @@ p {
 
 .shell {
   display: grid;
-  grid-template-columns: 232px 1fr;
+  grid-template-columns: 200px 1fr;
   flex: 1;
   min-height: 0;
 }
@@ -199,10 +199,13 @@ p {
 
 .rail-foot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px;
   color: var(--faint);
-  font-size: 12px;
-  padding: 0 6px;
+  font-size: 11.5px;
+  padding: 0 4px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
