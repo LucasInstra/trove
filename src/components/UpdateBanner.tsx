@@ -1,12 +1,9 @@
+import { useLanguage } from "../lib/language";
 import type { UpdaterState } from "../lib/updater";
 
-export function UpdateBanner({
-  updater,
-  onOpen,
-}: {
-  updater: UpdaterState;
-  onOpen: () => void;
-}) {
+export function UpdateBanner({ updater, onOpen }: { updater: UpdaterState; onOpen: () => void }) {
+  const { t } = useLanguage();
+
   const visible =
     updater.status === "available" ||
     updater.status === "downloading" ||
@@ -16,10 +13,12 @@ export function UpdateBanner({
 
   const label =
     updater.status === "downloading"
-      ? `downloading ${updater.progress >= 0 ? `${updater.progress}%` : "..."}`
+      ? updater.progress >= 0
+        ? t("update.downloading", { percent: updater.progress })
+        : t("update.downloadingPlain")
       : updater.status === "ready"
-        ? "restarting"
-        : `version ${updater.version} available`;
+        ? t("update.restarting")
+        : t("update.available", { version: updater.version });
 
   return (
     <button type="button" className="update-banner" onClick={onOpen}>

@@ -1,3 +1,5 @@
+import type { Lang } from "./i18n";
+
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export function formatCents(cents: number): string {
@@ -26,33 +28,61 @@ export function shiftMonth(month: string, delta: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+const MONTHS: Record<Lang, string[]> = {
+  en: [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ],
+  pt: [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ],
+};
 
-const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const SHORT_MONTHS: Record<Lang, string[]> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  pt: ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
+};
 
-export function monthLabel(month: string): string {
+export function monthLabel(month: string, lang: Lang = "en"): string {
   const [year, value] = month.split("-");
-  const name = MONTHS[Number(value) - 1];
+  const name = MONTHS[lang][Number(value) - 1];
   if (!name || !year) return month;
-  return `${name} ${year}`;
+  return lang === "pt" ? `${name} de ${year}` : `${name} ${year}`;
 }
 
-export function monthShort(month: string): string {
+export function monthShort(month: string, lang: Lang = "en"): string {
   const [, value] = month.split("-");
-  return SHORT_MONTHS[Number(value) - 1] ?? month;
+  return SHORT_MONTHS[lang][Number(value) - 1] ?? month;
+}
+
+export function dayLabel(iso: string, lang: Lang = "en"): string {
+  const date = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(lang === "pt" ? "pt-BR" : "en-GB", {
+    day: "numeric",
+    month: "long",
+  });
 }
 
 export function fileName(path: string): string {
@@ -60,10 +90,10 @@ export function fileName(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, lang: Lang = "en"): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString("pt-BR", {
+  return date.toLocaleString(lang === "pt" ? "pt-BR" : "en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import {
-  EYE_LABELS,
   KEEPER_COLORS,
   KEEPER_DEFAULT,
   KEEPER_EYE_COLORS,
@@ -9,12 +8,9 @@ import {
   KEEPER_EYE_SPACINGS,
   KEEPER_EYE_TILTS,
   KEEPER_SHAPES,
-  SHAPE_LABELS,
-  SIZE_LABELS,
-  SPACING_LABELS,
-  TILT_LABELS,
   type KeeperLook,
 } from "../lib/keeper";
+import { useLanguage } from "../lib/language";
 import { Mascot } from "./Mascot";
 
 interface KeeperPanelProps {
@@ -24,14 +20,15 @@ interface KeeperPanelProps {
 }
 
 const TOGGLES: Array<{ key: keyof KeeperLook; label: string }> = [
-  { key: "snout", label: "Snout" },
-  { key: "ears", label: "Ears" },
-  { key: "slot", label: "Coin slot" },
-  { key: "tail", label: "Curly tail" },
-  { key: "blush", label: "Blush" },
+  { key: "snout", label: "panel.snout" },
+  { key: "ears", label: "panel.ears" },
+  { key: "tail", label: "panel.tail" },
+  { key: "blush", label: "panel.blush" },
 ];
 
 export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
+  const { t } = useLanguage();
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -49,16 +46,24 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
         className="keeper-sheet"
         role="dialog"
         aria-modal="true"
-        aria-label="Customize the keeper"
+        aria-label={t("panel.title")}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="keeper-sheet-head">
           <div>
-            <h2>Your keeper</h2>
-            <p className="muted">He guards the trove. Make him yours.</p>
+            <h2>{t("panel.title")}</h2>
+            <p className="muted">{t("panel.subtitle")}</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            >
               <path d="m6 6 12 12M18 6 6 18" />
             </svg>
           </button>
@@ -69,7 +74,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
         </div>
 
         <section className="keeper-section">
-          <h3>Body</h3>
+          <h3>{t("panel.body")}</h3>
           <div className="chips">
             {KEEPER_SHAPES.map((shape) => (
               <button
@@ -78,7 +83,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                 className={look.shape === shape ? "chip active" : "chip"}
                 onClick={() => set("shape", shape)}
               >
-                {SHAPE_LABELS[shape]}
+                {t(`shape.${shape}`)}
               </button>
             ))}
           </div>
@@ -105,7 +110,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
         </section>
 
         <section className="keeper-section">
-          <h3>Eyes</h3>
+          <h3>{t("panel.eyes")}</h3>
           <div className="chips">
             {KEEPER_EYES.map((eye) => (
               <button
@@ -114,14 +119,14 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                 className={look.eyeStyle === eye ? "chip active" : "chip"}
                 onClick={() => set("eyeStyle", eye)}
               >
-                {EYE_LABELS[eye]}
+                {t(`eye.${eye}`)}
               </button>
             ))}
           </div>
 
           <div className="keeper-rows">
             <div className="keeper-row">
-              <span className="keeper-row-label">Size</span>
+              <span className="keeper-row-label">{t("panel.size")}</span>
               <div className="segmented">
                 {KEEPER_EYE_SIZES.map((size) => (
                   <button
@@ -130,13 +135,13 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                     className={look.eyeSize === size ? "active" : ""}
                     onClick={() => set("eyeSize", size)}
                   >
-                    {SIZE_LABELS[size]}
+                    {t(`size.${size}`)}
                   </button>
                 ))}
               </div>
             </div>
             <div className="keeper-row">
-              <span className="keeper-row-label">Spacing</span>
+              <span className="keeper-row-label">{t("panel.spacing")}</span>
               <div className="segmented">
                 {KEEPER_EYE_SPACINGS.map((spacing) => (
                   <button
@@ -145,13 +150,13 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                     className={look.eyeSpacing === spacing ? "active" : ""}
                     onClick={() => set("eyeSpacing", spacing)}
                   >
-                    {SPACING_LABELS[spacing]}
+                    {t(`spacing.${spacing}`)}
                   </button>
                 ))}
               </div>
             </div>
             <div className="keeper-row">
-              <span className="keeper-row-label">Tilt</span>
+              <span className="keeper-row-label">{t("panel.tilt")}</span>
               <div className="segmented">
                 {KEEPER_EYE_TILTS.map((tilt) => (
                   <button
@@ -160,13 +165,13 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                     className={look.eyeTilt === tilt ? "active" : ""}
                     onClick={() => set("eyeTilt", tilt)}
                   >
-                    {TILT_LABELS[tilt]}
+                    {t(`tilt.${tilt}`)}
                   </button>
                 ))}
               </div>
             </div>
             <div className="keeper-row">
-              <span className="keeper-row-label">Ink</span>
+              <span className="keeper-row-label">{t("panel.ink")}</span>
               <div className="swatches small">
                 {KEEPER_EYE_COLORS.map((color) => (
                   <button
@@ -188,7 +193,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
         </section>
 
         <section className="keeper-section">
-          <h3>Details</h3>
+          <h3>{t("panel.details")}</h3>
           <div className="toggles">
             {TOGGLES.map(({ key, label }) => (
               <button
@@ -199,7 +204,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                 className={look[key] ? "toggle on" : "toggle"}
                 onClick={() => set(key, !look[key] as KeeperLook[typeof key])}
               >
-                <span>{label}</span>
+                <span>{t(label)}</span>
                 <span className="toggle-track">
                   <span className="toggle-knob" />
                 </span>
@@ -210,10 +215,10 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
 
         <footer className="keeper-sheet-foot">
           <button type="button" onClick={() => onChange(KEEPER_DEFAULT)}>
-            Reset look
+            {t("panel.reset")}
           </button>
           <button type="button" className="primary" onClick={onClose}>
-            Done
+            {t("panel.done")}
           </button>
         </footer>
       </aside>

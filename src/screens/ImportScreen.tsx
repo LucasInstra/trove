@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
 import { Mascot } from "../components/Mascot";
 import { api, type ImportReport, type ImportRow } from "../lib/api";
-import type { KeeperLook } from "../lib/keeper";
 import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
+import { useLanguage } from "../lib/language";
+import type { KeeperLook } from "../lib/keeper";
 
 export function ImportScreen({
   look,
@@ -14,6 +15,7 @@ export function ImportScreen({
   look: KeeperLook;
   onImported: () => void;
 }) {
+  const { lang, t } = useLanguage();
   const [reports, setReports] = useState<ImportReport[]>([]);
   const [history, setHistory] = useState<ImportRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -30,23 +32,26 @@ export function ImportScreen({
     refreshHistory();
   }, [refreshHistory]);
 
-  const importPaths = useCallback(async (paths: string[]) => {
-    if (paths.length === 0) return;
-    setBusy(true);
-    setError("");
-    try {
-      const next: ImportReport[] = [];
-      for (const path of paths) {
-        next.push(await api.importOfx(path));
+  const importPaths = useCallback(
+    async (paths: string[]) => {
+      if (paths.length === 0) return;
+      setBusy(true);
+      setError("");
+      try {
+        const next: ImportReport[] = [];
+        for (const path of paths) {
+          next.push(await api.importOfx(path));
+        }
+        setReports(next);
+        refreshHistory();
+      } catch (problem) {
+        setError(problem instanceof Error ? problem.message : String(problem));
+      } finally {
+        setBusy(false);
       }
-      setReports(next);
-      refreshHistory();
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    } finally {
-      setBusy(false);
-    }
-  }, [refreshHistory]);
+    },
+    [refreshHistory],
+  );
 
   useEffect(() => {
     const unlisten = listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
@@ -72,10 +77,10 @@ export function ImportScreen({
 
   return (
     <section className="screen">
-      <header className="screen-head">
+      <header className="topbar">
         <div>
-          <h1>Import</h1>
-          <p className="sub">Bring in the statement your bank already gives you.</p>
+          <p className="eyebrow">{t("import.eyebrow")}</p>
+          <h1>{t("import.title")}</h1>
         </div>
       </header>
 
@@ -84,34 +89,32 @@ export function ImportScreen({
           <span className="drop-icon">
             <Icon name="import" size={22} />
           </span>
-          <strong>{busy ? "Reading the file..." : "Drop your statement here"}</strong>
-          <span className="muted">
-            or click to choose. OFX 1.x and 2.x, as many files as you want.
-          </span>
+          <strong>{busy ? t("import.reading") : t("import.dropTitle")}</strong>
+          <span className="muted">{t("import.dropDesc")}</span>
         </button>
 
         <aside className="card how">
-          <h2>How it works</h2>
+          <h2>{t("import.howTitle")}</h2>
           <ol className="steps">
             <li>
               <span className="step-number">1</span>
               <div>
-                <strong>Download the OFX file</strong>
-                <span className="muted">Every Brazilian bank offers it, usually under "export statement".</span>
+                <strong>{t("import.step1Title")}</strong>
+                <span className="muted">{t("import.step1Desc")}</span>
               </div>
             </li>
             <li>
               <span className="step-number">2</span>
               <div>
-                <strong>Drop it here</strong>
-                <span className="muted">The account, dates and amounts come from the file itself.</span>
+                <strong>{t("import.step2Title")}</strong>
+                <span className="muted">{t("import.step2Desc")}</span>
               </div>
             </li>
             <li>
               <span className="step-number">3</span>
               <div>
-                <strong>Import again whenever you want</strong>
-                <span className="muted">The same entry is never stored twice, even if the periods overlap.</span>
+                <strong>{t("import.step3Title")}</strong>
+                <span className="muted">{t("import.step3Desc")}</span>
               </div>
             </li>
           </ol>
@@ -121,8 +124,8 @@ export function ImportScreen({
       {history.length > 0 ? (
         <article className="card">
           <header className="card-head">
-            <h2>Recent imports</h2>
-            <span className="muted">every number on the ledger comes from one of these</span>
+            <h2>{t("import.historyTitle")}</h2>
+            <span className="muted">{t("import.historyDesc")}</span>
           </header>
           <ul className="history">
             {history.map((row) => (
@@ -132,9 +135,12 @@ export function ImportScreen({
                   {fileName(row.path)}
                 </span>
                 <span className="muted small">{row.accountName}</span>
-                <span className="muted small">{formatDateTime(row.importedAt)}</span>
+                <span className="muted small">{formatDateTime(row.importedAt, lang)}</span>
                 <span className="history-count">
-                  {row.inserted} new · {row.duplicates} repeated
+                  {t("import.historyLine", {
+                    inserted: row.inserted,
+                    duplicates: row.duplicates,
+                  })}
                 </span>
               </li>
             ))}
@@ -154,18 +160,16 @@ export function ImportScreen({
             <div className="report-title">
               <Mascot look={look} mood="celebrate" size={56} />
               <div>
-                <h2>
-                  {inserted} new {inserted === 1 ? "entry" : "entries"}
-                </h2>
+                <h2>{t("import.reportTitle", { count: inserted })}</h2>
                 <p className="muted">
                   {duplicates > 0
-                    ? `${duplicates} were already in the ledger and were skipped.`
-                    : "Nothing was duplicated."}
+                    ? t("import.reportSkipped", { count: duplicates })
+                    : t("import.reportNone")}
                 </p>
               </div>
             </div>
             <button type="button" className="primary" onClick={onImported}>
-              See ledger
+              {t("import.seeLedger")}
             </button>
           </div>
 
@@ -178,14 +182,19 @@ export function ImportScreen({
                 <div className="report-main">
                   <strong>{report.accountName}</strong>
                   <span className="muted">
-                    {report.inserted} new, {report.duplicates} repeated
+                    {t("import.reportLine", {
+                      inserted: report.inserted,
+                      duplicates: report.duplicates,
+                    })}
                   </span>
                 </div>
                 {report.ledgerBalanceCents !== null ? (
                   <div className="right">
                     <strong>{formatCents(report.ledgerBalanceCents)}</strong>
                     <span className="muted small">
-                      balance on {report.ledgerBalanceOn ? formatDate(report.ledgerBalanceOn) : ""}
+                      {t("import.balanceOn", {
+                        date: report.ledgerBalanceOn ? formatDate(report.ledgerBalanceOn) : "",
+                      })}
                     </span>
                   </div>
                 ) : null}

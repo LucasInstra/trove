@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { Icon, type IconName } from "./components/Icons";
 import { KeeperPanel } from "./components/KeeperPanel";
 import { Mascot, type Mood } from "./components/Mascot";
 import {
   api,
+  type Account,
   type Category,
   type CategoryTotal,
   type MonthPoint,
@@ -13,6 +14,8 @@ import {
 } from "./lib/api";
 import { BUILD_LABEL } from "./lib/build";
 import { currentMonth, formatCents, monthLabel, shiftMonth } from "./lib/format";
+import { useLanguage } from "./lib/language";
+import type { Translate } from "./lib/i18n";
 import { loadLook, saveLook, type KeeperLook } from "./lib/keeper";
 import { useUpdater } from "./lib/updater";
 import { ImportScreen } from "./screens/ImportScreen";
@@ -21,37 +24,39 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 
 type Route = "ledger" | "import" | "settings";
 
-const NAV: Array<{ route: Route; label: string; icon: IconName }> = [
-  { route: "ledger", label: "Ledger", icon: "ledger" },
-  { route: "import", label: "Import", icon: "import" },
-  { route: "settings", label: "Settings", icon: "settings" },
+const NAV: Array<{ route: Route; icon: IconName }> = [
+  { route: "ledger", icon: "ledger" },
+  { route: "import", icon: "import" },
+  { route: "settings", icon: "settings" },
 ];
 
 function describeMonth(
   totals: MonthTotals | null,
   month: string | null,
+  lang: "en" | "pt",
+  t: Translate,
 ): { mood: Mood; line: string } {
-  if (!month) return { mood: "sleepy", line: "Waking up..." };
+  if (!month) return { mood: "sleepy", line: t("keeper.waking") };
+  const label = monthLabel(month, lang);
   if (!totals || totals.transactionCount === 0) {
-    return { mood: "sleepy", line: `Nothing recorded for ${monthLabel(month)} yet.` };
+    return { mood: "sleepy", line: t("keeper.nothing", { month: label }) };
   }
   const net = totals.incomeCents - totals.expenseCents;
   if (totals.expenseCents === 0 && totals.incomeCents > 0) {
-    return { mood: "happy", line: `No spending in ${monthLabel(month)}. Rare sight.` };
+    return { mood: "happy", line: t("keeper.noSpending", { month: label }) };
   }
   if (net < 0) {
-    return {
-      mood: "worried",
-      line: `You spent ${formatCents(-net)} more than you made this month.`,
-    };
+    return { mood: "worried", line: t("keeper.over", { amount: formatCents(-net) }) };
   }
-  return { mood: "happy", line: `You kept ${formatCents(net)} this month.` };
+  return { mood: "happy", line: t("keeper.kept", { amount: formatCents(net) }) };
 }
 
 export function App() {
+  const { lang, t } = useLanguage();
   const [route, setRoute] = useState<Route>("ledger");
   const [month, setMonth] = useState<string | null>(null);
   const [rows, setRows] = useState<TransactionRow[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [totals, setTotals] = useState<MonthTotals | null>(null);
   const [byCategory, setByCategory] = useState<CategoryTotal[]>([]);
@@ -60,7 +65,10 @@ export function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const updater = useUpdater();
-  const keeper = describeMonth(totals, month);
+  const keeper = useMemo(
+    () => describeMonth(totals, month, lang, t),
+    [totals, month, lang, t],
+  );
   const [look, setLook] = useState<KeeperLook>(() => loadLook());
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -71,15 +79,17 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string) => {
     try {
-      const [nextRows, nextCategories, nextTotals, nextByCategory, nextSeries] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries] =
         await Promise.all([
           api.transactions(term, at),
+          api.accounts(),
           api.categories(),
           api.monthTotals(at),
           api.categoryTotals(at),
           api.monthSeries(at, 6),
         ]);
       setRows(nextRows);
+      setAccounts(nextAccounts);
       setCategories(nextCategories);
       setTotals(nextTotals);
       setByCategory(nextByCategory);
@@ -139,12 +149,12 @@ export function App() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      <aside className="rail">
         <div className="brand">
           <span className="brand-mark">t</span>
           <div>
             <strong>trove</strong>
-            <span>local finance</span>
+            <span>{t("app.tagline")}</span>
           </div>
         </div>
 
@@ -157,31 +167,27 @@ export function App() {
               onClick={() => setRoute(item.route)}
             >
               <Icon name={item.icon} size={17} />
-              {item.label}
+              {t(`nav.${item.route}`)}
             </button>
           ))}
         </nav>
 
-        <div className="sidebar-spacer" />
+        <div className="rail-spacer" />
 
         <div className="keeper">
-          <Mascot look={look} mood={keeper.mood} size={66} />
+          <Mascot look={look} mood={keeper.mood} size={58} />
           <div className="keeper-copy">
             <p className="keeper-line">{keeper.line}</p>
-            <button
-              type="button"
-              className="keeper-customize"
-              onClick={() => setPanelOpen(true)}
-            >
-              Customize
+            <button type="button" className="keeper-customize" onClick={() => setPanelOpen(true)}>
+              {t("common.customize")}
             </button>
           </div>
         </div>
 
         <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
 
-        <div className="sidebar-foot">
-          <span>version {updater.currentVersion || "0.1.0"}</span>
+        <div className="rail-foot">
+          <span>{t("common.version", { value: updater.currentVersion || "0.1.0" })}</span>
           <span>{BUILD_LABEL}</span>
         </div>
       </aside>
@@ -195,12 +201,13 @@ export function App() {
 
         {route === "ledger" && month ? (
           <LedgerScreen
+            look={look}
             rows={rows}
+            accounts={accounts}
             categories={categories}
             totals={totals}
             byCategory={byCategory}
             series={series}
-            look={look}
             month={month}
             search={search}
             loading={loading}
@@ -208,6 +215,7 @@ export function App() {
             onMonth={onMonth}
             onCategory={onCategory}
             onImport={() => setRoute("import")}
+            onSettings={() => setRoute("settings")}
           />
         ) : null}
 

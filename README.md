@@ -29,7 +29,9 @@ A piggy bank with a face guards the trove. It is drawn on a canvas, so the body 
 
 The mood follows the month: happy when you spend less than you earn, worried when the month closes negative, sleepy when there is nothing imported yet, and celebrating when a statement lands.
 
-Click **Customize** in the sidebar to change the shape, the colour and the eyes (style, size, spacing, tilt and ink), and to turn the snout, ears, coin slot, curl tail and blush on or off. The look is stored locally.
+When it looks to the side the whole head yaws: the body narrows, the snout leads slightly and the far ear shrinks, so the parts move as one instead of the face sliding over a still body.
+
+Click **Customize** in the sidebar to change the shape, the colour and the eyes (style, size, spacing, tilt and ink), and to turn the snout, ears, curl tail and blush on or off. The look is stored locally.
 
 ## What it has today (0.1.0)
 
@@ -41,6 +43,7 @@ Click **Customize** in the sidebar to change the shape, the colour and the eyes 
 - **Import history**: every file that ever entered the ledger, with how many entries it added and how many were already there.
 - **Clean merchant names**: `IFD*IFOOD SAO PAULO` becomes `IFOOD SAO PAULO`.
 - **In, out and net** for the month, computed from the local database.
+- **English and Portuguese**, switched in Settings and remembered between launches.
 - **Signed auto-update**, checked on launch and available as a manual button in Settings.
 
 ## What it does not have yet

@@ -294,7 +294,7 @@ export interface MascotProps {
 
 /**
  * The keeper: a piggy bank with a face. Canvas, because the body has to
- * deform locally when grabbed; the coin slot, snout, ears and tail are what
+ * deform locally when grabbed; the snout, ears and tail are what
  * make it read as a vault animal instead of a generic blob.
  */
 export function Mascot({
@@ -310,7 +310,7 @@ export function Mascot({
   const hitRef = useRef<HTMLDivElement>(null);
   const moodRef = useRef<Mood>(mood);
   const boopCallback = useRef(onBoop);
-  const canvasPadding = 0.6;
+  const canvasPadding = 0.4;
   const canvasSize = Math.round(size * (1 + canvasPadding));
 
   moodRef.current = mood;
@@ -326,7 +326,6 @@ export function Mascot({
     eyeColor,
     snout,
     ears,
-    slot,
     tail,
     blush,
   } = look;
@@ -487,16 +486,20 @@ export function Mascot({
       const sway = Math.sin(time * 0.9) * radius * 0.022;
       const tilt = Math.sin(time * 2.1) * eased.tiltAmp;
       const moodBob = moodHappy ? Math.abs(Math.sin(time * 5.5)) * radius * 0.035 : 0;
-      const happy = Math.max(0, Math.min(1, (happyUntil - time) / 0.5), moodHappy ? 1 : 0);
+      // Only the boop squints the eyes; the chosen eye style always wins.
+      const happy = Math.max(0, Math.min(1, (happyUntil - time) / 0.5));
       const winking = winkUntil > time;
       const seesPointer = time - gaze.seen < 2.5;
       // A flat mascot reads as a head turning when the face slides with the
       // gaze, the eyes slide further than the snout, and the far eye shrinks.
 
       const turn = gaze.x;
-      const turnShift = turn * radius * 0.14;
+      // The whole body yaws; the face adds a small extra slide on top of it.
+      const bodyYaw = turn * radius * 0.06;
+      const bodySquash = 1 - 0.06 * Math.abs(turn);
+      const turnShift = turn * radius * 0.05;
       const turnRise = gaze.y * radius * 0.05;
-      const turnSquash = 1 - 0.15 * Math.abs(turn);
+      const turnSquash = 1 - 0.03 * Math.abs(turn);
 
       if (!seesPointer && !moodSleepy) {
         if (lookPhase < 0 && time > nextLook) {
@@ -605,10 +608,15 @@ export function Mascot({
       }
       context.scale(1 / breathe, breathe);
 
+      // A head yaw reads as the silhouette narrowing and shifting, not as a
+      // face sliding over a static body.
+      context.translate(bodyYaw, turnRise);
+      context.scale(bodySquash, 1);
+
       const bodyShade = shade(color, 0.82, 1);
 
       // Everything below is anchored to the deformed outline, so the whole pig
-      // moves as one piece instead of leaving an ear, the slot or the snout
+      // moves as one piece instead of leaving an ear or the snout
       // behind when the body is pulled.
       const deformed = deformOutline(
         outline,
@@ -691,7 +699,7 @@ export function Mascot({
         for (const side of [-1, 1]) {
           const angle = -Math.PI / 2 + side * 0.62;
           const edge = at(angle);
-          const anchor = { x: edge.x + turn * radius * 0.12, y: edge.y };
+          const anchor = { x: edge.x + turnShift, y: edge.y };
           // The ear on the far side loses size, which is what sells the turn.
           const depth = 1 - 0.22 * Math.max(0, -side * turn);
           context.save();
@@ -731,32 +739,8 @@ export function Mascot({
       context.fillRect(-radius * 1.4, -radius * 1.4, radius * 2.8, radius * 2.8);
       context.restore();
 
-      // The coin slot is the detail that says "piggy bank" before anything else.
-      if (slot) {
-        const top = at(-Math.PI / 2);
-        const anchor = { x: top.x * 0.84 + turn * radius * 0.09, y: top.y * 0.84 };
-        const width = radius * 0.5;
-        const height = radius * 0.11;
-        context.save();
-        // The slot belongs to the body, so a star or a drop must clip it.
-        context.clip(body);
-        context.translate(anchor.x, anchor.y);
-        context.rotate(normalAt(-Math.PI / 2) + Math.PI / 2);
-        context.fillStyle = shade(color, 0.4, 1);
-        context.beginPath();
-        context.roundRect(-width / 2, -height / 2, width, height, height / 2);
-        context.fill();
-        context.fillStyle = "rgba(255,255,255,0.4)";
-        context.beginPath();
-        context.roundRect(-width / 2, -height / 2, width, height * 0.34, height * 0.17);
-        context.fill();
-        context.restore();
-      }
-
       context.save();
-      context.translate(turnShift, turnRise);
-      // Foreshortening: the face narrows horizontally instead of the features
-      // drifting apart, which is what a head yaw actually does.
+      context.translate(turnShift, 0);
       context.scale(turnSquash, 1);
 
       const sizeScale =
@@ -771,7 +755,7 @@ export function Mascot({
           : eyeColor;
 
       const base = eyeShape(eyeStyle, radius, sizeScale);
-      const arcLike = eyeStyle === "arcs" || eyeStyle === "wink";
+      const arcLike = eyeStyle === "arcs";
       const baseHalf = arcLike ? base.width * 0.82 : base.width / 2;
       const minGap = eyeSpacing === "close" ? 0.04 : eyeSpacing === "wide" ? 0.24 : 0.13;
       const happyArcs =
@@ -781,16 +765,14 @@ export function Mascot({
       const eyeY = -radius * 0.06 + (sadEyes ? radius * 0.02 : 0);
 
       for (const side of [-1, 1]) {
-        const style = eyeStyle === "wink" ? (side === -1 ? "arcs" : "bars") : eyeStyle;
+        const style = eyeStyle;
         const eye = eyeShape(style, radius, sizeScale);
         const eyeWidth = eye.width;
         const eyeHeight = eye.height * (style === "bars" ? 1 + wonder * 0.1 : 1);
         const eyeLift = Math.max(0, eyeHeight / 2 - radius * 0.26);
         const eyeX = side * eyeOffset;
         const closed = winking && side === -1;
-        const cheerful =
-          happy > 0.55 && (style === "bars" || style === "dots" || style === "sleepy");
-        const drawArc = closed || cheerful || style === "arcs";
+        const drawArc = closed || style === "arcs";
         const position = move(eyeX, eyeY - eyeLift);
 
         context.save();
@@ -822,12 +804,6 @@ export function Mascot({
           context.fillStyle = ink;
           heartPath(context, eyeWidth, eyeHeight);
           context.fill();
-        } else if (style === "ring") {
-          context.strokeStyle = ink;
-          context.lineWidth = Math.max(1, eyeWidth * 0.26);
-          context.beginPath();
-          context.arc(0, 0, eyeWidth / 2, 0, TAU);
-          context.stroke();
         } else {
           context.fillStyle = ink;
           context.beginPath();
@@ -850,7 +826,8 @@ export function Mascot({
 
       if (snout) {
         const snoutY = radius * 0.4;
-        const centerPoint = move(0, snoutY);
+        const muzzleLead = turn * radius * 0.035;
+        const centerPoint = move(muzzleLead, snoutY);
         context.fillStyle = lighten(color, 0.3);
         context.beginPath();
         context.ellipse(
@@ -869,7 +846,7 @@ export function Mascot({
 
         context.fillStyle = shade(color, 0.4, 1);
         for (const side of [-1, 1]) {
-          const nostril = move(side * radius * 0.1, snoutY);
+          const nostril = move(side * radius * 0.1 + muzzleLead, snoutY);
           context.beginPath();
           context.ellipse(
             nostril.x,
@@ -883,18 +860,6 @@ export function Mascot({
           context.fill();
         }
       }
-
-      if (moodSad) {
-        const frown = move(0, radius * 0.66);
-        context.strokeStyle = shade(color, 0.35, 0.9);
-        context.lineWidth = Math.max(1.1, radius * 0.03);
-        context.lineCap = "round";
-        context.beginPath();
-        context.arc(frown.x, frown.y, radius * 0.08, Math.PI * 1.15, Math.PI * 1.85);
-        context.stroke();
-      }
-
-      context.restore();
 
       // Feet come last so they sit in front of the belly.
       context.fillStyle = bodyShade;
@@ -911,6 +876,12 @@ export function Mascot({
           TAU,
         );
         context.fill();
+        context.strokeStyle = shade(color, 0.55, 0.6);
+        context.lineWidth = Math.max(1, radius * 0.018);
+        context.beginPath();
+        context.moveTo(anchor.x - radius * 0.015, anchor.y - radius * 0.05);
+        context.lineTo(anchor.x - radius * 0.015, anchor.y + radius * 0.05);
+        context.stroke();
       }
 
       if (feeling === "celebrate") {
@@ -955,7 +926,6 @@ export function Mascot({
     boopable,
     snout,
     ears,
-    slot,
     tail,
     blush,
     eyeStyle,
