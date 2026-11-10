@@ -290,7 +290,7 @@ export function LedgerScreen({
         {!loading && rows.length === 0 ? (
           <div className="empty">
             <div className="mascot-stage">
-              <Mascot look={look} mood="sleepy" size={86} />
+              <Mascot look={look} mood="sleepy" size={86} hint={t("keeper.hint")} />
             </div>
             <h2>{t("ledger.emptyTitle")}</h2>
             <p className="muted">{t("ledger.emptyDesc")}</p>

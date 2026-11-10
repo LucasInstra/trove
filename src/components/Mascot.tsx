@@ -305,7 +305,7 @@ export interface MascotProps {
   boopable?: boolean;
   animate?: boolean;
   onBoop?: () => void;
-  label?: string;
+  hint?: string;
 }
 
 /**
@@ -320,7 +320,7 @@ export function Mascot({
   boopable = true,
   animate = true,
   onBoop,
-  label,
+  hint,
 }: MascotProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hitRef = useRef<HTMLDivElement>(null);
@@ -607,9 +607,9 @@ export function Mascot({
 
       const halfStep = delta / 2;
       for (let step = 0; step < 2; step += 1) {
-        spring(headX, dragging ? 0 : gaze.x * radius * 0.11, 95, 13, halfStep);
-        spring(headY, dragging ? 0 : gaze.y * radius * 0.07, 90, 14, halfStep);
-        spring(headRot, dragging ? 0 : gaze.x * 0.09, 80, 12, halfStep);
+        spring(headX, dragging || reduceMotion ? 0 : gaze.x * radius * 0.11, 95, 13, halfStep);
+        spring(headY, dragging || reduceMotion ? 0 : gaze.y * radius * 0.07, 90, 14, halfStep);
+        spring(headRot, dragging || reduceMotion ? 0 : gaze.x * 0.09, 80, 12, halfStep);
         spring(dragX, dragX.target, 150, 13, halfStep);
         spring(dragY, dragY.target, 150, 13, halfStep);
         spring(pullX, pullX.target, 210, 19.5, halfStep);
@@ -1019,9 +1019,8 @@ export function Mascot({
     >
       <canvas
         ref={canvasRef}
-        role={label ? "img" : "presentation"}
-        aria-label={label}
-        aria-hidden={label ? undefined : true}
+        role="presentation"
+        aria-hidden="true"
         style={{
           position: "absolute",
           left: (size - canvasSize) / 2,
@@ -1035,7 +1034,7 @@ export function Mascot({
       <div
         ref={hitRef}
         className="mascot-hit"
-        title={boopable ? "Drag me or click for a boop" : undefined}
+        title={boopable ? hint : undefined}
         style={{
           position: "absolute",
           inset: 0,

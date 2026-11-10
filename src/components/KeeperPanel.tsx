@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   KEEPER_COLORS,
   KEEPER_DEFAULT,
@@ -29,13 +29,39 @@ const TOGGLES: Array<{ key: KeeperToggle; label: string }> = [
 
 export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
   const { t } = useLanguage();
+  const sheetRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const sheet = sheetRef.current;
+    sheet?.focus();
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !sheet) return;
+      const focusable = sheet.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previous?.focus?.();
+    };
   }, [onClose]);
 
   const set = <K extends keyof KeeperLook>(key: K, value: KeeperLook[K]) =>
@@ -44,6 +70,8 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
   return (
     <div className="keeper-backdrop" onClick={onClose} role="presentation">
       <aside
+        ref={sheetRef}
+        tabIndex={-1}
         className="keeper-sheet"
         role="dialog"
         aria-modal="true"
@@ -71,7 +99,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
         </header>
 
         <div className="keeper-preview">
-          <Mascot look={look} size={148} mood="idle" />
+          <Mascot look={look} size={148} mood="idle" hint={t("keeper.hint")} />
         </div>
 
         <section className="keeper-section">

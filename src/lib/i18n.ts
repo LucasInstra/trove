@@ -56,6 +56,7 @@ const en: Dictionary = {
   "keeper.noSpending": "No spending in {month}. Rare sight.",
   "keeper.over": "You spent {amount} more than you made this month.",
   "keeper.kept": "You kept {amount} this month.",
+  "keeper.hint": "Drag me or click for a boop",
 
   "update.downloading": "downloading {percent}%",
   "update.downloadingPlain": "downloading...",
@@ -199,6 +200,7 @@ const pt: Dictionary = {
   "keeper.noSpending": "Nenhum gasto em {month}. Coisa rara.",
   "keeper.over": "Você gastou {amount} a mais do que ganhou neste mês.",
   "keeper.kept": "Você guardou {amount} neste mês.",
+  "keeper.hint": "Arraste ou clique para um carinho",
 
   "update.downloading": "baixando {percent}%",
   "update.downloadingPlain": "baixando...",
