@@ -44,8 +44,8 @@ import { BUILD_LABEL } from "./lib/build";
 type Route = "overview" | "flow" | "import" | "settings";
 
 const MENU: Array<{ route: Route; icon: IconName }> = [
-  { route: "overview", icon: "ledger" },
-  { route: "flow", icon: "flow" },
+  { route: "overview", icon: "grid" },
+  { route: "flow", icon: "arrow-left-right" },
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
@@ -324,7 +324,7 @@ export function App() {
 
   return (
     <div className="app">
-      <TitleBar title="trove" />
+      <TitleBar />
 
       <div className="shell">
         <aside className="rail">
@@ -388,7 +388,7 @@ export function App() {
           <div className="rail-foot">
             <button
               type="button"
-              className="theme-toggle"
+              className="theme-pill"
               onClick={() => {
                 const next: Theme = theme === "dark" ? "light" : "dark";
                 setTheme(next);
@@ -396,11 +396,16 @@ export function App() {
               }}
               aria-label={t("common.theme")}
             >
-              <Icon name={theme === "dark" ? "sun" : "moon"} size={15} />
-              {theme === "dark" ? t("common.light") : t("common.dark")}
+              <span className={theme === "light" ? "theme-half active" : "theme-half"}>
+                <Icon name="sun" size={14} />
+              </span>
+              <span className={theme === "dark" ? "theme-half" : "theme-half active"}>
+                <Icon name="moon" size={14} />
+              </span>
             </button>
-            <span>{t("common.version", { value: updater.currentVersion || "0.1.0" })}</span>
-            <span>{BUILD_LABEL}</span>
+            <span className="rail-version">
+              {t("common.version", { value: updater.currentVersion || "0.1.0" })} · {BUILD_LABEL}
+            </span>
           </div>
         </aside>
 
@@ -414,7 +419,6 @@ export function App() {
           {route === "overview" || route === "flow" ? (
             <TopBar
               month={month ?? currentMonth()}
-              title={monthLabel(month ?? currentMonth(), lang)}
               onMonth={onMonth}
               onPickMonth={setMonth}
               notifications={notifications}

@@ -8,7 +8,7 @@ import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../comp
 import { TransactionsPanel } from "../components/TransactionsPanel";
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
-import { SHOW_KEEPER } from "../lib/features";
+import { SHOW_HERO_KEEPER } from "../lib/features";
 import type { MonthPlan } from "../domain/projection";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -121,13 +121,14 @@ export function OverviewScreen({
               className="account-edit"
               onClick={onEditIncome}
               aria-label={t("overview.editIncome")}
+              title={t("overview.editIncome")}
             >
               <Icon name="settings" size={14} />
             </button>
           </div>
 
           <div className="account-main">
-            <Money cents={plan.forecastCents} signed className="account-value" />
+            <Money cents={plan.forecastCents} className="account-value" />
             {plan.incomeCents > 0 ? (
               <div className="account-delta">
                 <span className={plan.forecastCents >= 0 ? "delta-line" : "delta-line down"}>
@@ -141,9 +142,9 @@ export function OverviewScreen({
             ) : null}
           </div>
 
-          {SHOW_KEEPER ? (
+          {SHOW_HERO_KEEPER ? (
             <div className="account-figure" aria-hidden="true">
-              <Mascot look={look} size={112} animate={false} boopable={false} fps={30} />
+              <Mascot look={look} size={112} animate={false} boopable={false} bare fps={30} />
             </div>
           ) : null}
 

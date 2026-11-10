@@ -6,7 +6,7 @@ import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { api } from "../lib/api";
-import { formatCents, formatDate, monthShort } from "../lib/format";
+import { formatCents, formatDate, monthName } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 import { CardArt, CalendarArt, HouseArt, TargetArt } from "./illustrations";
@@ -34,7 +34,7 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
         <div className="card-title">
           <h2>{t("planner.bills")}</h2>
         </div>
-        <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.newBill")}>
+        <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.newBill")}>
           <Icon name="plus" size={16} />
         </button>
         <CalendarArt />
@@ -59,7 +59,10 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
       ) : null}
 
       {count === 0 ? (
-        <p className="card-empty">{t("planner.noBills")}</p>
+        <button type="button" className="empty-add" onClick={onAdd}>
+          <Icon name="plus" size={18} />
+          {t("planner.addBill")}
+        </button>
       ) : (
         <ul className="bill-list">
           {plan.dueBills.map((bill) => {
@@ -149,12 +152,15 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
           <div className="card-title">
             <h2>{t("planner.cards")}</h2>
           </div>
-          <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.cardTitle")}>
+          <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.cardTitle")}>
             <Icon name="plus" size={16} />
           </button>
           <CardArt />
         </header>
-        <p className="card-empty">{t("planner.noCards")}</p>
+        <button type="button" className="empty-add" onClick={onAdd}>
+          <Icon name="plus" size={18} />
+          {t("planner.addCard")}
+        </button>
       </article>
     );
   }
@@ -199,7 +205,7 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
           <h2>{t("planner.cards")}</h2>
         </div>
         <div className="cards-controls">
-          <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.cardTitle")}>
+          <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.cardTitle")}>
             <Icon name="plus" size={16} />
           </button>
           {canScroll ? (
@@ -231,7 +237,7 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
       <div className="card-figure">
         <strong>{formatCents(usage)}</strong>
         <span className="muted small">
-          {t("planner.invoiceOf", { month: monthShort(activeMonth, lang) })}
+          {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
         </span>
       </div>
 
@@ -333,7 +339,7 @@ export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
         <div className="card-title">
           <h2>{t("planner.housing")}</h2>
         </div>
-        <button type="button" className="icon-button" onClick={onEdit} aria-label={t("planner.housingCeiling")}>
+        <button type="button" className="round-button" onClick={onEdit} aria-label={t("planner.housingCeiling")}>
           <Icon name="settings" size={15} />
         </button>
         <HouseArt />
@@ -388,14 +394,17 @@ export function GoalsCard({ plan, onAdd }: { plan: MonthPlan; onAdd: () => void 
         <div className="card-title">
           <h2>{t("planner.goals")}</h2>
         </div>
-        <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.goalTitle")}>
+        <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.goalTitle")}>
           <Icon name="plus" size={16} />
         </button>
         <TargetArt />
       </header>
 
       {plan.goals.length === 0 ? (
-        <p className="card-empty">{t("planner.noGoals")}</p>
+        <button type="button" className="empty-add" onClick={onAdd}>
+          <Icon name="plus" size={18} />
+          {t("planner.addGoal")}
+        </button>
       ) : (
         <ul className="goal-list">
           {plan.goals.map(({ goal, paidCents, sharePct }: { goal: Goal; paidCents: number; sharePct: number }) => (

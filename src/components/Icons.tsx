@@ -26,7 +26,10 @@ export type IconName =
   | "file-text"
   | "contactless"
   | "arrow-right"
-  | "scale";
+  | "scale"
+  | "grid"
+  | "arrow-left-right"
+  | "arrow-down-to-line";
 
 const ICONS: Record<IconName, ReactNode> = {
   ledger: (
@@ -146,6 +149,28 @@ const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   "arrow-right": <path d="M5 12h14M12 5l7 7-7 7" />,
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.6" />
+      <rect x="14" y="3" width="7" height="7" rx="1.6" />
+      <rect x="3" y="14" width="7" height="7" rx="1.6" />
+      <rect x="14" y="14" width="7" height="7" rx="1.6" />
+    </>
+  ),
+  "arrow-left-right": (
+    <>
+      <path d="M8 7H4l3-3M4 7l3 3" />
+      <path d="M16 17h4l-3 3M20 17l-3-3" />
+      <path d="M4 7h16M20 17H4" />
+    </>
+  ),
+  "arrow-down-to-line": (
+    <>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M4 21h16" />
+    </>
+  ),
   scale: (
     <>
       <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />

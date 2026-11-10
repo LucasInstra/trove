@@ -226,6 +226,8 @@ export interface MascotProps {
   animate?: boolean;
   onBoop?: () => void;
   hint?: string;
+  /** Draws the body alone, with no aura halo behind it. */
+  bare?: boolean;
   /** Cap the paint rate. 0 follows the display. */
   fps?: number;
 }
@@ -243,6 +245,7 @@ export function Mascot({
   animate = true,
   onBoop,
   hint,
+  bare = false,
   fps = 0,
 }: MascotProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -610,10 +613,12 @@ export function Mascot({
         auraGradient.addColorStop(0.6, withAlpha(color, 0.03));
         auraGradient.addColorStop(1, "rgba(0,0,0,0)");
       }
-      context.fillStyle = auraGradient ?? "rgba(0,0,0,0)";
-      context.beginPath();
-      context.arc(0, 0, auraRadius, 0, TAU);
-      context.fill();
+      if (!bare) {
+        context.fillStyle = auraGradient ?? "rgba(0,0,0,0)";
+        context.beginPath();
+        context.arc(0, 0, auraRadius, 0, TAU);
+        context.fill();
+      }
       context.restore();
 
       context.translate(dragX.value, dragY.value);
@@ -1080,6 +1085,7 @@ export function Mascot({
     canvasSize,
     animate,
     fps,
+    bare,
   ]);
 
   return (

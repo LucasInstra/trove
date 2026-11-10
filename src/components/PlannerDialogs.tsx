@@ -142,7 +142,7 @@ export function CardDialog({ card, accounts, onClose, onSave }: { card: CardMeta
   const [limit, setLimit] = useState(card ? (card.limitCents / 100).toFixed(2) : "");
   const [closingDay, setClosingDay] = useState(card?.closingDay ?? 5);
   const [dueDay, setDueDay] = useState(card?.dueDay ?? 12);
-  const [color, setColor] = useState(card?.color ?? "#1f1d1a");
+  const [color, setColor] = useState(card?.color ?? "#2b2b2d");
 
   return (
     <Dialog title={t("planner.cardTitle")} onClose={onClose}>

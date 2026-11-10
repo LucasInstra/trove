@@ -7,3 +7,9 @@
  * the import screen.
  */
 export const SHOW_KEEPER = false;
+
+/**
+ * The forecast card keeps the keeper as its illustration, drawn bare: no halo,
+ * only the soft shadow the figure carries.
+ */
+export const SHOW_HERO_KEEPER = true;

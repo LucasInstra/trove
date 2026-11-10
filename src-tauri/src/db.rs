@@ -154,7 +154,7 @@ create table if not exists cards (
     limit_cents  integer not null default 0,
     closing_day  integer not null default 1,
     due_day      integer not null default 10,
-    color        text    not null default '#1f1d1a',
+    color        text    not null default '#2b2b2d',
     texture      text    not null default 'plain',
     created_at   text    not null,
     updated_at   text    not null,

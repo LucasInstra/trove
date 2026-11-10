@@ -1,11 +1,11 @@
 import { useState } from "react";
 import type { PlanNotification } from "../domain/notifications";
+import { monthName } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 
 interface TopBarProps {
   month: string;
-  title: string;
   onMonth: (delta: number) => void;
   onPickMonth: (month: string) => void;
   notifications: PlanNotification[];
@@ -16,7 +16,6 @@ interface TopBarProps {
 
 export function TopBar({
   month,
-  title,
   onMonth,
   onPickMonth,
   notifications,
@@ -24,7 +23,7 @@ export function TopBar({
   onImport,
   primaryLabel,
 }: TopBarProps) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
 
   return (
@@ -33,7 +32,10 @@ export function TopBar({
         <button type="button" className="icon-button" onClick={() => onMonth(-1)} aria-label="Previous month">
           <Icon name="left" size={16} />
         </button>
-        <h1>{title}</h1>
+        <h1>
+          {monthName(month, lang)}
+          <span className="title-year">{month.slice(0, 4)}</span>
+        </h1>
         <button type="button" className="icon-button" onClick={() => onMonth(1)} aria-label="Next month">
           <Icon name="right" size={16} />
         </button>
@@ -95,8 +97,8 @@ export function TopBar({
             </div>
           ) : null}
         </div>
-        <button type="button" className="primary" onClick={onImport}>
-          <Icon name="plus" size={15} />
+        <button type="button" className="primary topbar-primary" onClick={onImport}>
+          <Icon name="arrow-down-to-line" size={16} />
           {primaryLabel}
         </button>
       </div>

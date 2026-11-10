@@ -3433,3 +3433,482 @@ select.tx-category {
     grid-column: span 2;
   }
 }
+
+
+/* ---------- Window chrome and the floating sidebar ---------- */
+
+.app {
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.titlebar {
+  height: 40px;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.titlebar-drag {
+  padding-left: 0;
+}
+
+.titlebar-controls {
+  align-items: stretch;
+}
+
+.titlebar-button {
+  width: 46px;
+  height: 40px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.titlebar-button:hover:not(:disabled) {
+  background: #e9ebef;
+  color: var(--ink);
+}
+
+.titlebar-button:active:not(:disabled) {
+  background: #dde0e6;
+}
+
+.titlebar-button.close:hover:not(:disabled) {
+  background: #e81123;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .titlebar-button {
+  color: #9aa3b0;
+}
+
+[data-theme="dark"] .titlebar-button:hover:not(:disabled) {
+  background: #232830;
+  color: var(--ink);
+}
+
+[data-theme="dark"] .titlebar-button:active:not(:disabled) {
+  background: #2b313a;
+}
+
+.shell {
+  grid-template-columns: 208px 1fr;
+  gap: 14px;
+  padding: 10px 14px 14px;
+}
+
+.rail {
+  padding: 16px 14px;
+  border: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  gap: 20px;
+}
+
+.brand {
+  padding: 2px 6px 4px;
+}
+
+.brand-mark {
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.nav {
+  gap: 2px;
+}
+
+.nav-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nav-item svg {
+  justify-self: center;
+}
+
+.nav-item:hover:not(:disabled) {
+  background: var(--bg-sunken);
+  color: var(--ink);
+}
+
+.nav-item.active,
+.nav-item.active:hover:not(:disabled) {
+  background: #f1f2f4;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.nav-item.active svg {
+  color: var(--primary);
+}
+
+[data-theme="dark"] .nav-item.active,
+[data-theme="dark"] .nav-item.active:hover:not(:disabled) {
+  background: var(--surface-soft);
+}
+
+.nav-group {
+  padding-left: 10px;
+}
+
+.rail-foot {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 0;
+}
+
+.theme-pill {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme-half {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.theme-half.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.14);
+}
+
+.rail-version {
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.main {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 0 0 4px;
+}
+
+
+/* ---------- Top bar as a card ---------- */
+
+.topbar {
+  align-items: center;
+  min-height: 60px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.title-row h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.title-year {
+  margin-left: 7px;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.topbar-primary {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.topbar-primary:hover:not(:disabled) {
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+}
+
+.topbar .month-picker {
+  margin-left: 2px;
+}
+
+.topbar .bell {
+  width: 34px;
+  height: 34px;
+}
+
+
+/* ---------- Forecast card: colours, legend and the bare keeper ---------- */
+
+.composition-part.spent {
+  background: var(--primary);
+}
+
+.composition-dot.spent {
+  background: var(--primary);
+}
+
+.composition-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px 22px;
+  flex-wrap: wrap;
+}
+
+.composition-legend li {
+  flex: 1 1 0;
+  min-width: 120px;
+}
+
+.composition-value {
+  white-space: nowrap;
+}
+
+.account-delta {
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+}
+
+.account-value .money-prefix {
+  margin-right: 4px;
+  font-size: 0.42em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+  vertical-align: 0.42em;
+}
+
+.account-meta {
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.account-meta strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.account-figure {
+  filter: drop-shadow(0 8px 14px rgba(17, 24, 39, 0.18));
+  right: 14px;
+}
+
+[data-theme="dark"] .account-figure {
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+}
+
+
+/* ---------- Items 5 to 7: cards, empty states, surfaces ---------- */
+
+:root {
+  --border: #eef0f3;
+}
+
+[data-theme="dark"] {
+  --border: #2a3038;
+}
+
+.card,
+.account-card,
+.topbar {
+  border-color: var(--border);
+}
+
+.card-title h2,
+.card-with-art .card-title h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-art {
+  width: 84px;
+  height: 84px;
+}
+
+/* Bills card keeps its natural height instead of matching the forecast card. */
+.bills-card {
+  align-self: start;
+}
+
+/* Dashed invitation instead of a plain sentence. */
+.empty-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 96px;
+  padding: 16px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.empty-add:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+/* Round check on the bill rows. */
+.bill-check input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.bill-check input[type="checkbox"]:checked {
+  background: var(--positive);
+  border-color: var(--positive);
+}
+
+.bill-check input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid #ffffff;
+  border-width: 0 1.8px 1.8px 0;
+  transform: rotate(45deg);
+}
+
+.bill-check input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Card carousel: room for the shadow and a neutral, sharper chip. */
+.cards-track {
+  padding: 6px 6px 14px;
+  margin: -6px -6px 0;
+}
+
+.credit-chip {
+  width: 42px;
+  height: 30px;
+}
+
+/* Thin scrollbars everywhere. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
+}
+
+/* Visible focus and a consistent disabled state. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+.card,
+.rail,
+.topbar {
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+}
+
+
+/* The keeper sits in the card corner, above the legend, not over it. */
+.account-figure {
+  top: 10px;
+  right: 12px;
+  transform: none;
+}
+
+/* The active overview icon fills its four squares. */
+.nav-item.active svg rect {
+  fill: currentColor;
+  stroke: none;
+}
+
+
+/* The empty state must not stay a white block in the dark theme. */
+.empty {
+  background: var(--surface-soft);
+}
+
+[data-theme="dark"] .primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* The edit button steps back so the keeper can sit in the corner. */
+.account-top {
+  padding-right: 92px;
+}
+
+
+/* The window edge uses the same border as the cards. */
+.app {
+  border-color: var(--border);
+}
+
+/* A light blue tile with a white letter is too weak in the dark theme. */
+[data-theme="dark"] .brand-mark {
+  background: #2563eb;
+}
