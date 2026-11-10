@@ -471,7 +471,10 @@ export function Mascot({
 
       const easeRate = Math.min(1, 0.045 * (delta * 60));
       eased.squint += ((moodSad ? 0.62 : 1) - eased.squint) * easeRate;
-      eased.sleep += ((moodSleepy ? 1 : 0) - eased.sleep) * easeRate;
+      // The eyelid has its own, faster rate: a mood change should read in about
+      // 300ms, not the slower breathing transition.
+      const sleepEase = Math.min(1, 0.07 * (delta * 60));
+      eased.sleep += ((moodSleepy ? 1 : 0) - eased.sleep) * sleepEase;
       eased.tiltAmp += ((moodSad ? 0.012 : moodHappy ? 0.03 : 0.02) - eased.tiltAmp) * easeRate;
       eased.breatheAmp += ((moodSleepy ? 0.034 : 0.026) - eased.breatheAmp) * easeRate;
 
