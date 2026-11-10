@@ -184,7 +184,13 @@ export function App() {
           <div className="rail-spacer" />
 
           <div className="keeper">
-            <Mascot look={look} mood={keeper.mood} size={58} />
+            <Mascot
+              look={look}
+              mood={keeper.mood}
+              size={58}
+              animate={!panelOpen}
+              hint={t("keeper.hint")}
+            />
             <div className="keeper-copy">
               <p className="keeper-line">{keeper.line}</p>
               <button type="button" className="keeper-customize" onClick={() => setPanelOpen(true)}>

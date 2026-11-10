@@ -157,7 +157,7 @@ export function ImportScreen({
         <div className="card report">
           <div className="report-head">
             <div className="report-title">
-              <Mascot look={look} mood="celebrate" size={56} />
+              <Mascot look={look} mood="celebrate" size={56} hint={t("keeper.hint")} />
               <div>
                 <h2>{t("import.reportTitle", { count: inserted })}</h2>
                 <p className="muted">

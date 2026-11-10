@@ -19,7 +19,7 @@ export const GRAB = {
   /** Gaussian falloff at full pull. Bigger pulls spread the deformation instead of spiking. */
   falloffFar: 0.58,
   /** Global stretch along the pull axis at full pull. */
-  stretch: 0.04,
+  stretch: 0.06,
   /** Cross-axis squash relative to the stretch, for volume. */
   squash: 0.35,
   /** Anchor distance where the center-grab bias fades out, as a fraction of the radius. */
@@ -78,18 +78,6 @@ export function clampAnchor(x: number, y: number, radius: number): Point {
   return clampVector(x, y, safeRadius(radius) * GRAB.maxAnchor);
 }
 
-/** Centroid of a sampled outline, used to keep the face anchored to the body. */
-export function outlineCentroid(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 };
-  let x = 0;
-  let y = 0;
-  for (const point of points) {
-    x += point.x;
-    y += point.y;
-  }
-  return { x: x / points.length, y: y / points.length };
-}
-
 /**
  * Local displacement of one point, with the same Gaussian the outline uses.
  * Face features and decorations go through this so nothing stays behind when
@@ -130,12 +118,48 @@ export function deformOutline(
   pullY: number,
   radius: number,
 ): Point[] {
-  const amount = Math.hypot(pullX, pullY);
-  if (!Number.isFinite(amount) || amount < 0.01) return points;
+  const target: Point[] = points.map(() => ({ x: 0, y: 0 }));
+  deformInto(target, points, anchorX, anchorY, pullX, pullY, radius);
+  return target;
+}
 
-  return points.map((point) =>
-    deformPoint(point, anchorX, anchorY, pullX, pullY, radius),
-  );
+/**
+ * Same deformation, written into a buffer owned by the caller. The renderer
+ * calls this every frame, so it must not allocate.
+ */
+export function deformInto(
+  target: Point[],
+  points: Point[],
+  anchorX: number,
+  anchorY: number,
+  pullX: number,
+  pullY: number,
+  radius: number,
+): void {
+  const amount = Math.hypot(pullX, pullY);
+  const moves = Number.isFinite(amount) && amount >= 0.01;
+
+  if (!moves) {
+    for (let index = 0; index < points.length; index += 1) {
+      target[index].x = points[index].x;
+      target[index].y = points[index].y;
+    }
+    return;
+  }
+
+  const safe = safeRadius(radius);
+  const ratio = clamp(amount / (safe * GRAB.maxPull), 0, 1);
+  const sigma = safe * (GRAB.falloffNear + (GRAB.falloffFar - GRAB.falloffNear) * ratio);
+  const denominator = 2 * sigma * sigma;
+
+  for (let index = 0; index < points.length; index += 1) {
+    const point = points[index];
+    const dx = point.x - anchorX;
+    const dy = point.y - anchorY;
+    const weight = Math.exp(-(dx * dx + dy * dy) / denominator);
+    target[index].x = point.x + pullX * weight;
+    target[index].y = point.y + pullY * weight;
+  }
 }
 
 export interface GripPhysics {
@@ -165,10 +189,10 @@ export function gripPhysics(
   const amount = Math.hypot(pullX, pullY);
   const anchorDistance = Math.hypot(anchorX, anchorY);
   const axis =
-    anchorDistance > safe * 0.05
-      ? Math.atan2(anchorY, anchorX)
-      : amount > 0
-        ? Math.atan2(pullY, pullX)
+    amount > 0.5
+      ? Math.atan2(pullY, pullX)
+      : anchorDistance > safe * 0.05
+        ? Math.atan2(anchorY, anchorX)
         : 0;
 
   const along = (Math.cos(axis) * pullX + Math.sin(axis) * pullY) / safe;
