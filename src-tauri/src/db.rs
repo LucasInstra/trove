@@ -1100,6 +1100,37 @@ mod tests {
     }
 
     #[test]
+    fn two_accounts_keep_the_same_statement_apart() {
+        let path = temporary_database("accounts");
+        let first = path.with_extension("a.ofx");
+        let second = path.with_extension("b.ofx");
+        std::fs::write(&first, STATEMENT).expect("should write the first fixture");
+        std::fs::write(&second, STATEMENT.replace("12345-6", "99999-1"))
+            .expect("should write the second fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let a = import_ofx(&mut connection, &first).expect("first account");
+        let b = import_ofx(&mut connection, &second).expect("second account");
+        assert_eq!(a.inserted, 2);
+        assert_eq!(b.inserted, 2, "the same line in another account is not a duplicate");
+        assert_eq!(
+            list_transactions(&connection, None, None, None, 50)
+                .expect("should list")
+                .len(),
+            4
+        );
+        assert_eq!(list_accounts(&connection).expect("should list").len(), 2);
+
+        let again = import_ofx(&mut connection, &first).expect("first account again");
+        assert_eq!(again.inserted, 0);
+        assert_eq!(again.duplicates, 2);
+
+        let _ = std::fs::remove_file(&first);
+        let _ = std::fs::remove_file(&second);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
     fn soft_delete_frees_the_dedupe_key_and_hides_the_row() {
         let path = temporary_database("tombstone");
         let file = path.with_extension("ofx");

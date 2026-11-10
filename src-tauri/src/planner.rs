@@ -666,3 +666,162 @@ pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, Strin
         reads: list_reads(connection)?,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use std::path::PathBuf;
+
+    fn temporary_database(name: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!("trove-planner-{}-{}.db", name, std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        path
+    }
+
+    fn bill_input() -> BillInput {
+        BillInput {
+            id: None,
+            name: "Aluguel".into(),
+            amount_cents: 480_000,
+            due_day: 5,
+            frequency: "monthly".into(),
+            category_id: None,
+            account_id: None,
+            goal_id: None,
+            starts_on: "2026-01-01".into(),
+            ends_on: None,
+            active: true,
+        }
+    }
+
+    #[test]
+    fn a_bill_can_be_created_paid_unpaid_and_removed() {
+        let path = temporary_database("bill");
+        let connection = db::open(&path).expect("should open");
+
+        let id = save_bill(&connection, &bill_input()).expect("should save");
+        assert_eq!(list_bills(&connection).expect("should list").len(), 1);
+
+        set_bill_paid(&connection, id, "2026-12", true).expect("should pay");
+        let paid = list_payments(&connection, "2026-12").expect("should list");
+        assert_eq!(paid.len(), 1);
+        assert_eq!(paid[0].amount_cents, 480_000);
+
+        // Marking twice must not duplicate the payment.
+        set_bill_paid(&connection, id, "2026-12", true).expect("should pay again");
+        assert_eq!(list_payments(&connection, "2026-12").expect("list").len(), 1);
+
+        set_bill_paid(&connection, id, "2026-12", false).expect("should unpay");
+        assert_eq!(list_payments(&connection, "2026-12").expect("list").len(), 0);
+
+        delete_bill(&connection, id).expect("should delete");
+        assert_eq!(list_bills(&connection).expect("list").len(), 0);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn income_round_trips_and_feeds_the_goal_progress() {
+        let path = temporary_database("income");
+        let connection = db::open(&path).expect("should open");
+
+        let income_id = save_income(
+            &connection,
+            &IncomeInput {
+                id: None,
+                name: "Salário".into(),
+                amount_cents: 2_800_000,
+                frequency: "monthly".into(),
+                pay_day: 5,
+                account_id: None,
+                active: true,
+            },
+        )
+        .expect("should save");
+        assert_eq!(list_incomes(&connection).expect("list")[0].amount_cents, 2_800_000);
+
+        save_income(
+            &connection,
+            &IncomeInput {
+                id: Some(income_id),
+                name: "Salário".into(),
+                amount_cents: 3_000_000,
+                frequency: "monthly".into(),
+                pay_day: 5,
+                account_id: None,
+                active: true,
+            },
+        )
+        .expect("should update");
+        let incomes = list_incomes(&connection).expect("list");
+        assert_eq!(incomes.len(), 1);
+        assert_eq!(incomes[0].amount_cents, 3_000_000);
+
+        let goal_id = save_goal(
+            &connection,
+            &GoalInput {
+                id: None,
+                name: "Reserva".into(),
+                kind: "reserve".into(),
+                target_cents: 1_000_000,
+                monthly_cents: 100_000,
+                starts_on: "2026-01-01".into(),
+                account_id: None,
+                color: "#1f6b4f".into(),
+            },
+        )
+        .expect("should save the goal");
+
+        let mut input = bill_input();
+        input.name = "Reserva".into();
+        input.amount_cents = 100_000;
+        input.goal_id = Some(goal_id);
+        let bill_id = save_bill(&connection, &input).expect("should save the bill");
+        set_bill_paid(&connection, bill_id, "2026-12", true).expect("should pay");
+
+        let totals = goal_totals(&connection).expect("should total");
+        assert_eq!(totals.len(), 1);
+        assert_eq!(totals[0].paid_cents, 100_000);
+        assert_eq!(totals[0].payments, 1);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn a_card_keeps_its_window_and_only_counts_inside_it() {
+        let path = temporary_database("card");
+        let connection = db::open(&path).expect("should open");
+
+        connection
+            .execute(
+                "insert into accounts (name, kind, bank_id, acct_id, currency, created_at, uid, updated_at)
+                 values ('Card 1', 'credit_card', '341', '1', 'BRL', '2026-01-01T00:00:00Z', 'u1', '2026-01-01T00:00:00Z')",
+                [],
+            )
+            .expect("should insert the account");
+        for (date, amount, key) in [
+            ("2026-12-04", -10_000i64, "inside"),
+            ("2026-12-06", -20_000i64, "after"),
+            ("2026-11-05", -40_000i64, "before"),
+        ] {
+            connection
+                .execute(
+                    "insert into transactions
+                     (account_id, posted_on, amount_cents, description, dedupe_key, created_at, uid, updated_at)
+                     values (1, ?1, ?2, 'x', ?3, '2026-12-06T00:00:00Z', ?3, '2026-12-06T00:00:00Z')",
+                    params![date, amount, key],
+                )
+                .expect("should insert the transaction");
+        }
+
+        // Window for the invoice due in December with closing on day 5.
+        let usage = card_usage(&connection, 1, "2026-11-05", "2026-12-05").expect("should measure");
+        assert_eq!(usage, 10_000, "only the purchase after the previous close counts");
+        let next = card_usage(&connection, 1, "2026-12-05", "2027-01-05").expect("should measure");
+        assert_eq!(next, 20_000);
+
+        let _ = std::fs::remove_file(&path);
+    }
+}
