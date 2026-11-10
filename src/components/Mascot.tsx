@@ -4,7 +4,6 @@ import {
   clampAnchor,
   deformInto,
   followTarget,
-  gripPhysics,
   deformPoint,
   pullTarget,
   type Point,
@@ -573,7 +572,6 @@ export function Mascot({
 
       const eyeOpen = Math.max(0.08, openness * eased.squint) * (1 - 0.9 * eased.sleep);
 
-      const grip = gripPhysics(drag.anchorX, drag.anchorY, pullX.value, pullY.value, radius);
       const lean = (pullX.value / (radius * 1.2)) * 0.05;
       const moodDrop = moodSad ? radius * 0.05 : 0;
 
@@ -610,13 +608,6 @@ export function Mascot({
       context.restore();
 
       context.translate(dragX.value, dragY.value);
-      if (grip.strength > 0.001) {
-        context.translate(drag.anchorX, drag.anchorY);
-        context.rotate(grip.axis);
-        context.scale(grip.scaleAlong, grip.scaleCross);
-        context.rotate(-grip.axis);
-        context.translate(-drag.anchorX, -drag.anchorY);
-      }
       context.scale(1 / breathe, breathe);
 
       // A head yaw reads as the silhouette narrowing and shifting, not as a
