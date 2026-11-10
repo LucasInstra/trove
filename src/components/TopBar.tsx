@@ -34,14 +34,14 @@ export function TopBar({
     <header className="topbar">
       <div className="title-row">
         <button type="button" className="icon-button" onClick={() => onMonth(-1)} aria-label="Previous month">
-          <Icon name="left" size={16} />
+          <Icon name="chevron-left" size={18} />
         </button>
         <h1>
           {monthName(month, lang)}
           <span className="title-year">{month.slice(0, 4)}</span>
         </h1>
         <button type="button" className="icon-button" onClick={() => onMonth(1)} aria-label="Next month">
-          <Icon name="right" size={16} />
+          <Icon name="chevron-right" size={18} />
         </button>
         <label className="month-picker" title={t("planner.pickMonth")}>
           <span className="visually-hidden">{t("planner.pickMonth")}</span>
