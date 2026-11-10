@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { Icon, type IconName } from "./components/Icons";
 import { KeeperPanel } from "./components/KeeperPanel";
@@ -12,6 +13,7 @@ import {
   type MonthTotals,
   type TransactionRow,
 } from "./lib/api";
+import { BUILD_LABEL } from "./lib/build";
 import { currentMonth, formatCents, monthLabel, shiftMonth } from "./lib/format";
 import { useLanguage } from "./lib/language";
 import type { Translate } from "./lib/i18n";
@@ -153,42 +155,51 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="menubar">
-        <div className="brand">
-          <span className="brand-mark">t</span>
-          <div>
-            <strong>trove</strong>
-            <span>{t("app.tagline")}</span>
+      <TitleBar title="trove" />
+
+      <div className="shell">
+        <aside className="rail">
+          <div className="brand">
+            <span className="brand-mark">t</span>
+            <div>
+              <strong>trove</strong>
+              <span>{t("app.tagline")}</span>
+            </div>
           </div>
-        </div>
 
-        <nav className="nav">
-          {NAV.map((item) => (
-            <button
-              key={item.route}
-              type="button"
-              className={route === item.route ? "nav-item active" : "nav-item"}
-              onClick={() => setRoute(item.route)}
-            >
-              <Icon name={item.icon} size={16} />
-              {t(`nav.${item.route}`)}
-            </button>
-          ))}
-        </nav>
+          <nav className="nav">
+            {NAV.map((item) => (
+              <button
+                key={item.route}
+                type="button"
+                className={route === item.route ? "nav-item active" : "nav-item"}
+                onClick={() => setRoute(item.route)}
+              >
+                <Icon name={item.icon} size={17} />
+                {t(`nav.${item.route}`)}
+              </button>
+            ))}
+          </nav>
 
-        <div className="menubar-right">
+          <div className="rail-spacer" />
+
+          <div className="keeper">
+            <Mascot look={look} mood={keeper.mood} size={58} />
+            <div className="keeper-copy">
+              <p className="keeper-line">{keeper.line}</p>
+              <button type="button" className="keeper-customize" onClick={() => setPanelOpen(true)}>
+                {t("common.customize")}
+              </button>
+            </div>
+          </div>
+
           <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
-          <button
-            type="button"
-            className="keeper-pill"
-            onClick={() => setPanelOpen(true)}
-            title={keeper.line}
-          >
-            <Mascot look={look} mood={keeper.mood} size={34} />
-            <span>{keeper.line}</span>
-          </button>
-        </div>
-      </header>
+
+          <div className="rail-foot">
+            <span>{t("common.version", { value: updater.currentVersion || "0.1.0" })}</span>
+            <span>{BUILD_LABEL}</span>
+          </div>
+        </aside>
 
       <main className="main">
         {error ? (
@@ -230,6 +241,7 @@ export function App() {
 
         {route === "settings" ? <SettingsScreen updater={updater} /> : null}
       </main>
+      </div>
 
       {panelOpen ? (
         <KeeperPanel look={look} onChange={updateLook} onClose={() => setPanelOpen(false)} />
