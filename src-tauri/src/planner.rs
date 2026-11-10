@@ -84,6 +84,30 @@ pub struct GoalTotal {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Person {
+    pub id: i64,
+    pub name: String,
+    pub color: String,
+    pub is_self: bool,
+    pub weight_pct: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Share {
+    pub bill_id: i64,
+    pub person_id: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareInput {
+    pub bill_id: i64,
+    pub person_id: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlannerState {
     pub incomes: Vec<Income>,
     pub bills: Vec<Bill>,
@@ -92,6 +116,8 @@ pub struct PlannerState {
     pub goals: Vec<Goal>,
     pub goal_totals: Vec<GoalTotal>,
     pub reads: Vec<String>,
+    pub people: Vec<Person>,
+    pub shares: Vec<Share>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -655,6 +681,89 @@ pub fn set_setting(connection: &Connection, key: &str, value: &str) -> Result<()
     Ok(())
 }
 
+pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
+    let mut statement = connection
+        .prepare(
+            "select id, name, color, is_self, weight_pct
+             from people
+             where deleted_at is null
+             order by is_self desc, id",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(Person {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                is_self: row.get::<_, i64>(3)? == 1,
+                weight_pct: row.get(4)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+/// Two people are the whole model for now: me and whoever shares the house.
+/// Seeding is idempotent and happens on read, so the UI never has to guess.
+pub fn ensure_people(connection: &Connection) -> Result<Vec<Person>, String> {
+    let existing = list_people(connection)?;
+    if !existing.is_empty() {
+        return Ok(existing);
+    }
+    let stamp = now();
+    for (name, color, is_self, weight) in [
+        ("Você", "#2563eb", 1_i64, 50_i64),
+        ("Parceiro(a)", "#f43f5e", 0, 50),
+    ] {
+        connection
+            .execute(
+                "insert into people (uid, name, color, is_self, weight_pct, created_at, updated_at)
+                 values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5)",
+                params![name, color, is_self, weight, stamp],
+            )
+            .map_err(|problem| problem.to_string())?;
+    }
+    list_people(connection)
+}
+
+pub fn list_shares(connection: &Connection) -> Result<Vec<Share>, String> {
+    let mut statement = connection
+        .prepare(
+            "select bill_id, person_id
+             from shares
+             where deleted_at is null
+             order by bill_id",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(Share {
+                bill_id: row.get(0)?,
+                person_id: row.get(1)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+/// One payer per bill: assigning the same bill twice replaces the payer.
+pub fn set_share(connection: &Connection, input: &ShareInput) -> Result<(), String> {
+    let stamp = now();
+    connection
+        .execute(
+            "insert into shares (uid, bill_id, person_id, percent, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, 100, ?3, ?3)
+             on conflict (bill_id) do update
+                set person_id = excluded.person_id, updated_at = excluded.updated_at",
+            params![input.bill_id, input.person_id, stamp],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
 pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, String> {
     Ok(PlannerState {
         incomes: list_incomes(connection)?,
@@ -664,6 +773,8 @@ pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, Strin
         goals: list_goals(connection)?,
         goal_totals: goal_totals(connection)?,
         reads: list_reads(connection)?,
+        people: ensure_people(connection)?,
+        shares: list_shares(connection)?,
     })
 }
 
@@ -785,6 +896,46 @@ mod tests {
         assert_eq!(totals.len(), 1);
         assert_eq!(totals[0].paid_cents, 100_000);
         assert_eq!(totals[0].payments, 1);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn the_house_starts_with_two_people_and_one_payer_per_bill() {
+        let path = temporary_database("people");
+        let connection = db::open(&path).expect("should open");
+
+        let people = ensure_people(&connection).expect("should seed");
+        assert_eq!(people.len(), 2);
+        assert!(people[0].is_self, "the first person is me");
+        assert_eq!(people[0].weight_pct + people[1].weight_pct, 100);
+
+        // Seeding twice must not duplicate the pair.
+        assert_eq!(ensure_people(&connection).expect("should not reseed").len(), 2);
+
+        let id = save_bill(&connection, &bill_input()).expect("should save");
+        set_share(
+            &connection,
+            &ShareInput {
+                bill_id: id,
+                person_id: people[1].id,
+            },
+        )
+        .expect("should share");
+        assert_eq!(list_shares(&connection).expect("list").len(), 1);
+
+        // Assigning the same bill again replaces the payer instead of adding one.
+        set_share(
+            &connection,
+            &ShareInput {
+                bill_id: id,
+                person_id: people[0].id,
+            },
+        )
+        .expect("should reassign");
+        let shares = list_shares(&connection).expect("list");
+        assert_eq!(shares.len(), 1);
+        assert_eq!(shares[0].person_id, people[0].id);
 
         let _ = std::fs::remove_file(&path);
     }

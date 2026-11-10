@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -169,6 +169,33 @@ create table if not exists notification_reads (
 );
 "#;
 
+/// v3: the house is shared between people, and each bill has one payer.
+const NEW_TABLES_V3: &str = r#"
+create table if not exists people (
+    id         integer primary key,
+    uid        text    not null unique,
+    name       text    not null,
+    color      text    not null default '#2563eb',
+    is_self    integer not null default 0,
+    weight_pct integer not null default 50,
+    created_at text    not null,
+    updated_at text    not null,
+    deleted_at text
+);
+
+create table if not exists shares (
+    id         integer primary key,
+    uid        text    not null unique,
+    bill_id    integer not null,
+    person_id  integer not null,
+    percent    integer not null default 100,
+    created_at text    not null,
+    updated_at text    not null,
+    deleted_at text,
+    unique (bill_id)
+);
+"#;
+
 const SEED_CATEGORIES: &[(&str, &str, &str)] = &[
     ("Groceries", "expense", "#4c9f70"),
     ("Food", "expense", "#d98c3f"),
@@ -299,8 +326,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         stored
     };
 
-    if version < SCHEMA_VERSION {
+    if version < 2 {
         migrate_to_v2(&connection)?;
+        write_version(&connection, 2)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v3(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -366,6 +397,13 @@ fn add_column(
     }
     connection
         .execute_batch(&format!("alter table {table} add column {column} {definition}"))
+        .map_err(|problem| problem.to_string())
+}
+
+/// v2 to v3: new tables only, so nothing on the fact table changes.
+fn migrate_to_v3(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V3)
         .map_err(|problem| problem.to_string())
 }
 
@@ -1047,7 +1085,9 @@ mod tests {
                 row.get(0)
             })
             .expect("should read the version");
-        assert_eq!(version, "2");
+        assert_eq!(version, SCHEMA_VERSION.to_string());
+        assert!(has_table(&connection, "people").expect("should inspect"));
+        assert!(has_table(&connection, "shares").expect("should inspect"));
 
         let (count, distinct, blank): (i64, i64, i64) = connection
             .query_row(

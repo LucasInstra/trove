@@ -4,7 +4,7 @@ import { Donut } from "../components/Donut";
 import { Icon } from "../components/Icons";
 import { Mascot } from "../components/Mascot";
 import { Money } from "../components/Money";
-import { BillsCard, CardsCard, GoalsCard, HousingCard } from "../components/PlannerCards";
+import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
 import { TransactionsPanel } from "../components/TransactionsPanel";
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
@@ -18,6 +18,8 @@ import type {
   Category,
   CategoryTotal,
   MonthPoint,
+  Person,
+  Share,
   TransactionRow,
 } from "../lib/api";
 
@@ -44,6 +46,11 @@ interface OverviewProps {
   onEditHousing: () => void;
   housingScope: "primary" | "total";
   onHousingScope: (scope: "primary" | "total") => void;
+  people: Person[];
+  shares: Share[];
+  splitSettled: boolean;
+  onAssignShare: (billId: number, personId: number) => void;
+  onSettle: () => void;
   onEditIncome: () => void;
   accounts: Account[];
   look: KeeperLook;
@@ -75,6 +82,11 @@ export function OverviewScreen({
   onHousingScope,
   onEditIncome,
   housingScope,
+  people,
+  shares,
+  splitSettled,
+  onAssignShare,
+  onSettle,
   accounts,
   look,
   accountFilter,
@@ -150,7 +162,46 @@ export function OverviewScreen({
         <HousingCard plan={plan} scope={housingScope} onScope={onHousingScope} onEdit={onEditHousing} />
         <GoalsCard plan={plan} onAdd={onAddGoal} />
 
-        <article className="card span-2">
+        <SplitCard
+          people={people}
+          shares={shares}
+          bills={plan.dueBills}
+          settled={splitSettled}
+          onAssign={onAssignShare}
+          onSettle={onSettle}
+        />
+
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon violet"><Icon name="ledger" size={15} /></span>
+              <h2>{t("ledger.whereMoney")}</h2>
+            </div>
+            <span className="muted">{monthLabel(month, lang)}</span>
+          </header>
+
+          {byCategory.length === 0 ? (
+            <p className="card-empty">{t("ledger.noSpending")}</p>
+          ) : (
+            <div className="donut-row">
+              <Donut segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))} />
+              <ul className="legend">
+                {byCategory.map((item) => (
+                  <li key={`${item.categoryId ?? "none"}-${item.name}`}>
+                    <span className="dot" style={{ background: item.color }} />
+                    <span className="legend-name">{item.name}</span>
+                    <span className="legend-value">{formatCents(item.totalCents)}</span>
+                    <span className="legend-share">
+                      {spending > 0 ? Math.round((item.totalCents / spending) * 100) : 0}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </article>
+
+        <article className="card span-3">
           <header className="card-head">
             <div className="card-title">
               <span className="card-icon slate"><Icon name="flow" size={15} /></span>
@@ -200,36 +251,6 @@ export function OverviewScreen({
           </div>
           )}
         </article>
-        <article className="card">
-          <header className="card-head">
-            <div className="card-title">
-              <span className="card-icon violet"><Icon name="ledger" size={15} /></span>
-              <h2>{t("ledger.whereMoney")}</h2>
-            </div>
-            <span className="muted">{monthLabel(month, lang)}</span>
-          </header>
-
-          {byCategory.length === 0 ? (
-            <p className="card-empty">{t("ledger.noSpending")}</p>
-          ) : (
-            <div className="donut-row">
-              <Donut segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))} />
-              <ul className="legend">
-                {byCategory.map((item) => (
-                  <li key={`${item.categoryId ?? "none"}-${item.name}`}>
-                    <span className="dot" style={{ background: item.color }} />
-                    <span className="legend-name">{item.name}</span>
-                    <span className="legend-value">{formatCents(item.totalCents)}</span>
-                    <span className="legend-share">
-                      {spending > 0 ? Math.round((item.totalCents / spending) * 100) : 0}%
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </article>
-
       </div>
 
       <TransactionsPanel

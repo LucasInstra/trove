@@ -133,6 +133,24 @@ export interface GoalTotal {
   payments: number;
 }
 
+export interface Person {
+  id: number;
+  name: string;
+  color: string;
+  isSelf: boolean;
+  weightPct: number;
+}
+
+export interface Share {
+  billId: number;
+  personId: number;
+}
+
+export interface ShareInput {
+  billId: number;
+  personId: number;
+}
+
 export interface PlannerState {
   incomes: Income[];
   bills: Bill[];
@@ -141,6 +159,8 @@ export interface PlannerState {
   goals: Goal[];
   goalTotals: GoalTotal[];
   reads: string[];
+  people: Person[];
+  shares: Share[];
 }
 
 export interface IncomeInput {
@@ -198,6 +218,8 @@ export const EMPTY_PLANNER: PlannerState = {
   goals: [],
   goalTotals: [],
   reads: [],
+  people: [],
+  shares: [],
 };
 
 export const api = {
@@ -232,6 +254,7 @@ export const api = {
   saveGoal: (input: GoalInput) => invoke<number>("save_goal", { input }),
   cardUsage: (accountId: number, from: string, to: string) =>
     invoke<number>("card_usage", { accountId, from, to }),
+  setShare: (input: ShareInput) => invoke<void>("set_share", { input }),
   markNotificationsRead: (keys: string[]) =>
     invoke<void>("mark_notifications_read", { keys }),
   getSetting: (key: string) => invoke<string | null>("get_setting", { key }),

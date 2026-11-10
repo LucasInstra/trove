@@ -169,6 +169,12 @@ fn card_usage(
 }
 
 #[tauri::command]
+fn set_share(app: tauri::AppHandle, input: planner::ShareInput) -> Result<(), String> {
+    let connection = connection(&app)?;
+    planner::set_share(&connection, &input)
+}
+
+#[tauri::command]
 fn mark_notifications_read(app: tauri::AppHandle, keys: Vec<String>) -> Result<(), String> {
     let connection = connection(&app)?;
     planner::mark_read(&connection, &keys)
@@ -218,6 +224,7 @@ pub fn run() {
             save_card,
             save_goal,
             card_usage,
+            set_share,
             mark_notifications_read,
             get_setting,
             set_setting

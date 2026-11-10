@@ -98,6 +98,7 @@ export function App() {
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
   const [ceilingPct, setCeilingPct] = useState(30);
   const [housingScope, setHousingScope] = useState<"primary" | "total">("primary");
+  const [splitSettled, setSplitSettled] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -120,7 +121,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling, scope] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling, scope, settled] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -132,6 +133,7 @@ export function App() {
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
+          api.getSetting(`split_settled_${at}`).catch(() => null),
         ]);
       setRows(nextRows);
       setAccounts(nextAccounts);
@@ -145,6 +147,7 @@ export function App() {
       setHousingCategoryId(storedHousing ?? fallback?.id ?? null);
       setCeilingPct(ceiling ? Number(ceiling) : 30);
       setHousingScope(scope === "total" ? "total" : "primary");
+      setSplitSettled(settled === "1");
       setError("");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
@@ -427,6 +430,19 @@ export function App() {
               onHousingScope={(scope) => {
                 setHousingScope(scope);
                 void api.setSetting("housing_scope", scope);
+              }}
+              people={planner.people}
+              shares={planner.shares}
+              splitSettled={splitSettled}
+              onAssignShare={(billId, personId) => {
+                void api.setShare({ billId, personId }).then(() => {
+                  if (month) void reload(search, month, accountFilter);
+                });
+              }}
+              onSettle={() => {
+                if (!month) return;
+                setSplitSettled(true);
+                void api.setSetting(`split_settled_${month}`, "1");
               }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
             />

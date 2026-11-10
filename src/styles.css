@@ -3279,3 +3279,154 @@ select.tx-category {
   top: -3px;
   height: 24px;
 }
+
+
+/* ---------- Phase D: house split ---------- */
+
+.span-3 {
+  grid-column: 1 / -1;
+}
+
+.split-card {
+  gap: 12px;
+}
+
+.split-bar {
+  position: relative;
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bar-rest);
+}
+
+.split-self {
+  height: 100%;
+  background: var(--primary);
+}
+
+.split-partner {
+  height: 100%;
+  background: #f43f5e;
+}
+
+.split-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.7;
+}
+
+.split-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.split-legend li {
+  display: grid;
+  grid-template-columns: 9px auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.split-legend strong {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.split-dot.self {
+  background: var(--primary);
+}
+
+.split-dot.partner {
+  background: #f43f5e;
+}
+
+.split-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.split-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.split-row:hover {
+  background: var(--surface-soft);
+}
+
+.split-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.split-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.split-owes {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--positive);
+}
+
+.split-owes.down {
+  color: var(--negative);
+}
+
+.small-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.small-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (max-width: 1180px) {
+  .span-3 {
+    grid-column: span 2;
+  }
+}

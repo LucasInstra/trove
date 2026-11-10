@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { Bill, CardMeta, Goal, TransactionRow } from "../lib/api";
+import type { Bill, CardMeta, Goal, Person, Share, TransactionRow } from "../lib/api";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
+import { computeSplit } from "../domain/split";
 import { api } from "../lib/api";
 import { formatCents, formatDate, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -418,6 +419,116 @@ export function GoalsCard({ plan, onAdd }: { plan: MonthPlan; onAdd: () => void 
           ))}
         </ul>
       )}
+    </article>
+  );
+}
+
+interface SplitProps {
+  people: Person[];
+  shares: Share[];
+  bills: Bill[];
+  settled: boolean;
+  onAssign: (billId: number, personId: number) => void;
+  onSettle: () => void;
+}
+
+/** Who pays each bill of the month, and who ends up owing whom. */
+export function SplitCard({ people, shares, bills, settled, onAssign, onSettle }: SplitProps) {
+  const { t } = useLanguage();
+  const split = computeSplit(people, shares, bills);
+
+  if (people.length < 2) {
+    return (
+      <article className="card split-card span-2">
+        <header className="card-head">
+          <div className="card-title">
+            <h2>{t("split.title")}</h2>
+          </div>
+        </header>
+        <p className="card-empty">{t("split.noPartner")}</p>
+      </article>
+    );
+  }
+
+  const selfName = t("split.you");
+  const partnerName = split.partnerPerson?.name ?? t("split.partner");
+  const partner = split.partnerPerson;
+
+  return (
+    <article className="card split-card span-2 card-with-art">
+      <header className="card-head">
+        <div className="card-title">
+          <h2>{t("split.title")}</h2>
+        </div>
+        <span className="card-icon slate"><Icon name="scale" size={16} /></span>
+      </header>
+
+      <div className="card-figure">
+        <strong>{formatCents(split.totalCents)}</strong>
+        <span className="muted small">{t("split.total")}</span>
+      </div>
+
+      <div className="split-bar">
+        <span className="split-self" style={{ width: `${split.selfPct}%` }} />
+        <span className="split-partner" style={{ width: `${split.partnerPct}%` }} />
+        <span className="split-mark" style={{ left: `${split.targetSelfPct}%` }} />
+      </div>
+
+      <ul className="split-legend">
+        <li>
+          <span className="dot split-dot self" />
+          <span>{selfName}</span>
+          <strong>{formatCents(split.selfCents)}</strong>
+          <span className="muted">{Math.round(split.selfPct)}%</span>
+        </li>
+        <li>
+          <span className="dot split-dot partner" />
+          <span>{partnerName}</span>
+          <strong>{formatCents(split.partnerCents)}</strong>
+          <span className="muted">{Math.round(split.partnerPct)}%</span>
+        </li>
+      </ul>
+
+      <span className="upcoming-label">{t("split.whoPays")}</span>
+      <ul className="split-list">
+        {split.lines.map((line) => (
+          <li key={line.bill.id}>
+            <button
+              type="button"
+              className="split-row"
+              onClick={() => partner && onAssign(line.bill.id, line.person?.isSelf ? partner.id : (split.selfPerson?.id ?? 0))}
+              aria-label={t("split.changePayer", { name: line.bill.name })}
+            >
+              <span className="dot" style={{ background: line.person?.color ?? "var(--faint)" }} />
+              <span className="split-name">{line.bill.name}</span>
+              <span className="split-amount">{formatCents(line.amountCents)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="split-foot">
+        {split.owes === "partner" ? (
+          <span className="split-owes">
+            <Icon name="arrow-right" size={15} />
+            {t("split.owesYou", { name: partnerName, amount: formatCents(split.settlementCents) })}
+          </span>
+        ) : split.owes === "self" ? (
+          <span className="split-owes down">
+            <Icon name="arrow-right" size={15} />
+            {t("split.youOwe", { name: partnerName, amount: formatCents(split.settlementCents) })}
+          </span>
+        ) : (
+          <span className="muted small">{t("split.even")}</span>
+        )}
+
+        {split.owes ? (
+          <button type="button" className="ghost small-button" onClick={onSettle} disabled={settled}>
+            <Icon name="check" size={15} />
+            {settled ? t("split.settled") : t("split.markDone")}
+          </button>
+        ) : null}
+      </div>
     </article>
   );
 }
