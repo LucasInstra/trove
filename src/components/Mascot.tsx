@@ -309,26 +309,16 @@ export function Mascot({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hitRef = useRef<HTMLDivElement>(null);
   const moodRef = useRef<Mood>(mood);
+  const lookRef = useRef(look);
+  const boopableRef = useRef(boopable);
   const boopCallback = useRef(onBoop);
   const canvasPadding = 0.4;
   const canvasSize = Math.round(size * (1 + canvasPadding));
 
   moodRef.current = mood;
+  lookRef.current = look;
+  boopableRef.current = boopable;
   boopCallback.current = onBoop;
-
-  const {
-    shape,
-    color,
-    eyeStyle,
-    eyeSize,
-    eyeSpacing,
-    eyeTilt,
-    eyeColor,
-    snout,
-    ears,
-    tail,
-    blush,
-  } = look;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -346,9 +336,13 @@ export function Mascot({
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const radius = size * 0.3;
-    const outline = bodyOutline(shape, radius);
-    // Decorations anchor to the real silhouette, so a pill or a star does not
-    // leave the ears, the tail or the feet floating in empty space.
+    let rootMatrix = new DOMMatrix();
+    let hitRect = hit.getBoundingClientRect();
+    const refreshRect = () => {
+      hitRect = hit.getBoundingClientRect();
+    };
+    const rectObserver = new ResizeObserver(refreshRect);
+    rectObserver.observe(hit);
     const start = performance.now();
     let frame = 0;
     let nextBlink = 1.8;
@@ -396,7 +390,7 @@ export function Mascot({
 
 
     const onPointerMove = (event: PointerEvent) => {
-      const rect = hit.getBoundingClientRect();
+      const rect = hitRect;
       const halfWidth = rect.width / 2 || 1;
       const halfHeight = rect.height / 2 || 1;
       gaze.tx = Math.max(-1, Math.min(1, (event.clientX - (rect.left + halfWidth)) / halfWidth));
@@ -422,15 +416,23 @@ export function Mascot({
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (!boopable) return;
+      if (!boopableRef.current || event.button !== 0) return;
+      refreshRect();
       drag.active = true;
       drag.startX = event.clientX;
       drag.startY = event.clientY;
       drag.moved = 0;
-      const rect = hit.getBoundingClientRect();
-      const offsetX = event.clientX - (rect.left + rect.width / 2);
-      const offsetY = event.clientY - (rect.top + rect.height / 2);
-      const anchor = clampAnchor(offsetX, offsetY, radius);
+      // The drawing is translated, rotated and scaled, so the pointer has to be
+      // mapped through the inverse of the root matrix to land on the material
+      // point the user actually grabbed.
+      const canvasRect = canvas.getBoundingClientRect();
+      const scale = canvasSize / (canvasRect.width || canvasSize);
+      const pointer = new DOMPoint(
+        (event.clientX - canvasRect.left) * scale,
+        (event.clientY - canvasRect.top) * scale,
+      );
+      const local = rootMatrix.inverse().transformPoint(pointer);
+      const anchor = clampAnchor(local.x, local.y, radius);
       drag.anchorX = anchor.x;
       drag.anchorY = anchor.y;
       try {
@@ -448,7 +450,7 @@ export function Mascot({
       dragY.target = 0;
       pullX.target = 0;
       pullY.target = 0;
-      hit.style.cursor = boopable ? "grab" : "default";
+      hit.style.cursor = boopableRef.current ? "grab" : "inherit";
       if (drag.moved < 4) {
         const now = (performance.now() - start) / 1000;
         happyUntil = now + 1.2;
@@ -463,7 +465,6 @@ export function Mascot({
       window.addEventListener("blur", onPointerUp);
       hit.addEventListener("pointerdown", onPointerDown);
       hit.addEventListener("pointercancel", onPointerUp);
-      if (boopable) hit.style.cursor = "grab";
     }
 
     const draw = (now: number) => {
@@ -471,6 +472,20 @@ export function Mascot({
       // Each frame owns its transform, so a second effect instance that resized
       // the canvas cannot leave this one drawing at the wrong scale.
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const {
+        shape,
+        color,
+        eyeStyle,
+        eyeSize,
+        eyeSpacing,
+        eyeTilt,
+        eyeColor,
+        snout,
+        ears,
+        tail,
+        blush,
+      } = lookRef.current;
+      const outline = bodyOutline(shape, radius);
       const time = (now - start) / 1000;
       const delta = Math.min(0.05, Math.max(0.008, time - lastTime || 0.016));
       lastTime = time;
@@ -488,12 +503,15 @@ export function Mascot({
       eased.tiltAmp += ((moodSad ? 0.012 : moodHappy ? 0.03 : 0.02) - eased.tiltAmp) * easeRate;
       eased.breatheAmp += ((moodSleepy ? 0.034 : 0.026) - eased.breatheAmp) * easeRate;
 
+      const dragging = drag.active;
       const squish = Math.sin(time * (moodHappy ? 2.6 : 1.9));
       const breathe = reduceMotion ? 1 : 1 + squish * eased.breatheAmp;
-      const sway = reduceMotion ? 0 : Math.sin(time * 0.9) * radius * 0.022;
+      const sway = reduceMotion || dragging ? 0 : Math.sin(time * 0.9) * radius * 0.022;
       const tilt = reduceMotion ? 0 : Math.sin(time * 2.1) * eased.tiltAmp;
       const moodBob =
-        moodHappy && !reduceMotion ? Math.abs(Math.sin(time * 5.5)) * radius * 0.035 : 0;
+        moodHappy && !reduceMotion && !dragging
+          ? Math.abs(Math.sin(time * 5.5)) * radius * 0.035
+          : 0;
       // Only the boop squints the eyes; the chosen eye style always wins.
       const happy = Math.max(0, Math.min(1, (happyUntil - time) / 0.5));
       const winking = winkUntil > time;
@@ -545,9 +563,9 @@ export function Mascot({
 
       const halfStep = delta / 2;
       for (let step = 0; step < 2; step += 1) {
-        spring(headX, gaze.x * radius * 0.11, 95, 13, halfStep);
-        spring(headY, gaze.y * radius * 0.07, 90, 14, halfStep);
-        spring(headRot, gaze.x * 0.09, 80, 12, halfStep);
+        spring(headX, dragging ? 0 : gaze.x * radius * 0.11, 95, 13, halfStep);
+        spring(headY, dragging ? 0 : gaze.y * radius * 0.07, 90, 14, halfStep);
+        spring(headRot, dragging ? 0 : gaze.x * 0.09, 80, 12, halfStep);
         spring(dragX, dragX.target, 150, 13, halfStep);
         spring(dragY, dragY.target, 150, 13, halfStep);
         spring(pullX, pullX.target, 210, 19.5, halfStep);
@@ -559,7 +577,10 @@ export function Mascot({
         nextHop = time + 10 + Math.random() * 12;
       }
       if (hopAt >= 0 && time - hopAt >= 0.5) hopAt = -1;
-      const hop = hopAt >= 0 ? Math.sin(((time - hopAt) / 0.5) * Math.PI) * radius * 0.06 : 0;
+      const hop =
+        !dragging && hopAt >= 0
+          ? Math.sin(((time - hopAt) / 0.5) * Math.PI) * radius * 0.06
+          : 0;
       const hovering = time - hoverSeen < 0.35;
 
       if (blinkStart < 0 && time >= nextBlink) blinkStart = time;
@@ -586,12 +607,19 @@ export function Mascot({
 
       context.clearRect(0, 0, canvasSize, canvasSize);
 
+      const rootX = center + sway + headX.value;
+      const rootY = center + headY.value + moodBob + moodDrop + hop;
+      const rootRotation = tilt + headRot.value + lean;
+      rootMatrix = new DOMMatrix()
+        .translateSelf(rootX, rootY)
+        .rotateSelf((rootRotation * 180) / Math.PI)
+        .scaleSelf(1 / breathe, breathe)
+        .translateSelf(bodyYaw, turnRise)
+        .scaleSelf(bodySquash, 1);
+
       context.save();
-      context.translate(
-        center + sway + headX.value,
-        center + headY.value + moodBob + moodDrop + hop,
-      );
-      context.rotate(tilt + headRot.value + lean);
+      context.translate(rootX, rootY);
+      context.rotate(rootRotation);
 
       context.save();
       context.translate(dragX.value, dragY.value);
@@ -920,6 +948,7 @@ export function Mascot({
 
     return () => {
       cancelled = true;
+      rectObserver.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
@@ -930,18 +959,6 @@ export function Mascot({
   }, [
     size,
     canvasSize,
-    shape,
-    color,
-    boopable,
-    snout,
-    ears,
-    tail,
-    blush,
-    eyeStyle,
-    eyeSize,
-    eyeSpacing,
-    eyeTilt,
-    eyeColor,
     animate,
   ]);
 
