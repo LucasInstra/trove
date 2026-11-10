@@ -99,7 +99,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
         </header>
 
         <div className="keeper-preview">
-          <Mascot look={look} size={148} mood="idle" hint={t("keeper.hint")} />
+          <Mascot look={look} size={148} mood="idle" fps={30} hint={t("keeper.hint")} />
         </div>
 
         <section className="keeper-section">
