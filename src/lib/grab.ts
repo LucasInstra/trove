@@ -19,7 +19,7 @@ export const GRAB = {
   /** Gaussian falloff at full pull. Bigger pulls spread the deformation instead of spiking. */
   falloffFar: 0.58,
   /** Global stretch along the pull axis at full pull. */
-  stretch: 0.04,
+  stretch: 0.06,
   /** Cross-axis squash relative to the stretch, for volume. */
   squash: 0.35,
   /** Anchor distance where the center-grab bias fades out, as a fraction of the radius. */
@@ -76,18 +76,6 @@ export function centerBias(anchorX: number, anchorY: number, radius: number): nu
 /** Clamps a grab point to the body, preserving its direction. */
 export function clampAnchor(x: number, y: number, radius: number): Point {
   return clampVector(x, y, safeRadius(radius) * GRAB.maxAnchor);
-}
-
-/** Centroid of a sampled outline, used to keep the face anchored to the body. */
-export function outlineCentroid(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 };
-  let x = 0;
-  let y = 0;
-  for (const point of points) {
-    x += point.x;
-    y += point.y;
-  }
-  return { x: x / points.length, y: y / points.length };
 }
 
 /**
@@ -201,10 +189,10 @@ export function gripPhysics(
   const amount = Math.hypot(pullX, pullY);
   const anchorDistance = Math.hypot(anchorX, anchorY);
   const axis =
-    anchorDistance > safe * 0.05
-      ? Math.atan2(anchorY, anchorX)
-      : amount > 0
-        ? Math.atan2(pullY, pullX)
+    amount > 0.5
+      ? Math.atan2(pullY, pullX)
+      : anchorDistance > safe * 0.05
+        ? Math.atan2(anchorY, anchorX)
         : 0;
 
   const along = (Math.cos(axis) * pullX + Math.sin(axis) * pullY) / safe;

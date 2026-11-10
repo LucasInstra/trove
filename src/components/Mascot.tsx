@@ -130,29 +130,6 @@ function superellipse(path: Path2D, radius: number, power: number) {
   path.closePath();
 }
 
-function roundedPolygon(path: Path2D, points: number[][], corner: number) {
-  const count = points.length;
-  const at = (index: number) => points[(index + count) % count];
-  const distance = (a: number[], b: number[]) => Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const towards = (from: number[], to: number[], amount: number) => {
-    const length = distance(from, to) || 1;
-    const ratio = Math.min(0.45, amount / length);
-    return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
-  };
-
-  for (let index = 0; index < count; index += 1) {
-    const previous = at(index - 1);
-    const current = at(index);
-    const next = at(index + 1);
-    const start = towards(current, previous, corner);
-    const end = towards(current, next, corner);
-    if (index === 0) path.moveTo(start[0], start[1]);
-    else path.lineTo(start[0], start[1]);
-    path.quadraticCurveTo(current[0], current[1], end[0], end[1]);
-  }
-  path.closePath();
-}
-
 function bodyPath(shape: string, radius: number): Path2D {
   const path = new Path2D();
 
@@ -172,62 +149,6 @@ function bodyPath(shape: string, radius: number): Path2D {
     case "blob":
       superellipse(path, radius * 0.98, 3.1);
       break;
-    case "cloud":
-      path.arc(-radius * 0.38, radius * 0.1, radius * 0.5, 0, TAU);
-      path.moveTo(radius * 0.84, radius * 0.02);
-      path.arc(radius * 0.36, radius * 0.04, radius * 0.54, 0, TAU);
-      path.moveTo(radius * 0.56, -radius * 0.24);
-      path.arc(0, -radius * 0.34, radius * 0.52, 0, TAU);
-      path.roundRect(-radius * 0.74, radius * 0.04, radius * 1.48, radius * 0.52, radius * 0.22);
-      break;
-    case "hexagon":
-      roundedPolygon(
-        path,
-        Array.from({ length: 6 }, (_, index) => {
-          const angle = -Math.PI / 2 + (index * Math.PI) / 3;
-          return [Math.cos(angle) * radius * 0.92, Math.sin(angle) * radius * 0.92];
-        }),
-        radius * 0.2,
-      );
-      break;
-    case "drop":
-      path.moveTo(0, -radius * 1.08);
-      path.bezierCurveTo(
-        radius * 0.55,
-        -radius * 0.42,
-        radius * 0.86,
-        radius * 0.18,
-        radius * 0.7,
-        radius * 0.52,
-      );
-      path.bezierCurveTo(
-        radius * 0.54,
-        radius * 0.94,
-        -radius * 0.54,
-        radius * 0.94,
-        -radius * 0.7,
-        radius * 0.52,
-      );
-      path.bezierCurveTo(
-        -radius * 0.86,
-        radius * 0.18,
-        -radius * 0.55,
-        -radius * 0.42,
-        0,
-        -radius * 1.08,
-      );
-      path.closePath();
-      break;
-    case "star": {
-      const points: number[][] = [];
-      for (let index = 0; index < 10; index += 1) {
-        const angle = -Math.PI / 2 + (index * Math.PI) / 5;
-        const distance = index % 2 === 0 ? radius * 1.02 : radius * 0.46;
-        points.push([Math.cos(angle) * distance, Math.sin(angle) * distance]);
-      }
-      roundedPolygon(path, points, radius * 0.1);
-      break;
-    }
     case "round":
     default:
       path.arc(0, 0, radius * 0.95, 0, TAU);
@@ -375,7 +296,6 @@ export function Mascot({
     let nextBlink = 1.8;
     let blinkStart = -1;
     let nextWander = 0;
-    let wonder = 0;
     let hoverSeen = -10;
     let nextLook = 6 + Math.random() * 6;
     let lookPhase = -1;
@@ -538,7 +458,6 @@ export function Mascot({
       const moodSleepy = feeling === "sleepy";
       const center = canvasSize / 2;
 
-      wonder *= 0.96;
 
       const easeRate = Math.min(1, 0.045 * (delta * 60));
       eased.squint += ((moodSad ? 0.62 : 1) - eased.squint) * easeRate;
@@ -713,13 +632,22 @@ export function Mascot({
       }
       const body = cachedBody ?? pathFromPoints(outline, shear);
 
+      const sampleRing = (ring: Point[], angle: number): Point => {
+        const wrapped = ((angle % TAU) + TAU) % TAU;
+        const exact = (wrapped / TAU) * ring.length;
+        const index = Math.floor(exact) % ring.length;
+        const next = (index + 1) % ring.length;
+        const step = exact - Math.floor(exact);
+        return {
+          x: ring[index].x + (ring[next].x - ring[index].x) * step,
+          y: ring[index].y + (ring[next].y - ring[index].y) * step,
+        };
+      };
       const at = (angle: number): Point => {
         if (deformed.length === 0) {
           return { x: Math.cos(angle) * radius * 0.92, y: Math.sin(angle) * radius * 0.92 };
         }
-        const wrapped = ((angle % TAU) + TAU) % TAU;
-        const index = Math.round((wrapped / TAU) * deformed.length) % deformed.length;
-        const point = deformed[index];
+        const point = sampleRing(deformed, angle);
         return { x: point.x + shear * point.y, y: point.y };
       };
       const move = (x: number, y: number) =>
@@ -734,9 +662,7 @@ export function Mascot({
             y: Math.sin(angle) * radius * 0.92 * scale,
           };
         }
-        const wrapped = ((angle % TAU) + TAU) % TAU;
-        const index = Math.round((wrapped / TAU) * outline.length) % outline.length;
-        const point = outline[index];
+        const point = sampleRing(outline, angle);
         return { x: point.x * scale + shear * point.y * scale, y: point.y * scale };
       };
       const place = (angle: number, scale = 1): Point => {
@@ -753,7 +679,10 @@ export function Mascot({
         const count = deformed.length;
         const previous = deformed[(index - 1 + count) % count];
         const next = deformed[(index + 1) % count];
-        const tangent = Math.atan2(next.y - previous.y, next.x - previous.x);
+        const dx = next.x - previous.x;
+        const dy = next.y - previous.y;
+        if (Math.hypot(dx, dy) < 1e-4) return angle;
+        const tangent = Math.atan2(dy, dx);
         return tangent - Math.PI / 2;
       };
 
@@ -828,6 +757,9 @@ export function Mascot({
       context.restore();
 
       context.save();
+      // Eyes, blush and snout belong to the body, so a hard pull cannot leave
+      // them hanging past the silhouette. The feet are drawn outside this clip.
+      context.clip(body);
 
       const sizeScale =
         (eyeSize === "small" ? 0.82 : eyeSize === "large" ? 1.22 : 1) * (hovering ? 1.035 : 1);
@@ -854,7 +786,7 @@ export function Mascot({
         const style = eyeStyle;
         const eye = eyeShape(style, radius, sizeScale);
         const eyeWidth = eye.width;
-        const eyeHeight = eye.height * (style === "bars" ? 1 + wonder * 0.1 : 1);
+        const eyeHeight = eye.height;
         const eyeLift = Math.max(0, eyeHeight / 2 - radius * 0.26);
         const eyeX = side * eyeOffset;
         const closed = winking && side === -1;
