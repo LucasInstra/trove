@@ -52,7 +52,9 @@ CSV and PDF import, category dashboard, end-of-month projection, subscription ra
 
 ## Install
 
-Download `trove_x.y.z_x64-setup.exe` from the [releases](https://github.com/LucasInstra/trove/releases) page. There is also `trove-portable-x64.zip`, which is the executable alone.
+Download `trove-setup.msi` from the [releases](https://github.com/LucasInstra/trove/releases) page. The same release also carries `trove-setup.exe` (NSIS) and `trove-portable-x64.zip`, which is the executable alone, for when you do not want to install anything.
+
+Updates ship as the MSI, so the in-app updater replaces the installed build instead of stacking a second one.
 
 The build is not code signed, so Windows SmartScreen may warn on first run.
 

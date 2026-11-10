@@ -1,0 +1,153 @@
+import { useRef } from "react";
+import { Icon } from "./Icons";
+import { dayLabel, formatCents, formatSignedCents } from "../lib/format";
+import { useLanguage } from "../lib/language";
+import type { Account, Category, TransactionRow } from "../lib/api";
+
+interface Props {
+  rows: TransactionRow[];
+  categories: Category[];
+  search: string;
+  loading: boolean;
+  onSearch: (value: string) => void;
+  onCategory: (transactionId: number, categoryId: number | null) => void;
+  onImport: () => void;
+  groups: { day: string; rows: TransactionRow[]; total: number }[];
+  accounts: Account[];
+  accountFilter: number | null;
+  onAccountFilter: (accountId: number | null) => void;
+}
+
+function initial(row: TransactionRow): string {
+  const source = row.categoryName || row.merchant || row.description || "?";
+  return source.trim().charAt(0).toUpperCase();
+}
+
+export function TransactionsPanel({
+  rows,
+  categories,
+  search,
+  loading,
+  onSearch,
+  onCategory,
+  onImport,
+  groups,
+  accounts,
+  accountFilter,
+  onAccountFilter,
+}: Props) {
+  const { lang, t } = useLanguage();
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="ledger">
+      <div className="ledger-head">
+        <h2>{t("ledger.transactions")}</h2>
+        <span className="muted count">{t("ledger.entries", { count: rows.length })}</span>
+      </div>
+
+      <div className="toolbar">
+        <label className="search">
+          <Icon name="search" size={15} />
+          <input
+            ref={searchRef}
+            type="search"
+            placeholder={t("ledger.searchPlaceholder")}
+            value={search}
+            onChange={(event) => onSearch(event.target.value)}
+          />
+        </label>
+        <label className="account-filter">
+          <span className="visually-hidden">{t("ledger.account")}</span>
+          <select
+            value={accountFilter ?? ""}
+            onChange={(event) =>
+              onAccountFilter(event.target.value === "" ? null : Number(event.target.value))
+            }
+          >
+            <option value="">{t("ledger.allAccounts")}</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {loading ? <p className="muted">{t("common.loading")}</p> : null}
+
+      {!loading && rows.length === 0 ? (
+        <div className="empty">
+          <h2>{t("ledger.emptyTitle")}</h2>
+          <p className="muted">{t("ledger.emptyDesc")}</p>
+          <button type="button" className="primary" onClick={onImport}>
+            {t("ledger.chooseFile")}
+          </button>
+        </div>
+      ) : null}
+
+      {rows.length > 0 ? (
+        <div className="tx-list">
+          {groups.map((group) => (
+            <section className="tx-day" key={group.day}>
+              <header className="tx-day-head">
+                <span>{dayLabel(group.day, lang)}</span>
+                <span>{formatSignedCents(group.total)}</span>
+              </header>
+              <div className="tx-group">
+                {group.rows.map((row) => {
+                  const color = row.categoryColor ?? "#8b8798";
+                  return (
+                    <div className="tx-row" key={row.id}>
+                      <span
+                        className="tx-icon"
+                        style={{ background: `${color}1f`, color }}
+                        aria-hidden="true"
+                      >
+                        {initial(row)}
+                      </span>
+                      <div className="tx-main">
+                        <span className="tx-title">{row.merchant || row.description}</span>
+                        <span className="tx-sub">
+                          {row.categoryName ?? t("ledger.noCategory")} · {row.accountName}
+                        </span>
+                      </div>
+                      <select
+                        className="tx-category"
+                        value={row.categoryId ?? ""}
+                        onChange={(event) =>
+                          onCategory(
+                            row.id,
+                            event.target.value === "" ? null : Number(event.target.value),
+                          )
+                        }
+                        aria-label="Category"
+                      >
+                        <option value="">{t("ledger.noCategory")}</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                      <span className={row.amountCents < 0 ? "tx-amount out" : "tx-amount in"}>
+                        {formatSignedCents(row.amountCents)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : null}
+
+      {rows.length > 0 ? (
+        <p className="muted small ledger-foot">
+          {t("ledger.total", { amount: formatCents(groups.reduce((total, group) => total + group.total, 0)) })}
+        </p>
+      ) : null}
+    </div>
+  );
+}

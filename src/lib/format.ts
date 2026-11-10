@@ -71,6 +71,13 @@ export function monthLabel(month: string, lang: Lang = "en"): string {
   return lang === "pt" ? `${name} de ${year}` : `${name} ${year}`;
 }
 
+/** "November" / "Novembro", capitalised in both languages. */
+export function monthName(month: string, lang: Lang = "en"): string {
+  const [, value] = month.split("-");
+  const name = MONTHS[lang][Number(value) - 1] ?? "";
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export function monthShort(month: string, lang: Lang = "en"): string {
   const [, value] = month.split("-");
   return SHORT_MONTHS[lang][Number(value) - 1] ?? month;
