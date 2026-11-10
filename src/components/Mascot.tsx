@@ -360,7 +360,7 @@ export function Mascot({
     let lastTime = 0;
     let happyUntil = -1;
     let winkUntil = -1;
-    const eased = { squint: 1, tiltAmp: 0.02, breatheAmp: 0.026 };
+    const eased = { squint: 1, sleep: 0, tiltAmp: 0.02, breatheAmp: 0.026 };
 
     const headX = { value: 0, velocity: 0 };
     const headY = { value: 0, velocity: 0 };
@@ -510,6 +510,7 @@ export function Mascot({
 
       const easeRate = Math.min(1, 0.045 * (delta * 60));
       eased.squint += ((moodSad ? 0.62 : 1) - eased.squint) * easeRate;
+      eased.sleep += ((moodSleepy ? 1 : 0) - eased.sleep) * easeRate;
       eased.tiltAmp += ((moodSad ? 0.012 : moodHappy ? 0.03 : 0.02) - eased.tiltAmp) * easeRate;
       eased.breatheAmp += ((moodSleepy ? 0.034 : 0.026) - eased.breatheAmp) * easeRate;
 
@@ -608,9 +609,7 @@ export function Mascot({
         }
       }
 
-      let eyeOpen = Math.max(0.08, openness * eased.squint);
-      if (moodSleepy) eyeOpen = 0.1;
-      const sadEyes = moodSad;
+      const eyeOpen = Math.max(0.08, openness * eased.squint) * (1 - 0.9 * eased.sleep);
 
       const grip = gripPhysics(drag.anchorX, drag.anchorY, pullX.value, pullY.value, radius);
       const lean = (pullX.value / (radius * 1.2)) * 0.05;
@@ -808,8 +807,7 @@ export function Mascot({
         happy > 0.5 && (eyeStyle === "bars" || eyeStyle === "dots" || eyeStyle === "sleepy");
       const happySpread = happyArcs ? radius * 0.06 * Math.min(1, (happy - 0.5) / 0.5) : 0;
       const eyeOffset = Math.max(radius * spacingScale, baseHalf + radius * minGap) + happySpread;
-      const eyeY =
-        -radius * 0.06 + Math.sin(pitch) * radius * 0.2 + (sadEyes ? radius * 0.02 : 0);
+      const eyeY = -radius * 0.06 + Math.sin(pitch) * radius * 0.2;
 
       for (const side of [-1, 1]) {
         const style = eyeStyle;
@@ -819,7 +817,9 @@ export function Mascot({
         const eyeLift = Math.max(0, eyeHeight / 2 - radius * 0.26);
         const eyeX = side * eyeOffset;
         const closed = winking && side === -1;
-        const drawArc = closed || style === "arcs";
+        const boopArc =
+          happy > 0.55 && (style === "bars" || style === "dots" || style === "sleepy");
+        const drawArc = closed || boopArc || style === "arcs";
         const projected = project(eyeX, eyeY);
         const position = move(projected.x, projected.y - eyeLift);
         const azimuth = Math.asin(Math.max(-1, Math.min(1, eyeX / faceRadius)));
@@ -827,19 +827,10 @@ export function Mascot({
 
         context.save();
         context.translate(position.x, position.y);
-        context.rotate(sadEyes ? side * 0.14 : side * tiltAngle);
+        context.rotate(side * tiltAngle);
         context.scale(eyeDepth, Math.max(0.08, eyeOpen));
 
-        if (sadEyes) {
-          const half = radius * 0.23;
-          context.strokeStyle = ink;
-          context.lineWidth = Math.max(1.5, radius * 0.075);
-          context.lineCap = "round";
-          context.beginPath();
-          context.moveTo(-half, 0);
-          context.lineTo(half, 0);
-          context.stroke();
-        } else if (drawArc) {
+        if (drawArc) {
           context.strokeStyle = ink;
           context.lineWidth = Math.max(1.4, eyeWidth * 0.72);
           context.lineCap = "round";
