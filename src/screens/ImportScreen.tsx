@@ -79,7 +79,6 @@ export function ImportScreen({
     <section className="screen">
       <header className="topbar">
         <div>
-          <p className="eyebrow">{t("import.eyebrow")}</p>
           <h1>{t("import.title")}</h1>
         </div>
       </header>

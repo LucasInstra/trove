@@ -44,7 +44,6 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
     <section className="screen">
       <header className="topbar">
         <div>
-          <p className="eyebrow">{t("settings.eyebrow")}</p>
           <h1>{t("settings.title")}</h1>
         </div>
       </header>

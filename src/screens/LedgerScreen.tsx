@@ -27,6 +27,7 @@ interface LedgerScreenProps {
   loading: boolean;
   onSearch: (value: string) => void;
   onMonth: (delta: number) => void;
+  onSelectMonth: (month: string) => void;
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
   onSettings: () => void;
@@ -57,6 +58,7 @@ export function LedgerScreen({
   loading,
   onSearch,
   onMonth,
+  onSelectMonth,
   onCategory,
   onImport,
   onSettings,
@@ -72,10 +74,6 @@ export function LedgerScreen({
   const account = accounts[0];
   const entries = totals?.transactionCount ?? 0;
 
-  const hour = new Date().getHours();
-  const greeting = t(
-    hour < 12 ? "greeting.morning" : hour < 18 ? "greeting.afternoon" : "greeting.evening",
-  );
 
   const groups = useMemo(() => {
     const map = new Map<string, { rows: TransactionRow[]; total: number }>();
@@ -92,7 +90,6 @@ export function LedgerScreen({
     <section className="screen">
       <header className="topbar">
         <div>
-          <p className="eyebrow">{greeting}</p>
           <div className="title-row">
             <button
               type="button"
@@ -231,7 +228,14 @@ export function LedgerScreen({
           </header>
           <div className="bars">
             {series.map((point) => (
-              <div className="bar-col" key={point.month}>
+              <button
+                type="button"
+                className="bar-col"
+                key={point.month}
+                onClick={() => onSelectMonth(point.month)}
+                aria-current={point.month === month}
+                aria-label={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
+              >
                 <span className="bar-value">
                   {point.expenseCents > 0 ? formatCents(point.expenseCents) : ""}
                 </span>
@@ -256,7 +260,7 @@ export function LedgerScreen({
                 <span className={point.month === month ? "bar-label current" : "bar-label"}>
                   {monthShort(point.month, lang)}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </article>

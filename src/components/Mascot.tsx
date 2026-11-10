@@ -339,7 +339,7 @@ export function Mascot({
     const dpr = window.devicePixelRatio || 1;
     canvas.width = canvasSize * dpr;
     canvas.height = canvasSize * dpr;
-    context.scale(dpr, dpr);
+    let cancelled = false;
 
     const gaze = { x: 0, y: 0, tx: 0, ty: 0, seen: -10 };
     const reduceMotion =
@@ -467,6 +467,10 @@ export function Mascot({
     }
 
     const draw = (now: number) => {
+      if (cancelled) return;
+      // Each frame owns its transform, so a second effect instance that resized
+      // the canvas cannot leave this one drawing at the wrong scale.
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
       const time = (now - start) / 1000;
       const delta = Math.min(0.05, Math.max(0.008, time - lastTime || 0.016));
       lastTime = time;
@@ -915,6 +919,7 @@ export function Mascot({
     }
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
@@ -952,11 +957,10 @@ export function Mascot({
         aria-hidden={label ? undefined : true}
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
+          left: (size - canvasSize) / 2,
+          top: (size - canvasSize) / 2,
           width: canvasSize,
           height: canvasSize,
-          transform: "translate(-50%, -50%)",
           display: "block",
           pointerEvents: "none",
         }}
