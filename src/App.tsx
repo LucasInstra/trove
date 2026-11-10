@@ -407,6 +407,7 @@ export function App() {
               month={month ?? currentMonth()}
               onSearch={setSearch}
               accounts={accounts}
+              look={look}
               accountFilter={accountFilter}
               onAccountFilter={setAccountFilter}
               onCategory={(id, categoryId) => void onCategory(id, categoryId)}

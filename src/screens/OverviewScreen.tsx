@@ -2,10 +2,12 @@ import { useMemo } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
 import { Icon } from "../components/Icons";
+import { Mascot } from "../components/Mascot";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard } from "../components/PlannerCards";
 import { TransactionsPanel } from "../components/TransactionsPanel";
 import type { InvoiceWindow } from "../domain/invoice";
+import type { KeeperLook } from "../lib/keeper";
 import type { MonthPlan } from "../domain/projection";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -42,6 +44,7 @@ interface OverviewProps {
   onEditHousing: () => void;
   onEditIncome: () => void;
   accounts: Account[];
+  look: KeeperLook;
   accountFilter: number | null;
   onAccountFilter: (accountId: number | null) => void;
 }
@@ -69,6 +72,7 @@ export function OverviewScreen({
   onEditHousing,
   onEditIncome,
   accounts,
+  look,
   accountFilter,
   onAccountFilter,
 }: OverviewProps) {
@@ -118,6 +122,10 @@ export function OverviewScreen({
                 <span className="muted small">{t("overview.hint")}</span>
               </div>
             ) : null}
+          </div>
+
+          <div className="account-figure" aria-hidden="true">
+            <Mascot look={look} size={112} animate={false} boopable={false} fps={30} />
           </div>
 
           <CompositionBar parts={plan.composition} format={formatCents} />

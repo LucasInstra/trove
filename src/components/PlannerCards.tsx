@@ -166,7 +166,8 @@ export function HousingCard({ plan, onEdit }: { plan: MonthPlan; onEdit: () => v
 
       <div className="card-figure">
         <strong>{formatCents(plan.housingCents)}</strong>
-        <span className={plan.overCeiling ? "muted small over" : "muted small"}>
+        <span className={plan.overCeiling ? "delta-line down" : "delta-line"}>
+          <Icon name="check" size={14} />
           {t("planner.housingRatio", { percent: plan.housingRatioPct, ceiling: plan.ceilingPct })}
         </span>
       </div>
@@ -210,7 +211,12 @@ export function GoalsCard({ plan, onAdd }: { plan: MonthPlan; onAdd: () => void 
           {plan.goals.map(({ goal, paidCents, sharePct }: { goal: Goal; paidCents: number; sharePct: number }) => (
             <li key={goal.id}>
               <div className="goal-head">
-                <span className="goal-name">{goal.name}</span>
+                <span className="goal-name">
+                  {goal.name}
+                  {goal.kind !== "reserve" ? (
+                    <em className="pill-soft">{t("planner.estimated")}</em>
+                  ) : null}
+                </span>
                 <span className="muted small">
                   {formatCents(paidCents)} / {formatCents(goal.targetCents)}
                 </span>
