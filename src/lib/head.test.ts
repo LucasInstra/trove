@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  featureDepth,
-  PITCH_MAX,
-  pitchFor,
-  pitchScale,
-  projectFeature,
-  YAW_MAX,
-  yawFor,
-} from "./head";
+import { featureDepth, PITCH_MAX, pitchFor, pitchScale, YAW_MAX, yawFor } from "./head";
 
 describe("yawFor", () => {
   it("is zero at the center and clamps the extremes", () => {
@@ -26,35 +18,6 @@ describe("yawFor", () => {
   });
 });
 
-describe("projectFeature", () => {
-  const radius = 30;
-
-  it("is the identity at yaw zero", () => {
-    const point = projectFeature(12, -4, radius, 0);
-    expect(point.x).toBeCloseTo(12);
-    expect(point.depth).toBeCloseTo(Math.sqrt(radius ** 2 - 12 ** 2 - (0.6 * -4) ** 2) / radius);
-  });
-
-  it("moves the center of the face towards the look direction", () => {
-    expect(projectFeature(0, 0, radius, 0.2).x).toBeGreaterThan(0);
-    expect(projectFeature(0, 0, radius, -0.2).x).toBeLessThan(0);
-    expect(projectFeature(0, 0, radius, 0.2).x).toBeGreaterThan(
-      projectFeature(0, 0, radius, 0.1).x,
-    );
-  });
-
-  it("keeps the profile edge inside the sphere and compresses it", () => {
-    const edge = projectFeature(radius * 0.99, 0, radius, YAW_MAX);
-    expect(Math.abs(edge.x)).toBeLessThanOrEqual(radius);
-    expect(edge.x).toBeLessThan(radius * 0.99);
-  });
-
-  it("survives invalid input", () => {
-    expect(Number.isFinite(projectFeature(Number.NaN, 0, radius, 0.2).x)).toBe(true);
-    expect(Number.isFinite(projectFeature(10, 0, 0, 0.2).x)).toBe(true);
-  });
-});
-
 describe("featureDepth", () => {
   it("is one when the feature faces the viewer", () => {
     expect(featureDepth(0, 0)).toBeCloseTo(1);
@@ -70,6 +33,11 @@ describe("featureDepth", () => {
 
   it("never goes negative", () => {
     expect(featureDepth(0, Math.PI)).toBe(0);
+  });
+
+  it("is symmetric for the two eyes", () => {
+    const yaw = 0.3;
+    expect(featureDepth(0.3, yaw)).toBeLessThan(featureDepth(-0.3, yaw));
   });
 });
 
