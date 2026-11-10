@@ -227,6 +227,8 @@ export interface MascotProps {
   animate?: boolean;
   onBoop?: () => void;
   hint?: string;
+  /** Cap the paint rate. 0 follows the display. */
+  fps?: number;
 }
 
 /**
@@ -242,6 +244,7 @@ export function Mascot({
   animate = true,
   onBoop,
   hint,
+  fps = 0,
 }: MascotProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hitRef = useRef<HTMLDivElement>(null);
@@ -303,6 +306,7 @@ export function Mascot({
     let nextHop = 8 + Math.random() * 10;
     let hopAt = -1;
     let lastTime = 0;
+    let lastPaint = -Infinity;
     let happyUntil = -1;
     let winkUntil = -1;
     const eased = { squint: 1, sleep: 0, tiltAmp: 0.02, breatheAmp: 0.026 };
@@ -424,6 +428,13 @@ export function Mascot({
 
     const draw = (now: number) => {
       if (cancelled) return;
+      // A capped rate keeps a large preview from painting on every display
+      // refresh, which is wasted work for a decorative mascot.
+      if (fps > 0 && now - lastPaint < 1000 / fps) {
+        if (animate) frame = requestAnimationFrame(draw);
+        return;
+      }
+      lastPaint = now;
       // Each frame owns its transform, so a second effect instance that resized
       // the canvas cannot leave this one drawing at the wrong scale.
       // A monitor change alters the device pixel ratio; the backing store has
@@ -942,6 +953,7 @@ export function Mascot({
     size,
     canvasSize,
     animate,
+    fps,
   ]);
 
   return (
