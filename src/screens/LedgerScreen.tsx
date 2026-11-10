@@ -157,28 +157,37 @@ export function LedgerScreen({
             <h2>{t("ledger.thisMonth")}</h2>
             <span className="muted">{t("ledger.entries", { count: entries })}</span>
           </header>
-          <div className="summary-split">
-            <span className="split-out" style={{ width: `${Math.max(2, spentOfPot)}%` }} />
-            <span className="split-kept" style={{ width: `${Math.max(2, 100 - spentOfPot)}%` }} />
-          </div>
-          <ul className="split-legend">
-            <li>
-              <span className="dot split-out-dot" />
-              <span>{t("ledger.moneyOut")}</span>
-              <strong>{formatCents(expense)}</strong>
-              <span className="muted">{spentOfPot}%</span>
-            </li>
-            <li>
-              <span className="dot split-kept-dot" />
-              <span>{t("ledger.kept")}</span>
-              <strong>{formatCents(kept)}</strong>
-              <span className="muted">{100 - spentOfPot}%</span>
-            </li>
-          </ul>
-          {income > 0 ? (
-            <p className="muted small">{t("ledger.splitOf", { amount: formatCents(income) })}</p>
+          {expense + kept > 0 ? (
+            <>
+              <div className="summary-split">
+                <span className="split-out" style={{ width: `${Math.max(2, spentOfPot)}%` }} />
+                <span
+                  className="split-kept"
+                  style={{ width: `${Math.max(2, 100 - spentOfPot)}%` }}
+                />
+              </div>
+              <ul className="split-legend">
+                <li>
+                  <span className="dot split-out-dot" />
+                  <span>{t("ledger.moneyOut")}</span>
+                  <strong>{formatCents(expense)}</strong>
+                  <span className="muted">{spentOfPot}%</span>
+                </li>
+                <li>
+                  <span className="dot split-kept-dot" />
+                  <span>{t("ledger.kept")}</span>
+                  <strong>{formatCents(kept)}</strong>
+                  <span className="muted">{100 - spentOfPot}%</span>
+                </li>
+              </ul>
+              <p className="muted small">
+                {income > 0
+                  ? t("ledger.splitOf", { amount: formatCents(income) })
+                  : t("ledger.noIncome")}
+              </p>
+            </>
           ) : (
-            <p className="muted small">{t("ledger.noIncome")}</p>
+            <p className="card-empty">{t("ledger.noIncome")}</p>
           )}
         </article>
       </div>
