@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeeperPanel } from "./components/KeeperPanel";
 import { Mascot } from "./components/Mascot";
 import { TitleBar } from "./components/TitleBar";
@@ -85,7 +85,7 @@ function describeMonth(
 }
 
 export function App() {
-  const { lang, t } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
   const [route, setRoute] = useState<Route>("overview");
   const [month, setMonth] = useState<string | null>(null);
   const [rows, setRows] = useState<TransactionRow[]>([]);
@@ -114,6 +114,31 @@ export function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  // The language also lives in the database, so the choice survives a cleared
+  // webview profile and follows the installation, not the render process.
+  const langHydrated = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getSetting("lang")
+      .then((stored) => {
+        if (cancelled) return;
+        if (stored === "pt" || stored === "en") setLang(stored);
+        langHydrated.current = true;
+      })
+      .catch(() => {
+        langHydrated.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setLang]);
+
+  useEffect(() => {
+    if (!langHydrated.current) return;
+    void api.setSetting("lang", lang).catch(() => {});
+  }, [lang]);
 
   const updateLook = useCallback((next: KeeperLook) => {
     setLook(next);
