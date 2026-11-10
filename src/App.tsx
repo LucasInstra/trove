@@ -38,6 +38,14 @@ import { buildNotifications } from "./domain/notifications";
 import { loadLook, saveLook, type KeeperLook } from "./lib/keeper";
 import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
 import { SHOW_KEEPER } from "./lib/features";
+import {
+  moveCard,
+  parseLayout,
+  resizeCard,
+  serializeLayout,
+  type CardId,
+  type LayoutCard,
+} from "./domain/layout";
 import type { Mood } from "./components/Mascot";
 import { BUILD_LABEL } from "./lib/build";
 
@@ -100,6 +108,8 @@ export function App() {
   const [ceilingPct, setCeilingPct] = useState(30);
   const [housingScope, setHousingScope] = useState<"primary" | "total">("primary");
   const [splitSettled, setSplitSettled] = useState(false);
+  const [layout, setLayout] = useState<LayoutCard[]>(() => parseLayout(null));
+  const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -147,7 +157,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling, scope, settled] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -160,6 +170,7 @@ export function App() {
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
           api.getSetting(`split_settled_${at}`).catch(() => null),
+          api.getSetting("dashboard_layout").catch(() => null),
         ]);
       setRows(nextRows);
       setAccounts(nextAccounts);
@@ -174,6 +185,7 @@ export function App() {
       setCeilingPct(ceiling ? Number(ceiling) : 30);
       setHousingScope(scope === "total" ? "total" : "primary");
       setSplitSettled(settled === "1");
+      setLayout(parseLayout(storedLayout));
       setError("");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
@@ -429,6 +441,8 @@ export function App() {
               }}
               onImport={() => setRoute("import")}
               primaryLabel={t("ledger.import")}
+              layoutEditing={layoutEditing}
+              onToggleLayout={() => setLayoutEditing((value) => !value)}
             />
           ) : null}
 
@@ -466,6 +480,24 @@ export function App() {
               people={planner.people}
               shares={planner.shares}
               splitSettled={splitSettled}
+              layout={layout}
+              layoutEditing={layoutEditing}
+              onLayoutMove={(id: CardId, delta: number) => {
+                const next = moveCard(layout, id, delta);
+                setLayout(next);
+                void api.setSetting("dashboard_layout", serializeLayout(next));
+              }}
+              onLayoutResize={(id: CardId, delta: number) => {
+                const next = resizeCard(layout, id, delta);
+                setLayout(next);
+                void api.setSetting("dashboard_layout", serializeLayout(next));
+              }}
+              onLayoutReset={() => {
+                const next = parseLayout(null);
+                setLayout(next);
+                void api.setSetting("dashboard_layout", serializeLayout(next));
+              }}
+              onLayoutDone={() => setLayoutEditing(false)}
               onAssignShare={(billId, personId) => {
                 void api.setShare({ billId, personId }).then(() => {
                   if (month) void reload(search, month, accountFilter);

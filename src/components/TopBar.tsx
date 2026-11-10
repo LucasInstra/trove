@@ -12,6 +12,8 @@ interface TopBarProps {
   onReadAll: () => void;
   onImport: () => void;
   primaryLabel: string;
+  layoutEditing: boolean;
+  onToggleLayout: () => void;
 }
 
 export function TopBar({
@@ -22,6 +24,8 @@ export function TopBar({
   onReadAll,
   onImport,
   primaryLabel,
+  layoutEditing,
+  onToggleLayout,
 }: TopBarProps) {
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -97,6 +101,16 @@ export function TopBar({
             </div>
           ) : null}
         </div>
+        <button
+          type="button"
+          className={layoutEditing ? "icon-button layout-toggle active" : "icon-button layout-toggle"}
+          aria-pressed={layoutEditing}
+          title={t("layout.edit")}
+          aria-label={t("layout.edit")}
+          onClick={onToggleLayout}
+        >
+          <Icon name="layout" size={17} />
+        </button>
         <button type="button" className="primary topbar-primary" onClick={onImport}>
           <Icon name="arrow-down-to-line" size={16} />
           {primaryLabel}

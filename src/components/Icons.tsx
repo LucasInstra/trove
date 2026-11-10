@@ -29,7 +29,10 @@ export type IconName =
   | "scale"
   | "grid"
   | "arrow-left-right"
-  | "arrow-down-to-line";
+  | "arrow-down-to-line"
+  | "layout"
+  | "chevron-up"
+  | "minus";
 
 const ICONS: Record<IconName, ReactNode> = {
   ledger: (
@@ -171,6 +174,14 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="M4 21h16" />
     </>
   ),
+  layout: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 10h18M9 10v10" />
+    </>
+  ),
+  "chevron-up": <path d="m6 15 6-6 6 6" />,
+  minus: <path d="M5 12h14" />,
   scale: (
     <>
       <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />

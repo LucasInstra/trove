@@ -3934,3 +3934,109 @@ button.primary:hover:not(:disabled) {
 .upcoming-month {
   text-transform: capitalize;
 }
+
+
+/* ---------- Dashboard layout editing ---------- */
+
+.planner-grid {
+  align-items: start;
+}
+
+.grid-cell {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.grid-cell > * {
+  height: 100%;
+  min-width: 0;
+}
+
+.grid-cell.natural > * {
+  height: auto;
+  align-self: start;
+}
+
+.layout-toggle.active {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.layout-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.layout-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.grid-cell .cell-tools {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.12);
+}
+
+.cell-tools button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cell-tools button:hover:not(:disabled) {
+  background: var(--bg-sunken);
+  color: var(--ink);
+}
+
+.cell-tools button:disabled {
+  opacity: 0.3;
+}
+
+.cell-tools-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--line);
+}
+
+/* The edit mode makes it obvious which card the toolbar belongs to. */
+.planner-grid:has(.cell-tools) .grid-cell {
+  outline: 1px dashed var(--line-strong);
+  outline-offset: 4px;
+  border-radius: 20px;
+}
+
+
+/* The toolbar is a child of the cell but not a card: keep it hugging its own
+   content instead of stretching like the card does. */
+.grid-cell > .cell-tools {
+  height: auto;
+  width: auto;
+  align-self: auto;
+}

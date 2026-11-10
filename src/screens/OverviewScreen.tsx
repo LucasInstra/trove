@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
 import { Icon } from "../components/Icons";
@@ -9,6 +9,7 @@ import { TransactionsPanel } from "../components/TransactionsPanel";
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
 import { SHOW_HERO_KEEPER } from "../lib/features";
+import type { CardId, LayoutCard } from "../domain/layout";
 import type { MonthPlan } from "../domain/projection";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -52,6 +53,12 @@ interface OverviewProps {
   splitSettled: boolean;
   onAssignShare: (billId: number, personId: number) => void;
   onSettle: () => void;
+  layout: LayoutCard[];
+  layoutEditing: boolean;
+  onLayoutMove: (id: CardId, delta: number) => void;
+  onLayoutResize: (id: CardId, delta: number) => void;
+  onLayoutReset: () => void;
+  onLayoutDone: () => void;
   onEditIncome: () => void;
   accounts: Account[];
   look: KeeperLook;
@@ -88,6 +95,12 @@ export function OverviewScreen({
   splitSettled,
   onAssignShare,
   onSettle,
+  layout,
+  layoutEditing,
+  onLayoutMove,
+  onLayoutResize,
+  onLayoutReset,
+  onLayoutDone,
   accounts,
   look,
   accountFilter,
@@ -110,112 +123,127 @@ export function OverviewScreen({
     return [...map.entries()].map(([day, value]) => ({ day, ...value }));
   }, [rows]);
 
-  return (
-    <section className="screen overview">
-      <div className="planner-grid">
-        <article className="account-card span-2">
-          <div className="account-top">
-            <span className="account-label">{t("overview.forecast")}</span>
-            <button
-              type="button"
-              className="account-edit"
-              onClick={onEditIncome}
-              aria-label={t("overview.editIncome")}
-              title={t("overview.editIncome")}
-            >
-              <Icon name="settings" size={14} />
-            </button>
-          </div>
+  const cardName = (id: CardId) =>
+    ({
+      forecast: t("overview.forecast"),
+      bills: t("planner.bills"),
+      cards: t("planner.cards"),
+      housing: t("planner.housing"),
+      goals: t("planner.goals"),
+      split: t("split.title"),
+      donut: t("ledger.whereMoney"),
+      series: t("ledger.lastSix"),
+    })[id];
 
-          <div className="account-main">
-            <Money cents={plan.forecastCents} className="account-value" />
-            {plan.incomeCents > 0 ? (
-              <div className="account-delta">
-                <span className={plan.forecastCents >= 0 ? "delta-line" : "delta-line down"}>
-                  <Icon name="trend" size={14} />
-                  {plan.forecastCents >= 0
-                    ? t("overview.keptShare", { percent: Math.abs(keptShare) })
-                    : t("overview.overShare", { percent: Math.abs(keptShare) })}
-                </span>
-                <span className="muted small">{t("overview.hint")}</span>
-              </div>
-            ) : null}
-          </div>
+  const cells: Record<CardId, ReactNode> = {
+    forecast: (
+      <article className="account-card">
+        <div className="account-top">
+          <span className="account-label">{t("overview.forecast")}</span>
+          <button
+            type="button"
+            className="account-edit"
+            onClick={onEditIncome}
+            aria-label={t("overview.editIncome")}
+            title={t("overview.editIncome")}
+          >
+            <Icon name="settings" size={14} />
+          </button>
+        </div>
 
-          {SHOW_HERO_KEEPER ? (
-            <div className="account-figure" aria-hidden="true">
-              <Mascot look={look} size={112} animate={false} boopable={false} bare fps={30} />
+        <div className="account-main">
+          <Money cents={plan.forecastCents} className="account-value" />
+          {plan.incomeCents > 0 ? (
+            <div className="account-delta">
+              <span className={plan.forecastCents >= 0 ? "delta-line" : "delta-line down"}>
+                <Icon name="trend" size={14} />
+                {plan.forecastCents >= 0
+                  ? t("overview.keptShare", { percent: Math.abs(keptShare) })
+                  : t("overview.overShare", { percent: Math.abs(keptShare) })}
+              </span>
+              <span className="muted small">{t("overview.hint")}</span>
             </div>
           ) : null}
+        </div>
 
-          <CompositionBar parts={plan.composition} format={formatCents} />
-
-          <div className="account-bottom">
-            <span className="account-meta">
-              {t("overview.income")} <strong>{formatCents(plan.incomeCents)}</strong>
-            </span>
-            <span className="account-meta">
-              {t("overview.committed")}{" "}
-              <strong>{formatCents(plan.plannedCents || plan.realizedCents)}</strong>
-            </span>
+        {SHOW_HERO_KEEPER ? (
+          <div className="account-figure" aria-hidden="true">
+            <Mascot look={look} size={112} animate={false} boopable={false} bare fps={30} />
           </div>
-        </article>
+        ) : null}
 
-        <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />
-        <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} />
-        <HousingCard plan={plan} scope={housingScope} onScope={onHousingScope} onEdit={onEditHousing} />
-        <GoalsCard plan={plan} onAdd={onAddGoal} />
+        <CompositionBar parts={plan.composition} format={formatCents} />
 
-        <SplitCard
-          people={people}
-          shares={shares}
-          bills={plan.dueBills}
-          settled={splitSettled}
-          onAssign={onAssignShare}
-          onSettle={onSettle}
-        />
+        <div className="account-bottom">
+          <span className="account-meta">
+            {t("overview.income")} <strong>{formatCents(plan.incomeCents)}</strong>
+          </span>
+          <span className="account-meta">
+            {t("overview.committed")}{" "}
+            <strong>{formatCents(plan.plannedCents || plan.realizedCents)}</strong>
+          </span>
+        </div>
+      </article>
+    ),
+    bills: <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
+    cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} />,
+    housing: (
+      <HousingCard plan={plan} scope={housingScope} onScope={onHousingScope} onEdit={onEditHousing} />
+    ),
+    goals: <GoalsCard plan={plan} onAdd={onAddGoal} />,
+    split: (
+      <SplitCard
+        people={people}
+        shares={shares}
+        bills={plan.dueBills}
+        settled={splitSettled}
+        onAssign={onAssignShare}
+        onSettle={onSettle}
+      />
+    ),
+    donut: (
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon violet"><Icon name="ledger" size={15} /></span>
+            <h2>{t("ledger.whereMoney")}</h2>
+          </div>
+          <span className="muted">{monthLabel(month, lang)}</span>
+        </header>
 
-        <article className="card">
-          <header className="card-head">
-            <div className="card-title">
-              <span className="card-icon violet"><Icon name="ledger" size={15} /></span>
-              <h2>{t("ledger.whereMoney")}</h2>
-            </div>
-            <span className="muted">{monthLabel(month, lang)}</span>
-          </header>
-
-          {byCategory.length === 0 ? (
-            <p className="card-empty">{t("ledger.noSpending")}</p>
-          ) : (
-            <div className="donut-row">
-              <Donut segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))} />
-              <ul className="legend">
-                {byCategory.map((item) => (
-                  <li key={`${item.categoryId ?? "none"}-${item.name}`}>
-                    <span className="dot" style={{ background: item.color }} />
-                    <span className="legend-name">{item.name}</span>
-                    <span className="legend-value">{formatCents(item.totalCents)}</span>
-                    <span className="legend-share">
-                      {spending > 0 ? Math.round((item.totalCents / spending) * 100) : 0}%
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </article>
-
-        <article className="card span-3">
-          <header className="card-head">
-            <div className="card-title">
-              <span className="card-icon slate"><Icon name="flow" size={15} /></span>
-              <h2>{t("ledger.lastSix")}</h2>
-            </div>
-            <span className="muted">{t("ledger.spending")}</span>
-          </header>
-          {series.every((point) => point.expenseCents === 0) ? (
-            <p className="card-empty">{t("ledger.noSpending")}</p>
-          ) : (
+        {byCategory.length === 0 ? (
+          <p className="card-empty">{t("ledger.noSpending")}</p>
+        ) : (
+          <div className="donut-row">
+            <Donut segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))} />
+            <ul className="legend">
+              {byCategory.map((item) => (
+                <li key={`${item.categoryId ?? "none"}-${item.name}`}>
+                  <span className="dot" style={{ background: item.color }} />
+                  <span className="legend-name">{item.name}</span>
+                  <span className="legend-value">{formatCents(item.totalCents)}</span>
+                  <span className="legend-share">
+                    {spending > 0 ? Math.round((item.totalCents / spending) * 100) : 0}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </article>
+    ),
+    series: (
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate"><Icon name="flow" size={15} /></span>
+            <h2>{t("ledger.lastSix")}</h2>
+          </div>
+          <span className="muted">{t("ledger.spending")}</span>
+        </header>
+        {series.every((point) => point.expenseCents === 0) ? (
+          <p className="card-empty">{t("ledger.noSpending")}</p>
+        ) : (
           <div className="bars">
             {series.slice(-6).map((point) => (
               <button
@@ -253,8 +281,74 @@ export function OverviewScreen({
               </button>
             ))}
           </div>
-          )}
-        </article>
+        )}
+      </article>
+    ),
+  };
+
+  return (
+    <section className="screen overview">
+      {layoutEditing ? (
+        <div className="layout-bar">
+          <span className="muted small">{t("layout.hint")}</span>
+          <div className="layout-actions">
+            <button type="button" className="ghost small-button" onClick={onLayoutReset}>
+              {t("layout.reset")}
+            </button>
+            <button type="button" className="primary small-button" onClick={onLayoutDone}>
+              {t("layout.done")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="planner-grid">
+        {layout.map((item, index) => (
+          <div
+            key={item.id}
+            className={item.id === "bills" ? "grid-cell natural" : "grid-cell"}
+            style={{ gridColumn: `span ${item.span}` }}
+          >
+            {cells[item.id]}
+            {layoutEditing ? (
+              <div className="cell-tools" role="group" aria-label={t("layout.tools", { name: cardName(item.id) })}>
+                <button
+                  type="button"
+                  aria-label={t("layout.moveUp")}
+                  disabled={index === 0}
+                  onClick={() => onLayoutMove(item.id, -1)}
+                >
+                  <Icon name="chevron-up" size={14} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("layout.moveDown")}
+                  disabled={index === layout.length - 1}
+                  onClick={() => onLayoutMove(item.id, 1)}
+                >
+                  <Icon name="chevron-down" size={14} />
+                </button>
+                <span className="cell-tools-sep" aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-label={t("layout.narrow")}
+                  disabled={item.span <= 1}
+                  onClick={() => onLayoutResize(item.id, -1)}
+                >
+                  <Icon name="minus" size={14} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("layout.widen")}
+                  disabled={item.span >= 3}
+                  onClick={() => onLayoutResize(item.id, 1)}
+                >
+                  <Icon name="plus" size={14} />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ))}
       </div>
 
       <TransactionsPanel
