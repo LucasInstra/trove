@@ -348,17 +348,21 @@ export function Mascot({
         event.clientY - (rect.top + halfHeight),
       );
       const near = distance < Math.max(rect.width * 2.5, 220);
-      if (!near) return;
 
-      // A fixed arena instead of the widget box: the same mouse distance turns
-      // the 34px pill and the 148px preview by the same amount.
-      const arena = Math.max(0.18 * window.innerWidth, 220);
-      const pointerDx = event.clientX - (rect.left + halfWidth);
-      const pointerDy = event.clientY - (rect.top + halfHeight);
-      gaze.tx = Math.tanh(pointerDx / arena);
-      gaze.ty = Math.tanh(pointerDy / arena);
-      gaze.seen = (performance.now() - start) / 1000;
-      hoverSeen = gaze.seen;
+      // The proximity gate belongs to the gaze only. A gesture that started on
+      // the body keeps following the pointer however far it travels, otherwise
+      // the cheek freezes mid pull.
+      if (near) {
+        // A fixed arena instead of the widget box: the same mouse distance turns
+        // the 34px pill and the 148px preview by the same amount.
+        const arena = Math.max(0.18 * window.innerWidth, 220);
+        const pointerDx = event.clientX - (rect.left + halfWidth);
+        const pointerDy = event.clientY - (rect.top + halfHeight);
+        gaze.tx = Math.tanh(pointerDx / arena);
+        gaze.ty = Math.tanh(pointerDy / arena);
+        gaze.seen = (performance.now() - start) / 1000;
+        hoverSeen = gaze.seen;
+      }
 
       if (!drag.active) return;
       const dx = event.clientX - drag.startX;
