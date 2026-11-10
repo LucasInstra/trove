@@ -9,6 +9,7 @@ export type IconName =
   | "right"
   | "file"
   | "check"
+  | "trend"
   | "plus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -49,6 +50,12 @@ const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="m5 13 4 4L19 7" />,
+  trend: (
+    <>
+      <path d="M4 16.5 9.5 11l3.5 3.5L20 7.5" />
+      <path d="M15 7.5h5v5" />
+    </>
+  ),
   plus: (
     <>
       <path d="M12 5v14" />

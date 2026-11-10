@@ -70,7 +70,10 @@ export function LedgerScreen({
   const net = income - expense;
   const spending = byCategory.reduce((sum, item) => sum + item.totalCents, 0);
   const peak = Math.max(...series.map((point) => point.expenseCents), 1);
-  const share = income > 0 ? Math.min(100, Math.round((expense / income) * 100)) : 0;
+  const kept = Math.max(0, net);
+  // Share of what came in that stayed, which is the question this screen asks.
+  const keptShare = income > 0 ? Math.round((net / income) * 100) : 0;
+  const spentOfPot = expense + kept > 0 ? Math.round((expense / (expense + kept)) * 100) : 0;
   const account = accounts[0];
   const entries = totals?.transactionCount ?? 0;
 
@@ -124,7 +127,17 @@ export function LedgerScreen({
             <span className="account-label">{t("ledger.leftThisMonth")}</span>
             <span className="account-chip">{t("ledger.local")}</span>
           </div>
-          <strong className="account-value">{formatSignedCents(net)}</strong>
+          <div className="account-value-row">
+            <strong className="account-value">{formatSignedCents(net)}</strong>
+            {income > 0 ? (
+              <span className={net >= 0 ? "account-badge" : "account-badge down"}>
+                <Icon name="trend" size={13} />
+                {net >= 0
+                  ? t("ledger.keptShare", { percent: Math.abs(keptShare) })
+                  : t("ledger.overShare", { percent: Math.abs(keptShare) })}
+              </span>
+            ) : null}
+          </div>
           <div className="account-bottom">
             <div>
               <span className="account-meta-label">{account?.name ?? t("ledger.noAccount")}</span>
@@ -144,20 +157,29 @@ export function LedgerScreen({
             <h2>{t("ledger.thisMonth")}</h2>
             <span className="muted">{t("ledger.entries", { count: entries })}</span>
           </header>
-          <div className="summary-row">
-            <span>{t("ledger.moneyIn")}</span>
-            <strong className="positive">{formatCents(income)}</strong>
+          <div className="summary-split">
+            <span className="split-out" style={{ width: `${Math.max(2, spentOfPot)}%` }} />
+            <span className="split-kept" style={{ width: `${Math.max(2, 100 - spentOfPot)}%` }} />
           </div>
-          <div className="summary-row">
-            <span>{t("ledger.moneyOut")}</span>
-            <strong>{formatCents(expense)}</strong>
-          </div>
-          <div className="summary-track">
-            <div style={{ width: `${Math.max(3, share)}%` }} />
-          </div>
-          <p className="muted small">
-            {income > 0 ? t("ledger.shareSpent", { percent: share }) : t("ledger.noIncome")}
-          </p>
+          <ul className="split-legend">
+            <li>
+              <span className="dot split-out-dot" />
+              <span>{t("ledger.moneyOut")}</span>
+              <strong>{formatCents(expense)}</strong>
+              <span className="muted">{spentOfPot}%</span>
+            </li>
+            <li>
+              <span className="dot split-kept-dot" />
+              <span>{t("ledger.kept")}</span>
+              <strong>{formatCents(kept)}</strong>
+              <span className="muted">{100 - spentOfPot}%</span>
+            </li>
+          </ul>
+          {income > 0 ? (
+            <p className="muted small">{t("ledger.splitOf", { amount: formatCents(income) })}</p>
+          ) : (
+            <p className="muted small">{t("ledger.noIncome")}</p>
+          )}
         </article>
       </div>
 
