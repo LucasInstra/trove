@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { formatCents, formatDate, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
+import { CardArt, CalendarArt, HouseArt, TargetArt } from "./illustrations";
 import { InvoiceDialog } from "./InvoiceDialog";
 import { UpcomingInvoices } from "./UpcomingInvoices";
 
@@ -27,15 +28,15 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
   const isCurrentMonth = plan.month === new Date().toISOString().slice(0, 7);
 
   return (
-    <article className="card bills-card">
+    <article className="card bills-card card-with-art">
       <header className="card-head">
         <div className="card-title">
-          <span className="card-icon brass"><Icon name="file" size={15} /></span>
           <h2>{t("planner.bills")}</h2>
         </div>
         <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.newBill")}>
-          <Icon name="plus" size={15} />
+          <Icon name="plus" size={16} />
         </button>
+        <CalendarArt />
       </header>
 
       <div className="card-figure">
@@ -142,15 +143,15 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
 
   if (cards.length === 0) {
     return (
-      <article className="card cards-card">
+      <article className="card cards-card card-with-art">
         <header className="card-head">
           <div className="card-title">
-            <span className="card-icon sky"><Icon name="card" size={15} /></span>
             <h2>{t("planner.cards")}</h2>
           </div>
           <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.cardTitle")}>
             <Icon name="plus" size={16} />
           </button>
+          <CardArt />
         </header>
         <p className="card-empty">{t("planner.noCards")}</p>
       </article>
@@ -191,10 +192,9 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
   };
 
   return (
-    <article className="card cards-card">
+    <article className="card cards-card card-with-art">
       <header className="card-head">
         <div className="card-title">
-          <span className="card-icon sky"><Icon name="card" size={15} /></span>
           <h2>{t("planner.cards")}</h2>
         </div>
         <div className="cards-controls">
@@ -224,6 +224,7 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
             </>
           ) : null}
         </div>
+        <CardArt />
       </header>
 
       <div className="card-figure">
@@ -317,15 +318,15 @@ export function HousingCard({ plan, onEdit }: { plan: MonthPlan; onEdit: () => v
   const { t } = useLanguage();
   const ratio = Math.min(100, plan.housingRatioPct);
   return (
-    <article className="card housing-card">
+    <article className="card housing-card card-with-art">
       <header className="card-head">
         <div className="card-title">
-          <span className="card-icon clay"><Icon name="home" size={15} /></span>
           <h2>{t("planner.housing")}</h2>
         </div>
         <button type="button" className="icon-button" onClick={onEdit} aria-label={t("planner.housingCeiling")}>
           <Icon name="settings" size={15} />
         </button>
+        <HouseArt />
       </header>
 
       <div className="card-figure">
@@ -357,15 +358,15 @@ export function HousingCard({ plan, onEdit }: { plan: MonthPlan; onEdit: () => v
 export function GoalsCard({ plan, onAdd }: { plan: MonthPlan; onAdd: () => void }) {
   const { t } = useLanguage();
   return (
-    <article className="card goals-card">
+    <article className="card goals-card card-with-art">
       <header className="card-head">
         <div className="card-title">
-          <span className="card-icon moss"><Icon name="target" size={15} /></span>
           <h2>{t("planner.goals")}</h2>
         </div>
         <button type="button" className="icon-button" onClick={onAdd} aria-label={t("planner.goalTitle")}>
-          <Icon name="plus" size={15} />
+          <Icon name="plus" size={16} />
         </button>
+        <TargetArt />
       </header>
 
       {plan.goals.length === 0 ? (

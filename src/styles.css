@@ -3191,3 +3191,41 @@ select.tx-category {
 .credit-card {
   align-items: stretch;
 }
+
+
+/* ---------- Phase B: illustrations in the card headers ---------- */
+
+.card-with-art .card-head {
+  align-items: center;
+  gap: 8px;
+}
+
+.card-with-art .card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.card-with-art .card-title h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-art {
+  flex: none;
+  width: 76px;
+  height: 76px;
+  margin: -10px -6px -10px 2px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+  pointer-events: none;
+}
+
+[data-theme="dark"] .card-art {
+  filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.45));
+}
+
+@media (max-width: 820px) {
+  .card-art {
+    width: 64px;
+    height: 64px;
+  }
+}
