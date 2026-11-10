@@ -342,6 +342,9 @@ export function Mascot({
     context.scale(dpr, dpr);
 
     const gaze = { x: 0, y: 0, tx: 0, ty: 0, seen: -10 };
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const radius = size * 0.3;
     const outline = bodyOutline(shape, radius);
     // Decorations anchor to the real silhouette, so a pill or a star does not
@@ -482,10 +485,11 @@ export function Mascot({
       eased.breatheAmp += ((moodSleepy ? 0.034 : 0.026) - eased.breatheAmp) * easeRate;
 
       const squish = Math.sin(time * (moodHappy ? 2.6 : 1.9));
-      const breathe = 1 + squish * eased.breatheAmp;
-      const sway = Math.sin(time * 0.9) * radius * 0.022;
-      const tilt = Math.sin(time * 2.1) * eased.tiltAmp;
-      const moodBob = moodHappy ? Math.abs(Math.sin(time * 5.5)) * radius * 0.035 : 0;
+      const breathe = reduceMotion ? 1 : 1 + squish * eased.breatheAmp;
+      const sway = reduceMotion ? 0 : Math.sin(time * 0.9) * radius * 0.022;
+      const tilt = reduceMotion ? 0 : Math.sin(time * 2.1) * eased.tiltAmp;
+      const moodBob =
+        moodHappy && !reduceMotion ? Math.abs(Math.sin(time * 5.5)) * radius * 0.035 : 0;
       // Only the boop squints the eyes; the chosen eye style always wins.
       const happy = Math.max(0, Math.min(1, (happyUntil - time) / 0.5));
       const winking = winkUntil > time;
@@ -501,7 +505,7 @@ export function Mascot({
       const turnRise = gaze.y * radius * 0.05;
       const turnSquash = 1 - 0.03 * Math.abs(turn);
 
-      if (!seesPointer && !moodSleepy) {
+      if (!seesPointer && !moodSleepy && !reduceMotion) {
         if (lookPhase < 0 && time > nextLook) {
           lookPhase = 0;
           lookUntil = time;
@@ -546,7 +550,7 @@ export function Mascot({
         spring(pullY, pullY.target, 210, 19.5, halfStep);
       }
 
-      if (!moodHappy && !moodSad && time > nextHop) {
+      if (!reduceMotion && !moodHappy && !moodSad && time > nextHop) {
         hopAt = time;
         nextHop = time + 10 + Math.random() * 12;
       }

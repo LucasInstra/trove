@@ -4,7 +4,7 @@
   --surface-soft: #faf9fd;
   --ink: #14121a;
   --muted: #6f6b7e;
-  --faint: #9c98ab;
+  --faint: #78748c;
   --line: #ece9f3;
   --line-strong: #ddd8e9;
   --primary: #6c2bd9;
@@ -261,7 +261,12 @@ button {
   transition:
     background 120ms ease,
     border-color 120ms ease,
-    opacity 120ms ease;
+    opacity 120ms ease,
+    transform 150ms ease-out;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 button:hover:not(:disabled) {
@@ -1212,6 +1217,7 @@ select.tx-category {
   border-left: 1px solid var(--line);
   box-shadow: -18px 0 40px rgba(20, 18, 26, 0.16);
   animation: keeper-slide 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  overscroll-behavior: contain;
 }
 
 .keeper-sheet-head {
@@ -1500,4 +1506,21 @@ select.tx-category {
 .segmented.wide button {
   padding: 7px 16px;
   font-size: 13px;
+}
+
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled) {
+    transform: none;
+  }
+
+  * {
+    scroll-behavior: auto;
+  }
 }
