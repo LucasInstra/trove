@@ -78,24 +78,22 @@ jobs:
           prerelease: false
           # Our own manifest is the only one, so the action must not upload its own.
           uploadUpdaterJson: false
-          updaterJsonPreferNsis: true
+          updaterJsonPreferNsis: false
 
-      - name: Add a stable direct-download asset
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          cp "src-tauri/target/release/bundle/nsis/trove_${version}_x64-setup.exe" trove-setup.exe
-
-      - name: Add a portable zip
+      - name: Publish the MSI, the setup exe and the portable build
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
+          if (-not $msi) { throw "no MSI produced" }
+          $nsis = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          Copy-Item $msi.FullName "trove-setup.msi"
+          if ($nsis) { Copy-Item $nsis.FullName "trove-setup.exe" }
           Compress-Archive -Path "src-tauri/target/release/trove.exe" -DestinationPath "trove-portable-x64.zip" -Force
-          gh release upload "${{ github.ref_name }}" "trove-portable-x64.zip" --clobber
-          gh release upload "${{ github.ref_name }}" trove-setup.exe --clobber
+          $assets = @("trove-setup.msi", "trove-portable-x64.zip")
+          if ($nsis) { $assets += "trove-setup.exe" }
+          gh release upload "${{ github.ref_name }}" $assets --clobber
 
       - name: Publish the updater manifest
         shell: pwsh
@@ -104,6 +102,8 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $version = $tag.TrimStart("v")
-          $installer = "src-tauri/target/release/bundle/nsis/trove_${version}_x64-setup.exe"
-          node scripts/updater-json.mjs --tag=$tag --installer="$installer" --signature="$installer.sig" --notes="release-notes/${version}.md"
+          # The MSI is what the updater installs; its signature travels with it.
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
+          if (-not $msi) { throw "no MSI produced" }
+          node scripts/updater-json.mjs --tag=$tag --installer="$($msi.FullName)" --signature="$($msi.FullName).sig" --notes="release-notes/${version}.md"
           gh release upload $tag latest.json --clobber
