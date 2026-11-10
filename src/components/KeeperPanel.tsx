@@ -9,6 +9,7 @@ import {
   KEEPER_EYE_TILTS,
   KEEPER_SHAPES,
   type KeeperLook,
+  type KeeperToggle,
 } from "../lib/keeper";
 import { useLanguage } from "../lib/language";
 import { Mascot } from "./Mascot";
@@ -19,7 +20,7 @@ interface KeeperPanelProps {
   onClose: () => void;
 }
 
-const TOGGLES: Array<{ key: keyof KeeperLook; label: string }> = [
+const TOGGLES: Array<{ key: KeeperToggle; label: string }> = [
   { key: "snout", label: "panel.snout" },
   { key: "ears", label: "panel.ears" },
   { key: "tail", label: "panel.tail" },
@@ -202,7 +203,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
                 role="switch"
                 aria-checked={Boolean(look[key])}
                 className={look[key] ? "toggle on" : "toggle"}
-                onClick={() => set(key, !look[key] as KeeperLook[typeof key])}
+                onClick={() => set(key, !look[key])}
               >
                 <span>{t(label)}</span>
                 <span className="toggle-track">

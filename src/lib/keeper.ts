@@ -24,14 +24,21 @@ export const KEEPER_EYE_SPACINGS = ["close", "normal", "wide"] as const;
 export const KEEPER_EYE_TILTS = ["soft", "straight", "sharp"] as const;
 export const KEEPER_EYE_COLORS = ["auto", "#241d33", "#fff6dd", "#ffffff"] as const;
 
+export type KeeperEyeSize = (typeof KEEPER_EYE_SIZES)[number];
+export type KeeperEyeSpacing = (typeof KEEPER_EYE_SPACINGS)[number];
+export type KeeperEyeTilt = (typeof KEEPER_EYE_TILTS)[number];
+export type KeeperEyeColor = (typeof KEEPER_EYE_COLORS)[number];
+
+export type KeeperToggle = "snout" | "ears" | "tail" | "blush";
+
 export interface KeeperLook {
   shape: KeeperShape;
   color: string;
   eyeStyle: KeeperEye;
-  eyeSize: string;
-  eyeSpacing: string;
-  eyeTilt: string;
-  eyeColor: string;
+  eyeSize: KeeperEyeSize;
+  eyeSpacing: KeeperEyeSpacing;
+  eyeTilt: KeeperEyeTilt;
+  eyeColor: KeeperEyeColor;
   snout: boolean;
   ears: boolean;
   tail: boolean;
@@ -53,27 +60,84 @@ export const KEEPER_DEFAULT: KeeperLook = {
 };
 
 const STORAGE_KEY = "trove.keeper.v1";
+const HEX = /^#[0-9a-f]{6}$/i;
 
-export function loadLook(): KeeperLook {
+function oneOf<T extends readonly string[]>(list: T, value: unknown): value is T[number] {
+  return typeof value === "string" && (list as readonly string[]).includes(value);
+}
+
+function defaultStorage(): Storage | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return KEEPER_DEFAULT;
-    const parsed = JSON.parse(raw) as Partial<KeeperLook>;
-    const shape = KEEPER_SHAPES.includes(parsed.shape as KeeperShape)
-      ? (parsed.shape as KeeperShape)
-      : KEEPER_DEFAULT.shape;
-    const eyeStyle = KEEPER_EYES.includes(parsed.eyeStyle as KeeperEye)
-      ? (parsed.eyeStyle as KeeperEye)
-      : KEEPER_DEFAULT.eyeStyle;
-    return { ...KEEPER_DEFAULT, ...parsed, shape, eyeStyle };
+    return window.localStorage;
   } catch {
-    return KEEPER_DEFAULT;
+    return null;
   }
 }
 
-export function saveLook(look: KeeperLook) {
+/**
+ * Reads the saved look field by field. A value that no longer exists (a shape or
+ * an eye style that was removed) or that has the wrong type falls back to the
+ * default, and a sanitized copy is written back once so the same bad value is
+ * not repaired on every launch.
+ */
+export function loadLook(storage: Storage | null = defaultStorage()): KeeperLook {
+  if (!storage) return { ...KEEPER_DEFAULT };
+
+  let raw: string | null;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(look));
+    raw = storage.getItem(STORAGE_KEY);
+  } catch {
+    return { ...KEEPER_DEFAULT };
+  }
+  if (!raw) return { ...KEEPER_DEFAULT };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ...KEEPER_DEFAULT };
+  }
+
+  const source: Record<string, unknown> =
+    typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+
+  const look: KeeperLook = {
+    shape: oneOf(KEEPER_SHAPES, source.shape) ? source.shape : KEEPER_DEFAULT.shape,
+    color:
+      typeof source.color === "string" && HEX.test(source.color)
+        ? source.color.toLowerCase()
+        : KEEPER_DEFAULT.color,
+    eyeStyle: oneOf(KEEPER_EYES, source.eyeStyle) ? source.eyeStyle : KEEPER_DEFAULT.eyeStyle,
+    eyeSize: oneOf(KEEPER_EYE_SIZES, source.eyeSize) ? source.eyeSize : KEEPER_DEFAULT.eyeSize,
+    eyeSpacing: oneOf(KEEPER_EYE_SPACINGS, source.eyeSpacing)
+      ? source.eyeSpacing
+      : KEEPER_DEFAULT.eyeSpacing,
+    eyeTilt: oneOf(KEEPER_EYE_TILTS, source.eyeTilt) ? source.eyeTilt : KEEPER_DEFAULT.eyeTilt,
+    eyeColor: oneOf(KEEPER_EYE_COLORS, source.eyeColor)
+      ? source.eyeColor
+      : KEEPER_DEFAULT.eyeColor,
+    snout: typeof source.snout === "boolean" ? source.snout : KEEPER_DEFAULT.snout,
+    ears: typeof source.ears === "boolean" ? source.ears : KEEPER_DEFAULT.ears,
+    tail: typeof source.tail === "boolean" ? source.tail : KEEPER_DEFAULT.tail,
+    blush: typeof source.blush === "boolean" ? source.blush : KEEPER_DEFAULT.blush,
+  };
+
+  const repaired = JSON.stringify(look) !== raw;
+  if (repaired) {
+    try {
+      storage.setItem(STORAGE_KEY, JSON.stringify(look));
+    } catch {
+      // a full or blocked storage keeps the sanitized value in memory
+    }
+  }
+
+  return look;
+}
+
+export function saveLook(look: KeeperLook, storage: Storage | null = defaultStorage()) {
+  if (!storage) return;
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(look));
   } catch {
     // a private window without storage should not break the mascot
   }

@@ -18,6 +18,7 @@ const TAU = Math.PI * 2;
 
 /** Mixes a hex color towards black or white, keeping the flat look of the body. */
 function shade(hex: string, factor: number, alpha: number): string {
+  if (typeof hex !== "string") return `rgba(26, 25, 23, ${alpha})`;
   const value = hex.replace("#", "");
   if (value.length !== 6) return `rgba(20, 22, 26, ${alpha})`;
   const channel = (slice: string) =>
@@ -28,6 +29,7 @@ function shade(hex: string, factor: number, alpha: number): string {
 }
 
 function lighten(hex: string, amount: number): string {
+  if (typeof hex !== "string") return "#ffffff";
   const value = hex.replace("#", "");
   if (value.length !== 6) return "#ffffff";
   const mix = (slice: string) => {
@@ -39,6 +41,7 @@ function lighten(hex: string, amount: number): string {
 
 /** Perceived brightness, used to pick a readable eye colour automatically. */
 function brightness(hex: string): number {
+  if (typeof hex !== "string") return 0.5;
   const value = hex.replace("#", "");
   if (value.length !== 6) return 0.5;
   const linear = (slice: string) => {
@@ -79,6 +82,17 @@ function heartPath(context: CanvasRenderingContext2D, width: number, height: num
   );
   context.bezierCurveTo(width * 0.28, -height * 0.52, width * 0.6, -height * 0.08, 0, height * 0.38);
   context.closePath();
+}
+
+/** Hex plus alpha, with a safe fallback when the colour is not a valid hex. */
+function withAlpha(hex: string, alpha: number): string {
+  if (typeof hex !== "string") return `rgba(26, 25, 23, ${alpha})`;
+  const value = hex.replace("#", "");
+  if (value.length !== 6) return `rgba(26, 25, 23, ${alpha})`;
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function eyeShape(style: string, radius: number, scale: number) {
@@ -634,8 +648,8 @@ export function Mascot({
       context.translate(dragX.value, dragY.value);
       const auraRadius = radius * 1.9;
       const aura = context.createRadialGradient(0, 0, radius * 0.4, 0, 0, auraRadius);
-      aura.addColorStop(0, `${color}${hovering ? "3d" : "30"}`);
-      aura.addColorStop(0.6, `${color}12`);
+      aura.addColorStop(0, withAlpha(color, hovering ? 0.24 : 0.19));
+      aura.addColorStop(0.6, withAlpha(color, 0.07));
       aura.addColorStop(1, "rgba(0,0,0,0)");
       context.fillStyle = aura;
       context.beginPath();
