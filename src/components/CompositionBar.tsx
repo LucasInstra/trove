@@ -1,19 +1,23 @@
 import type { Composition } from "../domain/projection";
+import { useLanguage } from "../lib/language";
 
 const LABELS: Record<Composition["key"], [string, string]> = {
-  bills: ["Contas do mês", "Bills this month"],
+  housing: ["Moradia", "Housing"],
+  bills: ["Outras contas", "Other bills"],
   spent: ["Saídas", "Spent"],
-  free: ["Sobra prevista", "Forecast left"],
+  free: ["Sobra", "Left"],
 };
+
+const READS_CENTS = new Set<Composition["key"]>(["housing", "bills", "spent"]);
 
 interface Props {
   parts: Composition[];
-  lang: "en" | "pt";
   format: (cents: number) => string;
 }
 
-/** Income in, commitments and what is left, in one track. */
-export function CompositionBar({ parts, lang, format }: Props) {
+/** Income in, commitments and what is left, in one track with its legend. */
+export function CompositionBar({ parts, format }: Props) {
+  const { lang } = useLanguage();
   if (parts.length === 0) return null;
   return (
     <div className="composition">
@@ -30,10 +34,15 @@ export function CompositionBar({ parts, lang, format }: Props) {
       <ul className="composition-legend">
         {parts.map((part) => (
           <li key={part.key}>
-            <span className={`dot composition-dot ${part.key}`} />
-            <span>{LABELS[part.key][lang === "pt" ? 0 : 1]}</span>
-            <strong>{format(part.amountCents)}</strong>
-            <span className="muted">{Math.round(part.sharePct)}%</span>
+            <span className="composition-item">
+              <span className={`dot composition-dot ${part.key}`} />
+              {LABELS[part.key][lang === "pt" ? 0 : 1]}
+            </span>
+            <span className="composition-value">
+              {READS_CENTS.has(part.key) ? "−" : ""}
+              {format(part.amountCents)}
+              <em>{Math.round(part.sharePct)}%</em>
+            </span>
           </li>
         ))}
       </ul>

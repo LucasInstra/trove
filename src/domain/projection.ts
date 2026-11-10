@@ -1,7 +1,7 @@
 import type { Bill, BillPayment, Goal, GoalTotal, Income, MonthTotals } from "../lib/api";
 
 export interface Composition {
-  key: "bills" | "spent" | "free";
+  key: "housing" | "bills" | "spent" | "free";
   amountCents: number;
   sharePct: number;
 }
@@ -85,21 +85,32 @@ export function buildComposition(
   committedCents: number,
   forecastCents: number,
   hasPlan: boolean,
+  housingCents = 0,
 ): Composition[] {
   if (incomeCents <= 0 && committedCents <= 0) return [];
   const base = Math.max(incomeCents, committedCents, 1);
   const share = (value: number) => Math.round((value / base) * 1000) / 10;
+
   if (forecastCents < 0) {
-    return [{ key: hasPlan ? "bills" : "spent", amountCents: committedCents, sharePct: 100 }];
+    const parts: Composition[] = [];
+    if (housingCents > 0) {
+      parts.push({ key: "housing", amountCents: housingCents, sharePct: share(housingCents) });
+    }
+    parts.push({ key: hasPlan ? "bills" : "spent", amountCents: committedCents - housingCents, sharePct: share(committedCents - housingCents) });
+    return parts;
   }
-  return [
-    {
-      key: hasPlan ? "bills" : "spent",
-      amountCents: committedCents,
-      sharePct: share(committedCents),
-    },
-    { key: "free", amountCents: forecastCents, sharePct: share(forecastCents) },
-  ];
+
+  const parts: Composition[] = [];
+  if (hasPlan && housingCents > 0) {
+    parts.push({ key: "housing", amountCents: housingCents, sharePct: share(housingCents) });
+  }
+  parts.push({
+    key: hasPlan ? "bills" : "spent",
+    amountCents: hasPlan ? committedCents - housingCents : committedCents,
+    sharePct: share(hasPlan ? committedCents - housingCents : committedCents),
+  });
+  parts.push({ key: "free", amountCents: forecastCents, sharePct: share(forecastCents) });
+  return parts.filter((part) => part.amountCents > 0);
 }
 
 export function planMonth(input: PlanInput): MonthPlan {
@@ -165,7 +176,7 @@ export function planMonth(input: PlanInput): MonthPlan {
       .filter((bill) => !paidBillIds.includes(bill.id))
       .map((bill) => bill.id),
     dayGroups: groupByDay(dueBills),
-    composition: buildComposition(incomeCents, committedCents, forecastCents, hasPlan),
+    composition: buildComposition(incomeCents, committedCents, forecastCents, hasPlan, housingCents),
     housingCents,
     housingRatioPct,
     ceilingPct: input.ceilingPct,
