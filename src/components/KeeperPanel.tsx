@@ -30,6 +30,11 @@ const TOGGLES: Array<{ key: KeeperToggle; label: string }> = [
 export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
   const { t } = useLanguage();
   const sheetRef = useRef<HTMLElement>(null);
+  // The parent passes a fresh arrow on every render, so the effect below must
+  // not depend on it: closing through the ref keeps the focus trap mounted and
+  // stops the dialog from stealing focus back on every change.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -38,7 +43,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        closeRef.current();
         return;
       }
       if (event.key !== "Tab" || !sheet) return;
@@ -62,7 +67,7 @@ export function KeeperPanel({ look, onChange, onClose }: KeeperPanelProps) {
       window.removeEventListener("keydown", onKey);
       previous?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   const set = <K extends keyof KeeperLook>(key: K, value: KeeperLook[K]) =>
     onChange({ ...look, [key]: value });
