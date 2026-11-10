@@ -468,7 +468,7 @@ export function SplitCard({ people, shares, bills, settled, onAssign, onSettle }
 
   if (people.length < 2) {
     return (
-      <article className="card split-card span-2">
+      <article className="card split-card">
         <header className="card-head">
           <div className="card-title">
             <h2>{t("split.title")}</h2>
@@ -484,7 +484,7 @@ export function SplitCard({ people, shares, bills, settled, onAssign, onSettle }
   const partner = split.partnerPerson;
 
   return (
-    <article className="card split-card span-2 card-with-art">
+    <article className="card split-card card-with-art">
       <header className="card-head">
         <div className="card-title">
           <h2>{t("split.title")}</h2>

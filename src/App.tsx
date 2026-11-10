@@ -43,6 +43,7 @@ import {
   parseLayout,
   resizeCard,
   serializeLayout,
+  toggleCollapse,
   type CardId,
   type LayoutCard,
 } from "./domain/layout";
@@ -489,6 +490,11 @@ export function App() {
               }}
               onLayoutResize={(id: CardId, delta: number) => {
                 const next = resizeCard(layout, id, delta);
+                setLayout(next);
+                void api.setSetting("dashboard_layout", serializeLayout(next));
+              }}
+              onLayoutCollapse={(id: CardId) => {
+                const next = toggleCollapse(layout, id);
                 setLayout(next);
                 void api.setSetting("dashboard_layout", serializeLayout(next));
               }}

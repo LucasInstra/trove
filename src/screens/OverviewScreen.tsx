@@ -11,6 +11,7 @@ import type { KeeperLook } from "../lib/keeper";
 import { SHOW_HERO_KEEPER } from "../lib/features";
 import type { CardId, LayoutCard } from "../domain/layout";
 import type { MonthPlan } from "../domain/projection";
+import { computeSplit } from "../domain/split";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import type {
@@ -57,6 +58,7 @@ interface OverviewProps {
   layoutEditing: boolean;
   onLayoutMove: (id: CardId, delta: number) => void;
   onLayoutResize: (id: CardId, delta: number) => void;
+  onLayoutCollapse: (id: CardId) => void;
   onLayoutReset: () => void;
   onLayoutDone: () => void;
   onEditIncome: () => void;
@@ -99,6 +101,7 @@ export function OverviewScreen({
   layoutEditing,
   onLayoutMove,
   onLayoutResize,
+  onLayoutCollapse,
   onLayoutReset,
   onLayoutDone,
   accounts,
@@ -134,6 +137,33 @@ export function OverviewScreen({
       donut: t("ledger.whereMoney"),
       series: t("ledger.lastSix"),
     })[id];
+
+  const collapsedFigure = (id: CardId): ReactNode => {
+    switch (id) {
+      case "forecast":
+        return formatCents(plan.forecastCents);
+      case "bills":
+        return formatCents(plan.plannedCents);
+      case "cards":
+        return formatCents(cards[0]?.usageCents ?? 0);
+      case "housing":
+        return formatCents(plan.housingCents);
+      case "goals": {
+        const firstGoal = plan.goals[0];
+        return firstGoal
+          ? t("planner.goalProgress", { percent: Math.round(firstGoal.sharePct) })
+          : t("layout.goalCount", { count: 0 });
+      }
+      case "split":
+        return formatCents(computeSplit(people, shares, plan.dueBills).settlementCents);
+      case "donut": {
+        const biggest = byCategory[0];
+        return biggest ? `${biggest.name} · ${formatCents(biggest.totalCents)}` : formatCents(0);
+      }
+      case "series":
+        return formatCents(series.find((point) => point.month === month)?.expenseCents ?? 0);
+    }
+  };
 
   const cells: Record<CardId, ReactNode> = {
     forecast: (
@@ -306,10 +336,29 @@ export function OverviewScreen({
         {layout.map((item, index) => (
           <div
             key={item.id}
-            className={item.id === "bills" ? "grid-cell natural" : "grid-cell"}
-            style={{ gridColumn: `span ${item.span}` }}
+            className={`grid-cell span-${item.span}${item.id === "bills" ? " natural" : ""}${item.collapsed ? " is-collapsed" : ""}`}
           >
-            {cells[item.id]}
+            {item.collapsed ? (
+              <article className="collapsed-card">
+                <header className="collapsed-card-head">
+                  <h2>{cardName(item.id)}</h2>
+                  <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
+                  {!layoutEditing ? (
+                    <button
+                      type="button"
+                      className="collapse-trigger"
+                      aria-label={t("layout.expand")}
+                      title={t("layout.expand")}
+                      onClick={() => onLayoutCollapse(item.id)}
+                    >
+                      <Icon name="chevron-down" size={16} />
+                    </button>
+                  ) : null}
+                </header>
+              </article>
+            ) : (
+              cells[item.id]
+            )}
             {layoutEditing ? (
               <div className="cell-tools" role="group" aria-label={t("layout.tools", { name: cardName(item.id) })}>
                 <button
@@ -344,6 +393,15 @@ export function OverviewScreen({
                   onClick={() => onLayoutResize(item.id, 1)}
                 >
                   <Icon name="plus" size={14} />
+                </button>
+                <span className="cell-tools-sep" aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-label={item.collapsed ? t("layout.expand") : t("layout.collapse")}
+                  title={item.collapsed ? t("layout.expand") : t("layout.collapse")}
+                  onClick={() => onLayoutCollapse(item.id)}
+                >
+                  <Icon name={item.collapsed ? "chevron-down" : "chevron-up"} size={14} />
                 </button>
               </div>
             ) : null}

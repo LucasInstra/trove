@@ -6,6 +6,7 @@ import {
   parseLayout,
   resizeCard,
   serializeLayout,
+  toggleCollapse,
   type LayoutCard,
 } from "./layout";
 
@@ -42,6 +43,21 @@ describe("parseLayout", () => {
     expect(layout.find((entry) => entry.id === "goals")?.span).toBe(1);
   });
 
+  it("defaults missing or invalid collapse flags to false and keeps booleans", () => {
+    const layout = parseLayout(
+      JSON.stringify([
+        { id: "bills", span: 1 },
+        { id: "cards", span: 2, collapsed: true },
+        { id: "housing", span: 1, collapsed: "yes" },
+        { id: "goals", span: 1, collapsed: null },
+      ]),
+    );
+    expect(layout.find((entry) => entry.id === "bills")?.collapsed).toBe(false);
+    expect(layout.find((entry) => entry.id === "cards")?.collapsed).toBe(true);
+    expect(layout.find((entry) => entry.id === "housing")?.collapsed).toBe(false);
+    expect(layout.find((entry) => entry.id === "goals")?.collapsed).toBe(false);
+  });
+
   it("always returns every card exactly once", () => {
     const layout = parseLayout(JSON.stringify([{ id: "series", span: 1 }]));
     expect(layout).toHaveLength(CARD_IDS.length);
@@ -51,9 +67,9 @@ describe("parseLayout", () => {
 
 describe("moveCard", () => {
   const layout: LayoutCard[] = [
-    { id: "forecast", span: 2 },
-    { id: "bills", span: 1 },
-    { id: "cards", span: 1 },
+    { id: "forecast", span: 2, collapsed: false },
+    { id: "bills", span: 1, collapsed: false },
+    { id: "cards", span: 1, collapsed: false },
   ];
 
   it("swaps with the neighbour", () => {
@@ -83,6 +99,23 @@ describe("moveCard", () => {
   });
 });
 
+describe("toggleCollapse", () => {
+  it("toggles only the selected card without mutating the layout", () => {
+    const layout = parseLayout(null);
+    const next = toggleCollapse(layout, "bills");
+    expect(next).not.toBe(layout);
+    expect(next.find((entry) => entry.id === "bills")?.collapsed).toBe(true);
+    expect(next.find((entry) => entry.id === "forecast")?.collapsed).toBe(false);
+    expect(layout.find((entry) => entry.id === "bills")?.collapsed).toBe(false);
+    expect(toggleCollapse(next, "bills").find((entry) => entry.id === "bills")?.collapsed).toBe(false);
+  });
+
+  it("returns the original layout for an unknown card", () => {
+    const layout = parseLayout(null);
+    expect(toggleCollapse(layout, "ghost" as LayoutCard["id"])).toBe(layout);
+  });
+});
+
 describe("resizeCard", () => {
   it("clamps between one and three columns", () => {
     const layout = parseLayout(null);
@@ -94,7 +127,10 @@ describe("resizeCard", () => {
 
 describe("serializeLayout", () => {
   it("round trips through parse", () => {
-    const layout = resizeCard(moveCard(DEFAULT_LAYOUT, "cards", -1), "cards", 1);
+    const layout = toggleCollapse(
+      resizeCard(moveCard(DEFAULT_LAYOUT, "cards", -1), "cards", 1),
+      "cards",
+    );
     expect(parseLayout(serializeLayout(layout))).toEqual(layout);
   });
 });

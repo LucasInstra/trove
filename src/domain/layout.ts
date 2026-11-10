@@ -23,17 +23,18 @@ export type Span = 1 | 2 | 3;
 export interface LayoutCard {
   id: CardId;
   span: Span;
+  collapsed: boolean;
 }
 
 export const DEFAULT_LAYOUT: LayoutCard[] = [
-  { id: "forecast", span: 2 },
-  { id: "bills", span: 1 },
-  { id: "cards", span: 2 },
-  { id: "housing", span: 1 },
-  { id: "goals", span: 1 },
-  { id: "split", span: 2 },
-  { id: "donut", span: 1 },
-  { id: "series", span: 2 },
+  { id: "forecast", span: 2, collapsed: false },
+  { id: "bills", span: 1, collapsed: false },
+  { id: "cards", span: 2, collapsed: false },
+  { id: "housing", span: 1, collapsed: false },
+  { id: "goals", span: 1, collapsed: false },
+  { id: "split", span: 2, collapsed: false },
+  { id: "donut", span: 1, collapsed: false },
+  { id: "series", span: 2, collapsed: false },
 ];
 
 const clampSpan = (value: unknown, fallback: Span): Span => {
@@ -65,12 +66,17 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
     const id = typeof entry === "object" && entry !== null ? (entry as { id?: unknown }).id : null;
     if (!isCardId(id) || seen.has(id)) continue;
     seen.add(id);
-    layout.push({ id, span: clampSpan((entry as { span?: unknown }).span, defaultSpan(id)) });
+    const card = entry as { span?: unknown; collapsed?: unknown };
+    layout.push({
+      id,
+      span: clampSpan(card.span, defaultSpan(id)),
+      collapsed: typeof card.collapsed === "boolean" ? card.collapsed : false,
+    });
   }
 
   // A card added to the app after the layout was saved still shows up.
   for (const id of CARD_IDS) {
-    if (!seen.has(id)) layout.push({ id, span: defaultSpan(id) });
+    if (!seen.has(id)) layout.push({ id, span: defaultSpan(id), collapsed: false });
   }
   return layout;
 }
@@ -92,6 +98,16 @@ export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): Lay
   );
 }
 
+export function toggleCollapse(layout: LayoutCard[], id: CardId): LayoutCard[] {
+  const index = layout.findIndex((entry) => entry.id === id);
+  if (index < 0) return layout;
+  return layout.map((entry, entryIndex) =>
+    entryIndex === index ? { ...entry, collapsed: !entry.collapsed } : entry,
+  );
+}
+
 export function serializeLayout(layout: LayoutCard[]): string {
-  return JSON.stringify(layout.map((entry) => ({ id: entry.id, span: entry.span })));
+  return JSON.stringify(
+    layout.map((entry) => ({ id: entry.id, span: entry.span, collapsed: entry.collapsed })),
+  );
 }
