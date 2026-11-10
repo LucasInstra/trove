@@ -130,12 +130,48 @@ export function deformOutline(
   pullY: number,
   radius: number,
 ): Point[] {
-  const amount = Math.hypot(pullX, pullY);
-  if (!Number.isFinite(amount) || amount < 0.01) return points;
+  const target: Point[] = points.map(() => ({ x: 0, y: 0 }));
+  deformInto(target, points, anchorX, anchorY, pullX, pullY, radius);
+  return target;
+}
 
-  return points.map((point) =>
-    deformPoint(point, anchorX, anchorY, pullX, pullY, radius),
-  );
+/**
+ * Same deformation, written into a buffer owned by the caller. The renderer
+ * calls this every frame, so it must not allocate.
+ */
+export function deformInto(
+  target: Point[],
+  points: Point[],
+  anchorX: number,
+  anchorY: number,
+  pullX: number,
+  pullY: number,
+  radius: number,
+): void {
+  const amount = Math.hypot(pullX, pullY);
+  const moves = Number.isFinite(amount) && amount >= 0.01;
+
+  if (!moves) {
+    for (let index = 0; index < points.length; index += 1) {
+      target[index].x = points[index].x;
+      target[index].y = points[index].y;
+    }
+    return;
+  }
+
+  const safe = safeRadius(radius);
+  const ratio = clamp(amount / (safe * GRAB.maxPull), 0, 1);
+  const sigma = safe * (GRAB.falloffNear + (GRAB.falloffFar - GRAB.falloffNear) * ratio);
+  const denominator = 2 * sigma * sigma;
+
+  for (let index = 0; index < points.length; index += 1) {
+    const point = points[index];
+    const dx = point.x - anchorX;
+    const dy = point.y - anchorY;
+    const weight = Math.exp(-(dx * dx + dy * dy) / denominator);
+    target[index].x = point.x + pullX * weight;
+    target[index].y = point.y + pullY * weight;
+  }
 }
 
 export interface GripPhysics {

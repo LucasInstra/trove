@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   centerBias,
   clampAnchor,
-  deformOutline,
+  deformInto,
   followTarget,
   gripPhysics,
   deformPoint,
@@ -352,6 +352,17 @@ export function Mascot({
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const radius = size * 0.3;
+    const deformed: Point[] = Array.from({ length: 256 }, () => ({ x: 0, y: 0 }));
+    let lastDeformKey = "";
+    let cachedBody: Path2D | null = null;
+    let lastBodyShape = "";
+    let colorKey = "";
+    let bodyShade = "#000000";
+    let snoutFill = "#ffffff";
+    let earInner = "#000000";
+    let auraKey = "";
+    let auraGradient: CanvasGradient | null = null;
+    let liveDpr = window.devicePixelRatio || 1;
     let rootMatrix = new DOMMatrix();
     let hitRect = hit.getBoundingClientRect();
     const refreshRect = () => {
@@ -495,7 +506,14 @@ export function Mascot({
       if (cancelled) return;
       // Each frame owns its transform, so a second effect instance that resized
       // the canvas cannot leave this one drawing at the wrong scale.
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // A monitor change alters the device pixel ratio; the backing store has
+      // to follow or the mascot goes blurry.
+      liveDpr = window.devicePixelRatio || 1;
+      if (liveDpr !== dpr) {
+        canvas.width = canvasSize * liveDpr;
+        canvas.height = canvasSize * liveDpr;
+      }
+      context.setTransform(liveDpr, 0, 0, liveDpr, 0, 0);
       const {
         shape,
         color,
@@ -647,11 +665,15 @@ export function Mascot({
       context.save();
       context.translate(dragX.value, dragY.value);
       const auraRadius = radius * 1.9;
-      const aura = context.createRadialGradient(0, 0, radius * 0.4, 0, 0, auraRadius);
-      aura.addColorStop(0, withAlpha(color, hovering ? 0.24 : 0.19));
-      aura.addColorStop(0.6, withAlpha(color, 0.07));
-      aura.addColorStop(1, "rgba(0,0,0,0)");
-      context.fillStyle = aura;
+      const nextAuraKey = `${color}|${hovering}`;
+      if (nextAuraKey !== auraKey) {
+        auraKey = nextAuraKey;
+        auraGradient = context.createRadialGradient(0, 0, radius * 0.4, 0, 0, auraRadius);
+        auraGradient.addColorStop(0, withAlpha(color, hovering ? 0.24 : 0.19));
+        auraGradient.addColorStop(0.6, withAlpha(color, 0.07));
+        auraGradient.addColorStop(1, "rgba(0,0,0,0)");
+      }
+      context.fillStyle = auraGradient ?? "rgba(0,0,0,0)";
       context.beginPath();
       context.arc(0, 0, auraRadius, 0, TAU);
       context.fill();
@@ -671,20 +693,25 @@ export function Mascot({
       // face sliding over a static body.
       context.scale(bodyWidth, bodyHeight);
 
-      const bodyShade = shade(color, 0.82, 1);
+      if (color !== colorKey) {
+        colorKey = color;
+        bodyShade = shade(color, 0.82, 1);
+        snoutFill = lighten(color, 0.3);
+        earInner = shade(color, 0.6, 1);
+      }
 
       // Everything below is anchored to the deformed outline, so the whole pig
       // moves as one piece instead of leaving an ear or the snout
       // behind when the body is pulled.
-      const deformed = deformOutline(
-        outline,
-        drag.anchorX,
-        drag.anchorY,
-        pullX.value,
-        pullY.value,
-        radius,
-      );
-      const body = outline.length > 0 ? pathFromPoints(deformed, shear) : bodyPath(shape, radius);
+      const deformKey = `${shape}|${drag.anchorX.toFixed(2)}|${drag.anchorY.toFixed(2)}|${pullX.value.toFixed(2)}|${pullY.value.toFixed(2)}|${shear.toFixed(3)}`;
+      if (deformKey !== lastDeformKey || shape !== lastBodyShape) {
+        deformInto(deformed, outline, drag.anchorX, drag.anchorY, pullX.value, pullY.value, radius);
+        cachedBody =
+          outline.length > 0 ? pathFromPoints(deformed, shear) : bodyPath(shape, radius);
+        lastDeformKey = deformKey;
+        lastBodyShape = shape;
+      }
+      const body = cachedBody ?? pathFromPoints(outline, shear);
 
       const at = (angle: number): Point => {
         if (deformed.length === 0) {
@@ -781,7 +808,7 @@ export function Mascot({
           context.quadraticCurveTo(radius * 0.09, -radius * 0.26, radius * 0.13, radius * 0.03);
           context.quadraticCurveTo(0, radius * 0.11, -radius * 0.13, radius * 0.03);
           context.closePath();
-          context.fillStyle = shade(color, 0.6, 1);
+          context.fillStyle = earInner;
           context.fill();
           context.restore();
         }
@@ -884,7 +911,7 @@ export function Mascot({
         const snoutY = radius * 0.4 + Math.sin(pitch) * radius * 0.1;
         const snoutProjected = project(0, snoutY);
         const centerPoint = move(snoutProjected.x, snoutProjected.y);
-        context.fillStyle = lighten(color, 0.3);
+        context.fillStyle = snoutFill;
         context.beginPath();
         context.ellipse(
           centerPoint.x,
