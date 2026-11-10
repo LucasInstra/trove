@@ -606,8 +606,8 @@ export function Mascot({
       if (nextAuraKey !== auraKey) {
         auraKey = nextAuraKey;
         auraGradient = context.createRadialGradient(0, 0, radius * 0.4, 0, 0, auraRadius);
-        auraGradient.addColorStop(0, withAlpha(color, hovering ? 0.24 : 0.19));
-        auraGradient.addColorStop(0.6, withAlpha(color, 0.07));
+        auraGradient.addColorStop(0, withAlpha(color, hovering ? 0.12 : 0.08));
+        auraGradient.addColorStop(0.6, withAlpha(color, 0.03));
         auraGradient.addColorStop(1, "rgba(0,0,0,0)");
       }
       context.fillStyle = auraGradient ?? "rgba(0,0,0,0)";
@@ -737,8 +737,17 @@ export function Mascot({
           context.quadraticCurveTo(radius * 0.23, -radius * 0.16, radius * 0.26, radius * 0.12);
           context.quadraticCurveTo(0, radius * 0.22, -radius * 0.26, radius * 0.12);
           context.closePath();
-          context.fillStyle = bodyShade;
+          const earFill = context.createLinearGradient(0, radius * 0.12, 0, -radius * 0.4);
+          earFill.addColorStop(0, lighten(color, 0.18));
+          earFill.addColorStop(0.55, shade(color, 0.93, 1));
+          earFill.addColorStop(1, shade(color, 0.8, 1));
+          context.save();
+          context.shadowColor = "rgba(26, 25, 23, 0.2)";
+          context.shadowBlur = radius * 0.16;
+          context.shadowOffsetY = radius * 0.03;
+          context.fillStyle = earFill;
           context.fill();
+          context.restore();
           context.beginPath();
           context.moveTo(-radius * 0.15, radius * 0.05);
           context.quadraticCurveTo(-radius * 0.13, -radius * 0.1, -radius * 0.04, -radius * 0.22);
@@ -752,17 +761,71 @@ export function Mascot({
         }
       }
 
-      context.fillStyle = color;
+      // Contact shadow, laid down before the body so it reads as ground under it.
+      context.save();
+      context.translate(0, radius * 0.99);
+      context.scale(1, 0.26);
+      const contact = context.createRadialGradient(0, 0, radius * 0.08, 0, 0, radius * 1.02);
+      contact.addColorStop(0, "rgba(26, 25, 23, 0.22)");
+      contact.addColorStop(1, "rgba(26, 25, 23, 0)");
+      context.fillStyle = contact;
+      context.beginPath();
+      context.arc(0, 0, radius * 1.02, 0, TAU);
+      context.fill();
+      context.restore();
+
+      // Volume from one light source at the top left, with a shadowed rim. The
+      // light slides with the yaw, so a turn also moves the highlight.
+      const lightX = -radius * 0.34 + Math.sin(yaw) * radius * 0.24;
+      const lightY = -radius * 0.44;
+      const volume = context.createRadialGradient(
+        lightX,
+        lightY,
+        radius * 0.04,
+        lightX * 0.32,
+        lightY * 0.32,
+        radius * 1.34,
+      );
+      volume.addColorStop(0, lighten(color, 0.34));
+      volume.addColorStop(0.3, lighten(color, 0.14));
+      volume.addColorStop(0.65, color);
+      volume.addColorStop(0.9, shade(color, 0.93, 1));
+      volume.addColorStop(1, shade(color, 0.86, 1));
+      context.fillStyle = volume;
       context.fill(body);
 
       context.save();
       context.clip(body);
-      const sheen = context.createLinearGradient(0, -radius, 0, radius * 1.1);
-      sheen.addColorStop(0, "rgba(255,255,255,0.26)");
-      sheen.addColorStop(0.45, "rgba(255,255,255,0.03)");
-      sheen.addColorStop(1, "rgba(0,0,0,0.16)");
-      context.fillStyle = sheen;
+      // Rim light: the clip keeps only the inner half of the stroke, which is
+      // what makes the edge read as a lit surface instead of a cut-out.
+      const rim = context.createLinearGradient(-radius * 0.9, -radius, radius * 0.5, radius);
+      rim.addColorStop(0, "rgba(255, 255, 255, 0.5)");
+      rim.addColorStop(0.45, "rgba(255, 255, 255, 0.07)");
+      rim.addColorStop(1, "rgba(255, 255, 255, 0)");
+      context.strokeStyle = rim;
+      context.lineWidth = radius * 0.1;
+      context.stroke(body);
+
+      const spec = context.createRadialGradient(
+        lightX * 0.92,
+        lightY * 0.92,
+        0,
+        lightX * 0.92,
+        lightY * 0.92,
+        radius * 0.5,
+      );
+      spec.addColorStop(0, "rgba(255, 255, 255, 0.34)");
+      spec.addColorStop(0.55, "rgba(255, 255, 255, 0.1)");
+      spec.addColorStop(1, "rgba(255, 255, 255, 0)");
+      context.fillStyle = spec;
       context.fillRect(-radius * 1.4, -radius * 1.4, radius * 2.8, radius * 2.8);
+
+      // Ambient shade pooling at the bottom of the body.
+      const floor = context.createLinearGradient(0, radius * 0.1, 0, radius);
+      floor.addColorStop(0, "rgba(26, 25, 23, 0)");
+      floor.addColorStop(1, "rgba(26, 25, 23, 0.22)");
+      context.fillStyle = floor;
+      context.fillRect(-radius * 1.4, 0, radius * 2.8, radius * 1.4);
       context.restore();
 
       context.save();
@@ -837,6 +900,19 @@ export function Mascot({
           context.beginPath();
           context.roundRect(-eyeWidth / 2, -eyeHeight / 2, eyeWidth, eyeHeight, eyeWidth / 2);
           context.fill();
+          // One specular dot is enough to read the eye as a rounded bead.
+          context.fillStyle = "rgba(255, 255, 255, 0.45)";
+          context.beginPath();
+          context.ellipse(
+            -eyeWidth * 0.13,
+            -eyeHeight * 0.24,
+            eyeWidth * 0.1,
+            eyeHeight * 0.14,
+            0,
+            0,
+            TAU,
+          );
+          context.fill();
         }
 
         context.restore();
@@ -849,8 +925,19 @@ export function Mascot({
             side * radius * 0.52,
             radius * 0.2 + Math.sin(pitch) * radius * 0.08,
           );
+          const blush = context.createRadialGradient(
+            position.x,
+            position.y,
+            radius * 0.01,
+            position.x,
+            position.y,
+            radius * 0.15,
+          );
+          blush.addColorStop(0, "rgba(226, 110, 138, 0.45)");
+          blush.addColorStop(1, "rgba(226, 110, 138, 0)");
+          context.fillStyle = blush;
           context.beginPath();
-          context.ellipse(position.x, position.y, radius * 0.115, radius * 0.065, 0, 0, TAU);
+          context.ellipse(position.x, position.y, radius * 0.15, radius * 0.105, 0, 0, TAU);
           context.fill();
         }
       }
@@ -858,7 +945,22 @@ export function Mascot({
       if (snout) {
         const snoutY = radius * 0.4 + Math.sin(pitch) * radius * 0.1;
         const centerPoint = move(0, snoutY);
-        context.fillStyle = snoutFill;
+        const snoutGradient = context.createRadialGradient(
+          centerPoint.x - radius * 0.12,
+          centerPoint.y - radius * 0.15,
+          radius * 0.02,
+          centerPoint.x,
+          centerPoint.y,
+          radius * 0.46,
+        );
+        snoutGradient.addColorStop(0, lighten(color, 0.66));
+        snoutGradient.addColorStop(0.5, snoutFill);
+        snoutGradient.addColorStop(1, shade(color, 0.94, 1));
+        context.save();
+        context.shadowColor = "rgba(26, 25, 23, 0.2)";
+        context.shadowBlur = radius * 0.18;
+        context.shadowOffsetY = radius * 0.05;
+        context.fillStyle = snoutGradient;
         context.beginPath();
         context.ellipse(
           centerPoint.x,
@@ -870,6 +972,7 @@ export function Mascot({
           TAU,
         );
         context.fill();
+        context.restore();
         context.save();
         context.clip();
         const snoutShade = context.createLinearGradient(
@@ -878,9 +981,9 @@ export function Mascot({
           0,
           centerPoint.y + radius * 0.27,
         );
-        snoutShade.addColorStop(0, "rgba(255,255,255,0.22)");
-        snoutShade.addColorStop(0.55, "rgba(255,255,255,0)");
-        snoutShade.addColorStop(1, "rgba(0,0,0,0.13)");
+        snoutShade.addColorStop(0, "rgba(255,255,255,0.28)");
+        snoutShade.addColorStop(0.5, "rgba(255,255,255,0)");
+        snoutShade.addColorStop(1, "rgba(26, 25, 23, 0.2)");
         context.fillStyle = snoutShade;
         context.fillRect(
           centerPoint.x - radius * 0.4,
