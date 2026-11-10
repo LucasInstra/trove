@@ -314,9 +314,18 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
   );
 }
 
-export function HousingCard({ plan, onEdit }: { plan: MonthPlan; onEdit: () => void }) {
+interface HousingProps {
+  plan: MonthPlan;
+  scope: "primary" | "total";
+  onScope: (scope: "primary" | "total") => void;
+  onEdit: () => void;
+}
+
+export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
   const { t } = useLanguage();
-  const ratio = Math.min(100, plan.housingRatioPct);
+  const ratioPct = scope === "primary" ? plan.housingRatioPrimaryPct : plan.housingRatioPct;
+  const ratio = Math.min(100, ratioPct);
+  const over = ratioPct > plan.ceilingPct;
   return (
     <article className="card housing-card card-with-art">
       <header className="card-head">
@@ -331,23 +340,38 @@ export function HousingCard({ plan, onEdit }: { plan: MonthPlan; onEdit: () => v
 
       <div className="card-figure">
         <strong>{formatCents(plan.housingCents)}</strong>
-        <span className={plan.overCeiling ? "delta-line down" : "delta-line"}>
+        <span className={over ? "delta-line down" : "delta-line"}>
           <Icon name="check" size={14} />
-          {t("planner.housingRatio", { percent: plan.housingRatioPct, ceiling: plan.ceilingPct })}
+          {t("planner.housingRatio", { percent: ratioPct, ceiling: plan.ceilingPct })}
         </span>
       </div>
 
+      <div className="segmented" role="group" aria-label={t("planner.incomeScope")}>
+        <button
+          type="button"
+          className={scope === "primary" ? "active" : undefined}
+          aria-pressed={scope === "primary"}
+          onClick={() => onScope("primary")}
+        >
+          {t("planner.scopePrimary")}
+        </button>
+        <button
+          type="button"
+          className={scope === "total" ? "active" : undefined}
+          aria-pressed={scope === "total"}
+          onClick={() => onScope("total")}
+        >
+          {t("planner.scopeTotal")}
+        </button>
+      </div>
+
       <div className="meter">
-        <div className="meter-track">
-          <div
-            className={plan.overCeiling ? "meter-fill over" : "meter-fill"}
-            style={{ width: `${ratio}%` }}
-          />
+        <div className="meter-track tall">
+          <div className={over ? "meter-fill over" : "meter-fill"} style={{ width: `${ratio}%` }} />
           <span className="meter-mark" style={{ left: `${Math.min(100, plan.ceilingPct)}%` }} />
         </div>
         <div className="meter-scale">
           <span>0%</span>
-          <span>{plan.ceilingPct}%</span>
           <span>100%</span>
         </div>
       </div>

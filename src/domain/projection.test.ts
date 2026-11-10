@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Bill, BillPayment, Income } from "../lib/api";
-import { buildComposition, isDueIn, planMonth } from "./projection";
+import { buildComposition, isDueIn, planMonth, primaryOf } from "./projection";
 
 const income = (amountCents: number): Income => ({
   id: 1,
@@ -153,5 +153,29 @@ describe("isDueIn", () => {
 describe("buildComposition", () => {
   it("stays empty without money on either side", () => {
     expect(buildComposition(0, 0, 0, false)).toEqual([]);
+  });
+});
+
+describe("housing income scope", () => {
+  it("separates my income from every income in the house", () => {
+    const plan = planMonth({
+      ...base,
+      incomes: [income(3_000_000), { ...income(1_000_000), id: 2, name: "Aluguel recebido" }],
+      bills: [bill(1, 566_622, 5, { categoryId: 9 })],
+      payments: [],
+      totals: null,
+      housingCategoryId: 9,
+    });
+
+    expect(plan.incomeCents).toBe(4_000_000);
+    expect(plan.primaryIncomeCents).toBe(3_000_000);
+    expect(plan.housingRatioPct).toBeCloseTo(14.2, 1);
+    expect(plan.housingRatioPrimaryPct).toBeCloseTo(18.9, 1);
+  });
+
+  it("picks the biggest active monthly income as mine", () => {
+    expect(primaryOf([income(100_000), { ...income(900_000), id: 2 }])).toBe(900_000);
+    expect(primaryOf([{ ...income(900_000), active: false }])).toBe(0);
+    expect(primaryOf([])).toBe(0);
   });
 });

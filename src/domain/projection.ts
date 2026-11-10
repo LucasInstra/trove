@@ -21,6 +21,7 @@ export interface GoalProgress {
 export interface MonthPlan {
   month: string;
   incomeCents: number;
+  primaryIncomeCents: number;
   plannedCents: number;
   paidCents: number;
   realizedCents: number;
@@ -34,6 +35,7 @@ export interface MonthPlan {
   composition: Composition[];
   housingCents: number;
   housingRatioPct: number;
+  housingRatioPrimaryPct: number;
   ceilingPct: number;
   overCeiling: boolean;
   goals: GoalProgress[];
@@ -62,6 +64,13 @@ export function isDueIn(bill: Bill, month: string): boolean {
   if (end && end < month) return false;
   if (bill.frequency === "once") return start === month;
   return true;
+}
+
+/** The biggest active monthly income, which is the one the app treats as mine. */
+export function primaryOf(incomes: Income[]): number {
+  const monthly = incomes.filter((income) => income.active && income.frequency === "monthly");
+  if (monthly.length === 0) return 0;
+  return Math.max(...monthly.map((income) => income.amountCents));
 }
 
 export function groupByDay(bills: Bill[]): DayGroup[] {
@@ -152,6 +161,13 @@ export function planMonth(input: PlanInput): MonthPlan {
         );
   const housingRatioPct =
     incomeCents > 0 ? Math.round((housingCents / incomeCents) * 1000) / 10 : 0;
+  // The app is single-person, so "my income" is the biggest active salary. It is
+  // a rule, not a hidden model: no owner field exists yet.
+  const primaryIncomeCents = monthlyIncome > 0 ? primaryOf(input.incomes) : totals.incomeCents;
+  const housingRatioPrimaryPct =
+    primaryIncomeCents > 0
+      ? Math.round((housingCents / primaryIncomeCents) * 1000) / 10
+      : 0;
 
   const goals: GoalProgress[] = input.goals.map((goal) => {
     const total = input.goalTotals.find((entry) => entry.goalId === goal.id);
@@ -164,6 +180,7 @@ export function planMonth(input: PlanInput): MonthPlan {
   return {
     month,
     incomeCents,
+    primaryIncomeCents,
     plannedCents,
     paidCents,
     realizedCents,
@@ -179,6 +196,7 @@ export function planMonth(input: PlanInput): MonthPlan {
     composition: buildComposition(incomeCents, committedCents, forecastCents, hasPlan, housingCents),
     housingCents,
     housingRatioPct,
+    housingRatioPrimaryPct,
     ceilingPct: input.ceilingPct,
     overCeiling: housingRatioPct > input.ceilingPct,
     goals,

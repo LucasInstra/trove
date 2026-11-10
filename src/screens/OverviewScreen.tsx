@@ -42,6 +42,8 @@ interface OverviewProps {
   onEditCard: (card: CardMeta) => void;
   onAddGoal: () => void;
   onEditHousing: () => void;
+  housingScope: "primary" | "total";
+  onHousingScope: (scope: "primary" | "total") => void;
   onEditIncome: () => void;
   accounts: Account[];
   look: KeeperLook;
@@ -70,7 +72,9 @@ export function OverviewScreen({
   onEditCard,
   onAddGoal,
   onEditHousing,
+  onHousingScope,
   onEditIncome,
+  housingScope,
   accounts,
   look,
   accountFilter,
@@ -143,7 +147,7 @@ export function OverviewScreen({
 
         <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />
         <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} />
-        <HousingCard plan={plan} onEdit={onEditHousing} />
+        <HousingCard plan={plan} scope={housingScope} onScope={onHousingScope} onEdit={onEditHousing} />
         <GoalsCard plan={plan} onAdd={onAddGoal} />
 
         <article className="card span-2">

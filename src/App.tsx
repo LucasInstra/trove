@@ -97,6 +97,7 @@ export function App() {
   const [usage, setUsage] = useState<Record<number, number>>({});
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
   const [ceilingPct, setCeilingPct] = useState(30);
+  const [housingScope, setHousingScope] = useState<"primary" | "total">("primary");
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -119,7 +120,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling, scope] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -130,6 +131,7 @@ export function App() {
           api.plannerState(at),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
+          api.getSetting("housing_scope").catch(() => null),
         ]);
       setRows(nextRows);
       setAccounts(nextAccounts);
@@ -142,6 +144,7 @@ export function App() {
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
       setHousingCategoryId(storedHousing ?? fallback?.id ?? null);
       setCeilingPct(ceiling ? Number(ceiling) : 30);
+      setHousingScope(scope === "total" ? "total" : "primary");
       setError("");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
@@ -420,6 +423,11 @@ export function App() {
               onEditCard={(card) => setDialog({ kind: "card", card })}
               onAddGoal={() => setDialog({ kind: "goal", goal: null })}
               onEditHousing={() => setDialog({ kind: "ceiling" })}
+              housingScope={housingScope}
+              onHousingScope={(scope) => {
+                setHousingScope(scope);
+                void api.setSetting("housing_scope", scope);
+              }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
             />
           ) : null}
