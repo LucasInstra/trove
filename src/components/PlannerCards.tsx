@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Bill, CardMeta, Goal, Person, Share, TransactionRow } from "../lib/api";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
@@ -27,6 +27,9 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
   const count = plan.dueBills.length;
   const today = new Date().getDate();
   const isCurrentMonth = plan.month === new Date().toISOString().slice(0, 7);
+  const activeDay = isCurrentMonth
+    ? (plan.dayGroups.find((group) => group.day >= today)?.day ?? plan.dayGroups.at(-1)?.day)
+    : plan.dayGroups[0]?.day;
 
   return (
     <article className="card bills-card card-with-art">
@@ -50,7 +53,12 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
       {plan.dayGroups.length > 0 ? (
         <div className="day-pills" role="list">
           {plan.dayGroups.map((group) => (
-            <span key={group.day} className="day-pill" role="listitem">
+            <span
+              key={group.day}
+              className={group.day === activeDay ? "day-pill active" : "day-pill"}
+              role="listitem"
+              aria-current={group.day === activeDay ? "date" : undefined}
+            >
               <b>{String(group.day).padStart(2, "0")}</b>
               <em>{group.count}</em>
             </span>
@@ -99,7 +107,7 @@ interface CardsProps {
   onEdit: (card: CardMeta) => void;
 }
 
-const CARD_WIDTH = 325;
+const CARD_WIDTH = 280;
 const CARD_GAP = 12;
 
 export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
@@ -256,7 +264,6 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
               key={meta.id}
               type="button"
               className="credit-card"
-              style={{ "--card-color": meta.color } as CSSProperties}
               onClick={() => onEdit(meta)}
             >
               <span className="credit-texture" aria-hidden="true" />
