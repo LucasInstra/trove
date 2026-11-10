@@ -675,11 +675,6 @@ export function Mascot({
         const point = sampleRing(outline, angle);
         return { x: point.x * scale + shear * point.y * scale, y: point.y * scale };
       };
-      const place = (angle: number, scale = 1): Point => {
-        const rest = restAt(angle, scale);
-        const projected = project(rest.x, rest.y);
-        return move(projected.x, projected.y);
-      };
       // Outward normal of the deformed surface, so a decoration stays glued to
       // the silhouette instead of keeping the angle it had at rest.
       const normalAt = (angle: number): number => {
@@ -724,11 +719,12 @@ export function Mascot({
       if (ears) {
         for (const side of [-1, 1]) {
           const angle = -Math.PI / 2 + side * 0.62;
+          // Ears are welded to the silhouette, so they follow the ring instead
+          // of being re-projected: projecting moved them off the body edge and
+          // they floated beside the head as the yaw grew.
           const rest = restAt(angle);
-          const projected = project(rest.x, rest.y);
-          const anchor = move(projected.x, projected.y);
-          const azimuth = Math.asin(Math.max(-1, Math.min(1, rest.x / faceRadius)));
-          const depth = 0.78 + 0.22 * featureDepth(azimuth, yaw);
+          const anchor = move(rest.x, rest.y);
+          const depth = 0.78 + 0.22 * Math.cos(side * 0.62 + yaw);
           context.save();
           context.translate(anchor.x, anchor.y);
           context.rotate(normalAt(angle) + Math.PI / 2 + yaw * side * 0.3);
@@ -907,7 +903,8 @@ export function Mascot({
       // Feet come last so they sit in front of the belly.
       context.fillStyle = bodyShade;
       for (const side of [-1, 1]) {
-        const anchor = place(Math.PI / 2 - side * 0.42, 0.97);
+        const rest = restAt(Math.PI / 2 - side * 0.42, 0.97);
+        const anchor = move(rest.x, rest.y);
         context.beginPath();
         context.ellipse(
           anchor.x,
