@@ -54,7 +54,7 @@ function SidebarGroup({
 }) {
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      <span className="px-2.5 pb-0.5 text-2xs font-semibold tracking-[0.09em] text-faint uppercase">
+      <span className="px-2.5 pb-1 text-2xs font-semibold tracking-[0.09em] text-faint uppercase">
         {label}
       </span>
       {children}
@@ -63,7 +63,7 @@ function SidebarGroup({
 }
 
 const sidebarItemVariants = cva(
-  "sidebar-item flex h-9 w-full items-center gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&_svg]:shrink-0",
+  "sidebar-item flex h-9 w-full items-center justify-start gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&_svg]:shrink-0",
   {
     variants: {
       active: {

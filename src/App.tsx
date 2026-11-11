@@ -402,7 +402,7 @@ export function App() {
 
   return (
     <div className="app">
-      <TitleBar />
+      <TitleBar title={t(`nav.${route}`)} />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar className="hidden md:flex">

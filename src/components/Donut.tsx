@@ -9,12 +9,15 @@ export function Donut({
   thickness = 22,
   centerLabel,
   centerValue,
+  activeIndex = null,
 }: {
   segments: DonutSegment[];
   size?: number;
   thickness?: number;
   centerLabel?: string;
   centerValue?: string;
+  /** Index of the slice the pointer is on; the others step back. */
+  activeIndex?: number | null;
 }) {
   const total = segments.reduce((sum, segment) => sum + Math.max(0, segment.value), 0);
   const center = size / 2;
@@ -37,10 +40,9 @@ export function Donut({
   }
 
   const lengths = segments.map((segment) => (Math.max(0, segment.value) / total) * circumference);
-  // A round cap grows half a thickness past each end of its dash, so the gap has
-  // to be at least that wide or neighbouring arcs overlap and a zero share is
-  // drawn as a full dot.
-  const gap = thickness + 2;
+  // Flat ends and a hairline gap: a round cap would grow half a thickness past
+  // each end, which on a thick ring turns the gaps into confetti.
+  const gap = Math.max(1.5, size * 0.014);
   const offsets = lengths.map((_, index) =>
     lengths.slice(0, index).reduce((sum, length) => sum + length, 0),
   );
@@ -65,8 +67,10 @@ export function Donut({
           strokeWidth={thickness}
           strokeDasharray={`${Math.max(lengths[index] - gap, 0.1)} ${circumference}`}
           strokeDashoffset={-offsets[index]}
-          strokeLinecap="round"
+          strokeLinecap="butt"
+          strokeOpacity={activeIndex === null || activeIndex === index ? 1 : 0.28}
           transform={`rotate(-90 ${center} ${center})`}
+          style={{ transition: "stroke-opacity 140ms ease-out" }}
         />
       ))}
       {centerValue ? (

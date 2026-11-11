@@ -114,8 +114,29 @@ export function OverviewScreen({
   // The order shown while dragging: the dashboard rearranges itself as a preview
   // and only the drop commits it.
   const [preview, setPreview] = useState<LayoutCard[] | null>(null);
+  const [donutHover, setDonutHover] = useState<number | null>(null);
   const dragCells = useRef<{ id: CardId; rect: DOMRect }[]>([]);
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
+  // Biggest first, and the tail becomes one slice: a legend of twelve rows is a
+  // list, not a chart.
+  const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
+  const topCategories = ranked.slice(0, 5);
+  const restCents = ranked.slice(5).reduce((total, item) => total + item.totalCents, 0);
+  const donutSlices =
+    ranked.length > 5
+      ? [
+          ...topCategories.map((item) => ({
+            name: item.name,
+            color: item.color,
+            value: item.totalCents,
+          })),
+          { name: t("ledger.otherCategories"), color: "var(--faint)", value: restCents },
+        ]
+      : topCategories.map((item) => ({
+          name: item.name,
+          color: item.color,
+          value: item.totalCents,
+        }));
   const peak = Math.max(...series.slice(-6).map((point) => point.expenseCents), 1);
   const keptShare =
     plan.incomeCents > 0 ? Math.round((plan.forecastCents / plan.incomeCents) * 100) : 0;
@@ -275,18 +296,24 @@ export function OverviewScreen({
         ) : (
           <div className="donut-row">
             <Donut
-              segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))}
+              segments={donutSlices.map((slice) => ({ color: slice.color, value: slice.value }))}
               centerLabel={t("common.total")}
               centerValue={formatCents(spending)}
+              activeIndex={donutHover}
             />
             <ul className="legend">
-              {byCategory.map((item) => (
-                <li key={`${item.categoryId ?? "none"}-${item.name}`}>
-                  <span className="dot" style={{ background: item.color }} />
-                  <span className="legend-name">{item.name}</span>
-                  <span className="legend-value">{formatCents(item.totalCents)}</span>
+              {donutSlices.map((slice, index) => (
+                <li
+                  key={slice.name}
+                  className={donutHover === index ? "legend-row active" : "legend-row"}
+                  onPointerEnter={() => setDonutHover(index)}
+                  onPointerLeave={() => setDonutHover(null)}
+                >
+                  <span className="dot" style={{ background: slice.color }} />
+                  <span className="legend-name">{slice.name}</span>
+                  <span className="legend-value">{formatCents(slice.value)}</span>
                   <span className="legend-share">
-                    {spending > 0 ? Math.round((item.totalCents / spending) * 100) : 0}%
+                    {spending > 0 ? Math.round((slice.value / spending) * 100) : 0}%
                   </span>
                 </li>
               ))}

@@ -12,10 +12,11 @@ function appWindow() {
 }
 
 /**
- * Own title bar: no brand (the sidebar already has it), colours from the theme
- * so the bar melts into the page, and the window buttons the platform expects.
+ * Own title bar: it names the screen you are on and gives the window something to
+ * drag, without repeating the brand the sidebar already carries. Colours come
+ * from the theme, so the bar melts into the page.
  */
-export function TitleBar() {
+export function TitleBar({ title }: { title: string }) {
   const { t } = useLanguage();
   const [maximized, setMaximized] = useState(false);
 
@@ -41,7 +42,9 @@ export function TitleBar() {
         className="titlebar-drag"
         data-tauri-drag-region
         onDoubleClick={() => void appWindow()?.toggleMaximize()}
-      />
+      >
+        <span className="titlebar-route">{title}</span>
+      </div>
 
       <div className="titlebar-controls">
         <button
