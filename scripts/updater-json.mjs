@@ -47,8 +47,13 @@ const notes =
     ? readFileSync(notesFile, "utf8").trim()
     : "See the release assets.";
 
+// Build 1 is the plain version. Later builds carry the number in a prerelease
+// segment, `0.1.2-b3`, because the plugin compares semver and the app reads that
+// suffix as the build. The plain `build` field stays for older readers.
+const announcedVersion = build > 1 ? `${version}-b${build}` : version;
+
 const manifest = {
-  version,
+  version: announcedVersion,
   build,
   notes,
   pub_date: new Date().toISOString(),

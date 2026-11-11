@@ -1,51 +1,53 @@
 import { describe, expect, it } from "vitest";
-import { compareVersions, isNewerRelease, readBuild } from "./release";
+import { compareVersions, isNewerRelease, parseSemver, readBuild } from "./release";
+
+describe("parseSemver", () => {
+  it("reads the three numbers and ignores a build suffix", () => {
+    expect(parseSemver("0.1.2")).toEqual([0, 1, 2]);
+    expect(parseSemver("v0.1.2")).toEqual([0, 1, 2]);
+    // The manifest announces a fix build as `0.1.2-b3`.
+    expect(parseSemver("0.1.2-b3")).toEqual([0, 1, 2]);
+    expect(parseSemver("nonsense")).toBeNull();
+  });
+});
 
 describe("compareVersions", () => {
-  it("orders numerically, not alphabetically", () => {
-    expect(compareVersions("0.10.0", "0.9.0")).toBe(1);
-    expect(compareVersions("0.9.0", "0.10.0")).toBe(-1);
-    expect(compareVersions("1.0.0", "1.0.0")).toBe(0);
-  });
-
-  it("tolerates a leading v and ignores pre-release noise", () => {
-    expect(compareVersions("v1.2.3", "1.2.3")).toBe(0);
-    expect(compareVersions("1.2.4-beta", "1.2.3")).toBe(1);
+  it("orders by number, not by string", () => {
+    expect(compareVersions("0.1.10", "0.1.9")).toBe(1);
+    expect(compareVersions("0.1.2", "0.1.2-b3")).toBe(0);
+    expect(compareVersions("1.0.0", "0.9.9")).toBe(1);
   });
 });
 
 describe("readBuild", () => {
-  it("reads a positive integer build from the manifest", () => {
-    expect(readBuild({ build: 2 })).toBe(2);
+  it("takes the build field when the manifest carries one", () => {
+    expect(readBuild({ build: 3 })).toBe(3);
     expect(readBuild({ build: "3" })).toBe(0);
-    expect(readBuild({ build: -1 })).toBe(0);
+    expect(readBuild({ build: 0 })).toBe(0);
     expect(readBuild(null)).toBe(0);
-    expect(readBuild("nope")).toBe(0);
+    expect(readBuild("3")).toBe(0);
   });
 });
 
 describe("isNewerRelease", () => {
-  it("accepts a higher version", () => {
+  it("treats a higher build of the same version as an update", () => {
     expect(
-      isNewerRelease({ version: "0.1.0", build: 1 }, { version: "0.2.0", build: 1 }),
+      isNewerRelease({ version: "0.1.2", build: 2 }, { version: "0.1.2", build: 3 }),
     ).toBe(true);
-  });
-
-  it("rejects the same version with the same build", () => {
     expect(
-      isNewerRelease({ version: "0.1.0", build: 1 }, { version: "0.1.0", build: 1 }),
+      isNewerRelease({ version: "0.1.2", build: 3 }, { version: "0.1.2", build: 3 }),
+    ).toBe(false);
+    expect(
+      isNewerRelease({ version: "0.1.2", build: 3 }, { version: "0.1.2", build: 2 }),
     ).toBe(false);
   });
 
-  it("accepts the same version with a higher build", () => {
+  it("still lets a real version win over any build", () => {
     expect(
-      isNewerRelease({ version: "0.1.0", build: 1 }, { version: "0.1.0", build: 2 }),
+      isNewerRelease({ version: "0.1.2", build: 9 }, { version: "0.1.3", build: 1 }),
     ).toBe(true);
-  });
-
-  it("rejects an older version even when the build is higher", () => {
     expect(
-      isNewerRelease({ version: "0.2.0", build: 1 }, { version: "0.1.0", build: 9 }),
+      isNewerRelease({ version: "0.1.3", build: 1 }, { version: "0.1.2", build: 9 }),
     ).toBe(false);
   });
 });

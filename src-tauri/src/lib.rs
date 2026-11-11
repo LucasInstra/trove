@@ -192,12 +192,58 @@ fn set_setting(app: tauri::AppHandle, key: String, value: String) -> Result<(), 
     planner::set_setting(&connection, &key, &value)
 }
 
+/// Build of this binary, stamped by build.rs from src/lib/build.ts.
+fn local_build() -> u64 {
+    env!("TROVE_BUILD_NUMBER").parse().unwrap_or(0)
+}
+
+/// `b3` means build 3. Anything else is a real prerelease and not ours.
+fn build_from_prerelease(pre: &str) -> Option<u64> {
+    pre.strip_prefix('b').and_then(|number| number.parse::<u64>().ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_the_build_out_of_the_prerelease() {
+        assert_eq!(build_from_prerelease("b3"), Some(3));
+        assert_eq!(build_from_prerelease("b12"), Some(12));
+        assert_eq!(build_from_prerelease(""), None);
+        assert_eq!(build_from_prerelease("beta.1"), None);
+        assert_eq!(build_from_prerelease("b"), None);
+        assert_eq!(build_from_prerelease("b3.x"), None);
+    }
+
+    #[test]
+    fn this_binary_knows_its_build() {
+        assert!(local_build() >= 1);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                // The updater only compares semver, and semver has no room for a
+                // build number: a fix build publishes itself as `0.1.2-b3`, which
+                // semver orders below its own release, so the plugin would never
+                // offer it. Reading the `b` suffix as the build and comparing it
+                // against the local one is what makes build 3 reach build 2.
+                // Anything without the suffix is a real version, decided the
+                // usual way.
+                .default_version_comparator(|current, remote| {
+                    match build_from_prerelease(remote.version.pre.as_str()) {
+                        Some(offered) => offered > local_build(),
+                        None => remote.version > current,
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
             let path = database_path(app.handle())?;
             db::open(&path)?;

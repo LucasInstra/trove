@@ -75,7 +75,9 @@ export function useUpdater(): UpdaterState {
 
       if (offered) {
         pending.current = offered;
-        setVersion(offered.version);
+        // `0.1.2-b3` is the wire format; the banner and the settings show the
+        // version and the build apart.
+        setVersion(offered.version.replace(/-b\d+$/, ""));
         setBuild(readBuild(offered.rawJson));
         setNotes(offered.body ?? "");
         setProgress(-1);
