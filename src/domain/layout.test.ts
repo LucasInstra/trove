@@ -7,7 +7,6 @@ import {
   moveCardTo,
   nextMode,
   parseLayout,
-  resizeCard,
   serializeLayout,
   setMode,
   setSpan,
@@ -204,9 +203,10 @@ describe("setMode", () => {
     expect(setMode(next, "bills", "full").find((entry) => entry.id === "bills")?.mode).toBe("full");
   });
 
-  it("leaves an unknown card alone", () => {
+  it("leaves an unknown card alone and keeps the same array", () => {
     const layout = parseLayout(null);
-    expect(setMode(layout, "ghost" as LayoutCard["id"], "mini")).toEqual(layout);
+    expect(setMode(layout, "ghost" as LayoutCard["id"], "mini")).toBe(layout);
+    expect(setMode(layout, "bills", "full")).toBe(layout);
   });
 
   it("treats a mode it does not know as a full card", () => {
@@ -214,15 +214,6 @@ describe("setMode", () => {
     expect(setMode(layout, "bills", "tiny" as LayoutCard["mode"]).find((row) => row.id === "bills")?.mode).toBe(
       "full",
     );
-  });
-});
-
-describe("resizeCard", () => {
-  it("clamps between one and three columns", () => {
-    const layout = parseLayout(null);
-    expect(resizeCard(layout, "bills", 1)[1].span).toBe(2);
-    expect(resizeCard(layout, "bills", -1)[1].span).toBe(1);
-    expect(resizeCard(layout, "series", 1).find((entry) => entry.id === "series")?.span).toBe(3);
   });
 });
 
@@ -237,14 +228,24 @@ describe("setSpan", () => {
     const layout = parseLayout(null);
     expect(setSpan(layout, "bills", 9)[1].span).toBe(3);
     expect(setSpan(layout, "bills", 0)[1].span).toBe(1);
-    expect(setSpan(layout, "bills", Number.NaN)[1].span).toBe(1);
+  });
+
+  it("falls back to one column on a width it cannot read", () => {
+    const layout = parseLayout(null);
+    expect(setSpan(layout, "forecast", Number.NaN)[0].span).toBe(1);
+  });
+
+  it("returns the same layout when the width does not change", () => {
+    const layout = parseLayout(null);
+    expect(setSpan(layout, "bills", 1)).toBe(layout);
+    expect(setSpan(layout, "ghost" as LayoutCard["id"], 2)).toBe(layout);
   });
 });
 
 describe("serializeLayout", () => {
   it("round trips through parse", () => {
     const layout = setMode(
-      resizeCard(moveCardTo(DEFAULT_LAYOUT, "cards", "forecast"), "cards", 1),
+      setSpan(moveCardTo(DEFAULT_LAYOUT, "cards", "forecast"), "cards", 3),
       "cards",
       "mini",
     );

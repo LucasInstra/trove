@@ -25,6 +25,7 @@ export function rowSpanFor(heightPx: number, unitPx: number, gapPx: number): num
 
 /** Height the cell will occupy once the span is applied. */
 export function spanHeight(span: number, unitPx: number): number {
+  if (!Number.isFinite(unitPx) || unitPx <= 0) return 0;
   const safe = Math.max(1, Math.round(span));
   return safe * unitPx;
 }

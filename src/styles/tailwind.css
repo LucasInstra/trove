@@ -17,6 +17,14 @@
      smaller than its name. The spacing and type scales are pinned to pixels. */
   --spacing: 4px;
 
+  /* Breakpoints are rem based by default, which with a 13px root turns md into
+     624px. They are pinned so `md:` means the 768px every reader expects. */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
   --text-xs: 11px;
   --text-xs--line-height: 16px;
   --text-sm: 12px;

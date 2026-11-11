@@ -22,6 +22,12 @@ export function currentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Today in the user's own calendar, not in UTC: a bill due today is due today. */
+export function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function shiftMonth(month: string, delta: number): string {
   const [year, value] = month.split("-").map(Number);
   const date = new Date(year, value - 1 + delta, 1);

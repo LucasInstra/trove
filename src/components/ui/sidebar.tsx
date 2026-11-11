@@ -80,7 +80,14 @@ interface SidebarItemProps
     VariantProps<typeof sidebarItemVariants> {}
 
 function SidebarItem({ className, active, ...props }: SidebarItemProps) {
-  return <button type="button" className={cn(sidebarItemVariants({ active }), className)} {...props} />;
+  return (
+    <button
+      type="button"
+      aria-current={active ? "page" : undefined}
+      className={cn(sidebarItemVariants({ active }), className)}
+      {...props}
+    />
+  );
 }
 
 function SidebarFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

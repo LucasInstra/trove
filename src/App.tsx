@@ -365,7 +365,7 @@ export function App() {
         <Sidebar className="hidden md:flex">
           <SidebarBrand mark="t" name="trove" tagline={t("app.tagline")} />
 
-          <nav className="flex flex-col gap-4">
+          <nav aria-label={t("nav.primary")} className="flex flex-col gap-4">
             <SidebarGroup label={t("nav.menu")}>
               {MENU.map((item) => (
                 <SidebarItem
@@ -423,6 +423,7 @@ export function App() {
                   saveTheme(next);
                 }}
                 aria-label={t("common.theme")}
+                aria-pressed={theme === "dark"}
               >
                 <span
                   className={
@@ -577,6 +578,7 @@ export function App() {
       </div>
 
       <BottomNav
+        label={t("nav.primary")}
         items={[
           ...MENU.map((item) => ({
             key: item.route,

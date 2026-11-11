@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
 import { Icon3D } from "../components/Icon3D";
@@ -365,6 +365,7 @@ export function OverviewScreen({
             value={Math.abs(keptShare)}
             size="sm"
             tone={plan.forecastCents >= 0 ? "positive" : "negative"}
+            label={t("overview.forecast")}
           />
           <span className="muted small">
             {plan.forecastCents >= 0
@@ -457,6 +458,19 @@ export function OverviewScreen({
     active: boolean;
   } | null>(null);
 
+  useEffect(() => {
+    if (!dragId) return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      drag.current = null;
+      setDragId(null);
+      setDropId(null);
+      setPreview(null);
+    };
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, [dragId]);
+
   useLayoutEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -497,7 +511,7 @@ export function OverviewScreen({
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [layout, preview]);
+  }, [layout]);
 
   return (
     <section className="screen overview">
@@ -605,7 +619,13 @@ export function OverviewScreen({
               const state = drag.current;
               drag.current = null;
               if (!state || state.pointerId !== event.pointerId) return;
-              if (state.active && dropId) onLayoutMoveTo(state.id, dropId);
+              // The landing is read from where the pointer actually stopped, so
+              // letting go over a gap or outside the grid cancels instead of
+              // committing whatever was last hovered.
+              const landing = state.active
+                ? cardAt(event.clientX, event.clientY, dragCells.current, state.id)
+                : null;
+              if (landing) onLayoutMoveTo(state.id, landing);
               setDragId(null);
               setDropId(null);
               setPreview(null);
@@ -616,10 +636,7 @@ export function OverviewScreen({
               setDropId(null);
               setPreview(null);
             }}
-            style={{
-              gridColumn: `span ${span}`,
-              gridRowEnd: `span ${rowSpans[item.id] ?? 1}`,
-            }}
+            style={{ gridRowEnd: `span ${rowSpans[item.id] ?? 1}` }}
           >
             {chip ? (
               <button

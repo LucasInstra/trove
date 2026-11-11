@@ -6,7 +6,7 @@ import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { api } from "../lib/api";
-import { formatCents, formatDate, monthName } from "../lib/format";
+import { currentMonth, formatCents, formatDate, monthName, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 import { Icon3D } from "./Icon3D";
@@ -28,7 +28,7 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: Bi
   const paidCount = plan.paidBillIds.length;
   const count = plan.dueBills.length;
   const today = new Date().getDate();
-  const isCurrentMonth = plan.month === new Date().toISOString().slice(0, 7);
+  const isCurrentMonth = plan.month === currentMonth();
   const activeDay = isCurrentMonth
     ? (plan.dayGroups.find((group) => group.day >= today)?.day ?? plan.dayGroups.at(-1)?.day)
     : plan.dayGroups[0]?.day;
@@ -47,6 +47,7 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: Bi
             value={paidShare}
             size="sm"
             tone={count > 0 && paidCount === count ? "positive" : "primary"}
+            label={t("planner.bills")}
           />
           <span className="muted small">{t("planner.paidOf", { paid: paidCount, count })}</span>
         </div>
@@ -193,7 +194,7 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false, compact =
           <span className="compact-value">{formatCents(spend)}</span>
         </div>
         <div className="compact-body">
-          <Progress value={share} size="sm" />
+          <Progress value={share} size="sm" label={t("planner.cards")} />
           <span className="muted small">
             {t("planner.invoiceOf", { month: monthName(month, lang) })}
           </span>
@@ -228,7 +229,7 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false, compact =
   const activeIndex = Math.min(monthIndex, months.length - 1);
   const activeMonth = months[activeIndex];
   const list = rows[entry.meta.id];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
 
   const usageFor = (meta: CardMeta, target: string) => {
     const found = rows[meta.id];
@@ -415,7 +416,12 @@ export function HousingCard({ plan, scope, onScope, onEdit, compact = false }: H
           <span className="compact-value">{formatCents(plan.housingCents)}</span>
         </div>
         <div className="compact-body">
-          <Progress value={ratio} size="sm" tone={over ? "negative" : "positive"} />
+          <Progress
+            value={ratio}
+            size="sm"
+            tone={over ? "negative" : "positive"}
+            label={t("planner.housing")}
+          />
           <span className={over ? "muted small over" : "muted small"}>
             {t("planner.ceilingShort", { percent: ratioText, ceiling: plan.ceilingPct })}
           </span>
@@ -500,7 +506,7 @@ export function GoalsCard({
           <span className="compact-value">{formatCents(paid)}</span>
         </div>
         <div className="compact-body">
-          <Progress value={share} size="sm" />
+          <Progress value={share} size="sm" label={t("planner.goals")} />
           <span className="muted small">{t("layout.goalCount", { count: plan.goals.length })}</span>
         </div>
       </article>

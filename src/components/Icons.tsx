@@ -184,6 +184,8 @@ const ICONS: Record<IconName, ReactNode> = {
   ),
   "chevron-up": <path d="m7 14.5 5-5 5 5" />,
   minus: <path d="M4.5 12h15" />,
+  // The one glyph that fills instead of stroking: a handle is a row of dots, and
+  // six hollow rings at 14px read as noise. The colour is still currentColor.
   grip: (
     <g fill="currentColor" stroke="none">
       <circle cx="9.5" cy="7" r="1.35" />

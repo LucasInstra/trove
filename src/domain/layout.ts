@@ -123,7 +123,10 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
   return layout;
 }
 
-/** Drops `id` where `targetId` sits, pushing the rest down. */
+/**
+ * Inserts `id` at the index of `targetId`. Moving down puts the card after the
+ * target and shifts the cards in between up, which is what a drop on a card means.
+ */
 export function moveCardTo(layout: LayoutCard[], id: CardId, targetId: CardId): LayoutCard[] {
   if (id === targetId) return layout;
   const from = layout.findIndex((entry) => entry.id === id);
@@ -135,16 +138,16 @@ export function moveCardTo(layout: LayoutCard[], id: CardId, targetId: CardId): 
   return next;
 }
 
-export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): LayoutCard[] {
-  return layout.map((entry) =>
-    entry.id === id ? { ...entry, span: clampSpan(entry.span + delta, entry.span) } : entry,
-  );
-}
-
-/** Picks a width outright, which is what the numbered control in the toolbar does. */
+/**
+ * Picks a width outright, which is what the numbered control in the toolbar does.
+ * A width it cannot read falls back to one column, the same fallback parseLayout
+ * uses for a value it cannot trust.
+ */
 export function setSpan(layout: LayoutCard[], id: CardId, span: number): LayoutCard[] {
+  const changed = layout.some((entry) => entry.id === id && entry.span !== clampSpan(span, 1));
+  if (!changed) return layout;
   return layout.map((entry) =>
-    entry.id === id ? { ...entry, span: clampSpan(span, entry.span) } : entry,
+    entry.id === id ? { ...entry, span: clampSpan(span, 1) } : entry,
   );
 }
 
@@ -170,6 +173,7 @@ export function nextMode(mode: CardMode, hasDetails = false): CardMode {
 
 export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {
   const next = isMode(mode) ? mode : "full";
+  if (!layout.some((entry) => entry.id === id && entry.mode !== next)) return layout;
   return layout.map((entry) => (entry.id === id ? { ...entry, mode: next } : entry));
 }
 
