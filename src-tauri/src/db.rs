@@ -5280,4 +5280,29 @@ mod tests {
         let _ = std::fs::remove_file(&snapshot);
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn shipped_samples_parse() {
+        // The files under samples/ are the ones handed out for manual
+        // testing; if they stop parsing, the handout is broken.
+        let bytes = std::fs::read("../samples/extrato-itau-nov2026.ofx").expect("should read ofx");
+        let statement = crate::ofx::parse(&decode(&bytes)).expect("should parse ofx");
+        assert_eq!(statement.transactions.len(), 32);
+        let text = std::fs::read_to_string("../samples/fatura-nubank-nov2026.csv").expect("should read csv");
+        let mapping = crate::csv::CsvMapping {
+            separator: ";".to_string(),
+            encoding: "auto".to_string(),
+            has_header: true,
+            date_col: 0,
+            date_format: "%d/%m/%Y".to_string(),
+            description_col: 1,
+            amount_col: Some(2),
+            debit_col: None,
+            credit_col: None,
+            decimal_sep: ",".to_string(),
+        };
+        let (rows, issues) = crate::csv::parse_csv(&text, &mapping).expect("should parse csv");
+        assert_eq!(rows.len(), 25);
+        assert_eq!(issues.len(), 1);
+    }
 }
