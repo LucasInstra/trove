@@ -6,7 +6,7 @@
 use crate::ofx;
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 pub const SCHEMA_VERSION: i64 = 5;
@@ -245,6 +245,7 @@ pub struct TransactionRow {
     pub category_name: Option<String>,
     pub category_color: Option<String>,
     pub trntype: String,
+    pub manual: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -727,7 +728,7 @@ pub fn list_transactions(
     let mut statement = connection
         .prepare(
             "select t.id, t.account_id, a.name, t.posted_on, t.amount_cents, t.description,
-                    t.merchant, t.category_id, c.name, c.color, t.trntype
+                    t.merchant, t.category_id, c.name, c.color, t.trntype, t.source
              from transactions t
              join accounts a on a.id = t.account_id
              left join categories c on c.id = t.category_id
@@ -758,6 +759,7 @@ pub fn list_transactions(
                 category_name: row.get(8)?,
                 category_color: row.get(9)?,
                 trntype: row.get(10)?,
+                manual: row.get::<_, String>(11)? == "manual",
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -806,6 +808,69 @@ pub fn soft_delete_transaction(connection: &Connection, transaction_id: i64) -> 
         ));
     }
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManualInput {
+    pub account_id: i64,
+    pub posted_on: String,
+    pub amount_cents: i64,
+    pub description: String,
+    pub category_id: Option<i64>,
+}
+
+/// A hand-entered row. It takes a unique key in the manual namespace, so it
+/// can never collide with an import and the dedupe rule stays import-only.
+/// Signs follow the OFX convention: negative is spending, positive is income.
+pub fn save_manual_transaction(
+    connection: &Connection,
+    input: &ManualInput,
+) -> Result<i64, String> {
+    if input.amount_cents == 0 {
+        return Err("amount must not be zero".to_string());
+    }
+    let description = input.description.trim();
+    if description.is_empty() {
+        return Err("description must not be empty".to_string());
+    }
+    if input.posted_on.len() != 10 {
+        return Err("date must be YYYY-MM-DD".to_string());
+    }
+    let account: Option<i64> = connection
+        .query_row(
+            "select id from accounts where id = ?1 and deleted_at is null",
+            params![input.account_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if account.is_none() {
+        return Err(format!("account {} does not exist", input.account_id));
+    }
+    let stamp = Utc::now().to_rfc3339();
+    let trntype = if input.amount_cents < 0 { "DEBIT" } else { "CREDIT" };
+    connection
+        .execute(
+            "insert into transactions
+             (account_id, posted_on, amount_cents, description, merchant, memo, trntype,
+              category_id, dedupe_key, source, created_at, uid, updated_at)
+             values (?1, ?2, ?3, ?4, ?5, '', ?6, ?7,
+                     'manual:' || lower(hex(randomblob(16))), 'manual', ?8,
+                     lower(hex(randomblob(16))), ?8)",
+            params![
+                input.account_id,
+                input.posted_on,
+                input.amount_cents,
+                description,
+                crate::ofx::merchant_of(description),
+                trntype,
+                input.category_id,
+                stamp
+            ],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(connection.last_insert_rowid())
 }
 
 /// Every file that ever entered the ledger, newest first.
@@ -1044,6 +1109,61 @@ mod tests {
 
         let empty_month = list_transactions(&connection, None, Some("2024-04"), None, 50).expect("should list");
         assert!(empty_month.is_empty());
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn manual_entries_skip_dedupe_and_count_in_the_month() {
+        let path = temporary_database("manual");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let report = import_ofx(&mut connection, &file).expect("should import");
+
+        let entry = |description: &str, amount_cents: i64| ManualInput {
+            account_id: report.account_id,
+            posted_on: "2024-03-12".into(),
+            amount_cents,
+            description: description.into(),
+            category_id: None,
+        };
+        let id = save_manual_transaction(&connection, &entry("Feira livre", -12_000))
+            .expect("should save");
+        assert!(id > 0);
+
+        // Zero, empty and unknown accounts are refused instead of stored.
+        assert!(save_manual_transaction(
+            &connection,
+            &ManualInput { amount_cents: 0, ..entry("Nada", 0) }
+        )
+        .is_err());
+        assert!(save_manual_transaction(&connection, &entry("   ", -100)).is_err());
+        assert!(save_manual_transaction(
+            &connection,
+            &ManualInput { account_id: 999_999, ..entry("Feira", -100) }
+        )
+        .is_err());
+
+        // The same statement imports exactly as before: manual rows never
+        // collide with the import dedupe keys.
+        let second = import_ofx(&mut connection, &file).expect("second import");
+        assert_eq!(second.inserted, 0);
+        assert_eq!(second.duplicates, 2);
+
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list");
+        assert_eq!(rows.len(), 3);
+        let manual_row = rows.iter().find(|row| row.id == id).expect("manual row");
+        assert!(manual_row.manual);
+        assert_eq!(manual_row.merchant, "Feira livre");
+        assert!(rows.iter().filter(|row| !row.manual).count() == 2);
+
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.expense_cents, 2390 + 12_000);
+        assert_eq!(totals.transaction_count, 3);
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);

@@ -25,6 +25,12 @@ fn import_ofx(app: tauri::AppHandle, path: String) -> Result<db::ImportReport, S
 }
 
 #[tauri::command]
+fn save_manual_transaction(app: tauri::AppHandle, input: db::ManualInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_manual_transaction(&connection, &input)
+}
+
+#[tauri::command]
 fn list_accounts(app: tauri::AppHandle) -> Result<Vec<db::Account>, String> {
     let connection = connection(&app)?;
     db::list_accounts(&connection)
@@ -269,6 +275,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             import_ofx,
+            save_manual_transaction,
             list_accounts,
             list_categories,
             list_transactions,

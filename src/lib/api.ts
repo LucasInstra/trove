@@ -28,6 +28,15 @@ export interface TransactionRow {
   categoryName: string | null;
   categoryColor: string | null;
   trntype: string;
+  manual: boolean;
+}
+
+export interface ManualInput {
+  accountId: number;
+  postedOn: string;
+  amountCents: number;
+  description: string;
+  categoryId: number | null;
 }
 
 export interface MonthTotals {
@@ -50,8 +59,7 @@ export interface MonthPoint {
   expenseCents: number;
 }
 
-export interface ImportReport {
-  accountId: number;
+export interface ImportReport {  accountId: number;
   accountName: string;
   accountLabel: string;
   inserted: number;
@@ -262,6 +270,7 @@ export const api = {
   imports: (limit = 12) => invoke<ImportRow[]>("list_imports", { limit }),
   setCategory: (transactionId: number, categoryId: number | null) =>
     invoke<void>("set_category", { transactionId, categoryId }),
+  saveManual: (input: ManualInput) => invoke<number>("save_manual_transaction", { input }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),
   databaseLocation: () => invoke<string>("database_location"),
 
