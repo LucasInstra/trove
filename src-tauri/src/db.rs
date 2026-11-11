@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 14;
+pub const SCHEMA_VERSION: i64 = 15;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -398,8 +398,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v13(&connection)?;
         write_version(&connection, 13)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 14 {
         migrate_to_v14(&connection)?;
+        write_version(&connection, 14)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v15(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -537,6 +541,30 @@ create table if not exists transaction_tags (
 fn migrate_to_v14(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(NEW_TABLES_V14)
+        .map_err(|problem| problem.to_string())
+}
+
+/// v14 to v15: off-ledger holdings. Goals track earmarked reserves; holdings
+/// are everything else the statements never see — cash, investments
+/// elsewhere, property. One row each, updated in place, never derived.
+const NEW_TABLES_V15: &str = r#"
+create table if not exists holdings (
+    id            integer primary key,
+    uid           text    not null unique,
+    name          text    not null unique,
+    kind          text    not null default 'other',
+    amount_cents  integer not null,
+    updated_on    text    not null,
+    created_at    text    not null,
+    updated_at    text    not null,
+    deleted_at    text
+);
+"#;
+
+/// v14 to v15: manual asset holdings for the net-worth total.
+fn migrate_to_v15(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V15)
         .map_err(|problem| problem.to_string())
 }
 
@@ -2130,6 +2158,108 @@ pub fn delete_tag(connection: &Connection, id: i64) -> Result<(), String> {
     connection
         .execute("delete from transaction_tags where tag_id = ?1", params![id])
         .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Holding {
+    pub id: i64,
+    pub name: String,
+    pub kind: String,
+    pub amount_cents: i64,
+    pub updated_on: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HoldingInput {
+    pub id: Option<i64>,
+    pub name: String,
+    pub kind: String,
+    pub amount_cents: i64,
+    pub updated_on: String,
+}
+
+fn check_holding_kind(kind: &str) -> Result<(), String> {
+    match kind {
+        "cash" | "investment" | "property" | "other" => Ok(()),
+        other => Err(format!("unknown holding kind: {other}")),
+    }
+}
+
+pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
+    let mut statement = connection
+        .prepare(
+            "select id, name, kind, amount_cents, updated_on from holdings
+             where deleted_at is null order by name",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(Holding {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                kind: row.get(2)?,
+                amount_cents: row.get(3)?,
+                updated_on: row.get(4)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+pub fn save_holding(connection: &Connection, input: &HoldingInput) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("holding name must not be empty".to_string());
+    }
+    if name.chars().count() > 60 {
+        return Err("holding name is too long".to_string());
+    }
+    check_holding_kind(&input.kind)?;
+    if input.amount_cents < 0 {
+        return Err("holding amount must not be negative".to_string());
+    }
+    check_date(&input.updated_on)?;
+    let stamp = Utc::now().to_rfc3339();
+    let affected = match input.id {
+        Some(id) => connection.execute(
+            "update holdings set name = ?1, kind = ?2, amount_cents = ?3, updated_on = ?4, updated_at = ?5
+             where id = ?6 and deleted_at is null",
+            params![name, input.kind, input.amount_cents, input.updated_on, stamp, id],
+        ),
+        None => connection.execute(
+            "insert into holdings (uid, name, kind, amount_cents, updated_on, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5)",
+            params![name, input.kind, input.amount_cents, input.updated_on, stamp],
+        ),
+    }
+    .map_err(|problem| {
+        if problem.to_string().contains("UNIQUE constraint failed") {
+            "a holding with this name already exists".to_string()
+        } else {
+            problem.to_string()
+        }
+    })?;
+    if affected == 0 {
+        return Err("holding does not exist".to_string());
+    }
+    Ok(input.id.unwrap_or_else(|| connection.last_insert_rowid()))
+}
+
+pub fn delete_holding(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = Utc::now().to_rfc3339();
+    let affected = connection
+        .execute(
+            "update holdings set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("holding {id} does not exist"));
+    }
     Ok(())
 }
 
@@ -5043,6 +5173,43 @@ mod tests {
         assert_eq!(rows.iter().find(|row| row.id == plain).expect("plain").category_id, Some(food));
         // Clearing works the same way.
         assert_eq!(bulk_set_category(&connection, &[plain], None).expect("should clear"), 1);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn holdings_round_trip_and_validate() {
+        let path = temporary_database("holdings");
+        let connection = open(&path).expect("should open");
+        assert!(list_holdings(&connection).expect("should list").is_empty());
+        assert!(has_table(&open(&path).expect("should reopen"), "holdings").expect("should inspect"));
+
+        let input = HoldingInput {
+            id: None,
+            name: "Nu Reserva".to_string(),
+            kind: "cash".to_string(),
+            amount_cents: 150000,
+            updated_on: "2024-03-15".to_string(),
+        };
+        let id = save_holding(&connection, &input).expect("should save");
+        assert!(save_holding(&connection, &input).is_err());
+        let bad_kind = HoldingInput { kind: "yacht".to_string(), ..HoldingInput { id: None, name: "X".to_string(), kind: String::new(), amount_cents: 1, updated_on: "2024-03-15".to_string() } };
+        assert!(save_holding(&connection, &bad_kind).is_err());
+        let negative = HoldingInput { id: None, name: "Neg".to_string(), kind: "cash".to_string(), amount_cents: -1, updated_on: "2024-03-15".to_string() };
+        assert!(save_holding(&connection, &negative).is_err());
+        let bad_date = HoldingInput { id: None, name: "Data".to_string(), kind: "cash".to_string(), amount_cents: 1, updated_on: "ontem".to_string() };
+        assert!(save_holding(&connection, &bad_date).is_err());
+        assert!(save_holding(&connection, &HoldingInput { id: Some(999_999), name: "X".to_string(), kind: "cash".to_string(), amount_cents: 1, updated_on: "2024-03-15".to_string() }).is_err());
+
+        let update = HoldingInput { id: Some(id), name: "Nu Reserva".to_string(), kind: "investment".to_string(), amount_cents: 160000, updated_on: "2024-03-20".to_string() };
+        assert_eq!(save_holding(&connection, &update).expect("should update"), id);
+        let holdings = list_holdings(&connection).expect("should list");
+        assert_eq!(holdings.len(), 1);
+        assert_eq!(holdings[0].amount_cents, 160000);
+
+        assert!(delete_holding(&connection, 999_999).is_err());
+        delete_holding(&connection, id).expect("should delete");
+        assert!(list_holdings(&connection).expect("should list").is_empty());
 
         let _ = std::fs::remove_file(&path);
     }

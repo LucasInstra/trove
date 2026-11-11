@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Dialog } from "../components/Dialog";
 import { HousingCard, SplitCard } from "../components/PlannerCards";
 import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
@@ -14,12 +15,12 @@ import { detectRecurring } from "../domain/recurrence";
 import { buildMonthlyReport } from "../domain/report";
 import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
 import { installmentEndMonth, remainingInstallments } from "../domain/installment";
-import { netWorthCurve } from "../domain/patrimony";
+import { netWorthCurve, holdingsTotal, totalWealth } from "../domain/patrimony";
 import { retirementProjection } from "../domain/retirement";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
-import type { Bill, BudgetStatus, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, RecurrenceRow, Share } from "../lib/api";
-import { formatCents, monthLabel, monthName, monthShort } from "../lib/format";
+import type { Bill, BudgetStatus, CardMeta, Category, CategoryTotal, Goal, Holding, HoldingInput, Income, MonthPoint, MonthTotals, Person, RecurrenceRow, Share } from "../lib/api";
+import { formatCents, formatDate, monthLabel, monthName, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 export function ScreenHeader({
@@ -505,15 +506,25 @@ export function PatrimonyScreen({
   plan,
   series,
   month,
+  holdings,
+  onSaveHolding,
+  onDeleteHolding,
 }: {
   plan: MonthPlan;
   series: MonthPoint[];
   month: string;
+  holdings: Holding[];
+  onSaveHolding: (input: HoldingInput) => void;
+  onDeleteHolding: (id: number) => void;
 }) {
   const { lang, t } = useLanguage();
+  const [dialog, setDialog] = useState<{ holding: Holding | null } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Holding | null>(null);
   const summary = summarizeGoals(plan.goals);
   const curve = netWorthCurve(series.slice(-12));
   const accumulated = curve.at(-1)?.runningCents ?? 0;
+  const holdingsCents = holdingsTotal(holdings);
+  const total = totalWealth(summary.savedCents, accumulated, holdingsCents);
 
   const width = 600;
   const height = 220;
@@ -557,6 +568,66 @@ export function PatrimonyScreen({
           <span className="metric-note">{monthLabel(month, lang)}</span>
         </article>
       </div>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="bank" size={15} />
+            </span>
+            <h2>{t("holdings.title")}</h2>
+          </div>
+          <span className="muted">
+            {t("holdings.total", { amount: formatCents(total) })}
+          </span>
+        </header>
+        <p className="muted small">{t("holdings.desc")}</p>
+        {holdings.length > 0 ? (
+          <ul className="installment-list">
+            {holdings.map((holding) => (
+              <li key={holding.id} className="installment">
+                <div className="installment-head">
+                  <span className="installment-name">{holding.name}</span>
+                  <span className="muted small">
+                    {t(`holdings.kind_${holding.kind}`)} · {formatCents(holding.amountCents)}
+                  </span>
+                  <span className="tx-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title={t("common.edit")}
+                      aria-label={`${t("common.edit")}: ${holding.name}`}
+                      onClick={() => setDialog({ holding })}
+                    >
+                      <Icon name="pencil" size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button danger"
+                      title={t("common.delete")}
+                      aria-label={`${t("common.delete")}: ${holding.name}`}
+                      onClick={() => setConfirmDelete(holding)}
+                    >
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </span>
+                </div>
+                <span className="muted small">
+                  {t("holdings.updatedOn", { date: formatDate(holding.updatedOn) })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="card-empty">{t("holdings.empty")}</p>
+        )}
+        <div className="row">
+          <button type="button" className="outline-button small-button" onClick={() => setDialog({ holding: null })}>
+            <Icon name="plus" size={14} />
+            {t("holdings.new")}
+          </button>
+        </div>
+      </article>
 
       <article className="card">
         <header className="card-head">
@@ -614,7 +685,123 @@ export function PatrimonyScreen({
           </>
         )}
       </article>
+
+      {dialog ? (
+        <HoldingDialog
+          initial={dialog.holding}
+          onClose={() => setDialog(null)}
+          onSave={(input) => {
+            onSaveHolding(input);
+            setDialog(null);
+          }}
+        />
+      ) : null}
+
+      {confirmDelete ? (
+        <Dialog
+          title={t("holdings.confirmDeleteTitle", { name: confirmDelete.name })}
+          onClose={() => setConfirmDelete(null)}
+        >
+          <p className="muted">{t("holdings.confirmDeleteDesc")}</p>
+          <div className="dialog-actions">
+            <button type="button" className="ghost" onClick={() => setConfirmDelete(null)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                onDeleteHolding(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              {t("common.delete")}
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
     </section>
+  );
+}
+
+const HOLDING_KINDS = ["cash", "investment", "property", "other"] as const;
+
+function HoldingDialog({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: Holding | null;
+  onClose: () => void;
+  onSave: (input: HoldingInput) => void;
+}) {
+  const { t } = useLanguage();
+  const [name, setName] = useState(initial?.name ?? "");
+  const [kind, setKind] = useState<(typeof HOLDING_KINDS)[number]>(initial?.kind ?? "other");
+  const [amount, setAmount] = useState(
+    initial ? (initial.amountCents / 100).toFixed(2) : "",
+  );
+  const [updatedOn, setUpdatedOn] = useState(
+    initial?.updatedOn ?? new Date().toISOString().slice(0, 10),
+  );
+
+  return (
+    <Dialog title={initial ? t("holdings.edit") : t("holdings.new")} onClose={onClose}>
+      <form
+        className="dialog-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (name.trim() === "") return;
+          const cents = parseCents(amount);
+          if (!updatedOn) return;
+          onSave({
+            id: initial?.id ?? null,
+            name: name.trim(),
+            kind,
+            amountCents: cents,
+            updatedOn,
+          });
+        }}
+      >
+        <label className="field">
+          <span>{t("planner.name")}</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} required maxLength={60} />
+        </label>
+        <div className="form-grid">
+          <label className="field">
+            <span>{t("holdings.kind")}</span>
+            <select value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
+              {HOLDING_KINDS.map((option) => (
+                <option key={option} value={option}>
+                  {t(`holdings.kind_${option}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>{t("planner.amount")}</span>
+            <input
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              inputMode="decimal"
+              required
+            />
+          </label>
+        </div>
+        <label className="field">
+          <span>{t("holdings.updatedOnLabel")}</span>
+          <input type="date" value={updatedOn} onChange={(event) => setUpdatedOn(event.target.value)} required />
+        </label>
+        <div className="dialog-actions">
+          <button type="button" className="ghost" onClick={onClose}>
+            {t("common.cancel")}
+          </button>
+          <button type="submit" className="primary">
+            {t("common.save")}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

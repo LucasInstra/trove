@@ -25,6 +25,22 @@ export interface Tag {
   name: string;
 }
 
+export interface Holding {
+  id: number;
+  name: string;
+  kind: "cash" | "investment" | "property" | "other";
+  amountCents: number;
+  updatedOn: string;
+}
+
+export interface HoldingInput {
+  id?: number | null;
+  name: string;
+  kind: "cash" | "investment" | "property" | "other";
+  amountCents: number;
+  updatedOn: string;
+}
+
 export interface TransactionRow {
   id: number;
   accountId: number;
@@ -462,6 +478,9 @@ export const api = {
     invoke<number>("bulk_set_category", { ids, categoryId }),
   bulkTag: (ids: number[], tagId: number, assign: boolean) =>
     invoke<number>("bulk_tag", { ids, tagId, assign }),
+  holdings: () => invoke<Holding[]>("list_holdings"),
+  saveHolding: (input: HoldingInput) => invoke<number>("save_holding", { input }),
+  deleteHolding: (id: number) => invoke<void>("delete_holding", { id }),
   categoryTotals: (month: string) => invoke<CategoryTotal[]>("category_totals", { month }),
   monthSeries: (month: string, count = 6) =>
     invoke<MonthPoint[]>("month_series", { month, count }),

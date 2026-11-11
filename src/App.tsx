@@ -54,6 +54,8 @@ import type {
   Rule,
   RuleInput,
   Tag,
+  Holding,
+  HoldingInput,
   TransactionRow,
   TransferInput,
 } from "./lib/api";
@@ -151,6 +153,7 @@ export function App() {
   const [daily, setDaily] = useState<DailyPoint[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [tagFilter, setTagFilter] = useState<number | null>(null);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
@@ -215,7 +218,7 @@ export function App() {
   const reload = useCallback(
     async (term: string, at: string, accountId: number | null, tagId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextDaily, nextRules, nextTags, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextDaily, nextRules, nextTags, nextHoldings, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId, 500, tagId),
           api.accounts(),
@@ -230,6 +233,7 @@ export function App() {
           api.dailyExpense(at).catch(() => []),
           api.listRules().catch(() => []),
           api.tags().catch(() => []),
+          api.holdings().catch(() => []),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
@@ -249,6 +253,7 @@ export function App() {
       setDaily(nextDaily);
       setRules(nextRules);
       setTags(nextTags);
+      setHoldings(nextHoldings);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
       setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
@@ -514,6 +519,24 @@ export function App() {
       await api.deleteTag(id);
       if (tagFilter === id) setTagFilter(null);
       if (month) await reload(search, month, accountFilter, tagFilter === id ? null : tagFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const saveHolding = async (input: HoldingInput) => {
+    try {
+      await api.saveHolding(input);
+      if (month) await reload(search, month, accountFilter, tagFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const deleteHolding = async (id: number) => {
+    try {
+      await api.deleteHolding(id);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -969,6 +992,9 @@ export function App() {
               plan={plan}
               series={series}
               month={month ?? currentMonth()}
+              holdings={holdings}
+              onSaveHolding={(input) => void saveHolding(input)}
+              onDeleteHolding={(id) => void deleteHolding(id)}
             />
           ) : null}
 

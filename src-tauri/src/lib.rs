@@ -290,6 +290,24 @@ fn bulk_tag(app: tauri::AppHandle, ids: Vec<i64>, tag_id: i64, assign: bool) -> 
 }
 
 #[tauri::command]
+fn list_holdings(app: tauri::AppHandle) -> Result<Vec<db::Holding>, String> {
+    let connection = connection(&app)?;
+    db::list_holdings(&connection)
+}
+
+#[tauri::command]
+fn save_holding(app: tauri::AppHandle, input: db::HoldingInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_holding(&connection, &input)
+}
+
+#[tauri::command]
+fn delete_holding(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_holding(&connection, id)
+}
+
+#[tauri::command]
 fn category_totals(app: tauri::AppHandle, month: String) -> Result<Vec<db::CategoryTotal>, String> {
     let connection = connection(&app)?;
     db::category_totals(&connection, &month)
@@ -582,6 +600,9 @@ pub fn run() {
             delete_tag,
             bulk_set_category,
             bulk_tag,
+            list_holdings,
+            save_holding,
+            delete_holding,
             category_totals,
             month_series,
             latest_month,

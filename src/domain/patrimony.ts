@@ -18,3 +18,34 @@ export function netWorthCurve(series: MonthPoint[]): WealthPoint[] {
     return { ...point, netCents: net, runningCents: running };
   });
 }
+
+export interface HoldingLike {
+  kind: string;
+  amountCents: number;
+}
+
+/** Off-ledger assets add up; the ledger curve and the goal reserves join in. */
+export function holdingsTotal(holdings: HoldingLike[]): number {
+  return holdings.reduce((sum, holding) => sum + holding.amountCents, 0);
+}
+
+export interface KindTotal {
+  kind: string;
+  totalCents: number;
+}
+
+/** Subtotals per kind, biggest first, for the holdings list. */
+export function holdingsByKind(holdings: HoldingLike[]): KindTotal[] {
+  const map = new Map<string, number>();
+  for (const holding of holdings) {
+    map.set(holding.kind, (map.get(holding.kind) ?? 0) + holding.amountCents);
+  }
+  return [...map.entries()]
+    .map(([kind, totalCents]) => ({ kind, totalCents }))
+    .sort((a, b) => b.totalCents - a.totalCents);
+}
+
+/** Absolute net worth: reserves plus the period's accumulation plus holdings. */
+export function totalWealth(reservesCents: number, accumulatedCents: number, holdingsCents: number): number {
+  return reservesCents + accumulatedCents + holdingsCents;
+}
