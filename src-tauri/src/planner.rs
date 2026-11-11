@@ -85,6 +85,24 @@ pub struct GoalTotal {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Deposit {
+    pub id: i64,
+    pub goal_id: i64,
+    pub amount_cents: i64,
+    pub deposited_on: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DepositInput {
+    pub id: Option<i64>,
+    pub goal_id: i64,
+    pub amount_cents: i64,
+    pub deposited_on: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Person {
     pub id: i64,
     pub name: String,
@@ -640,16 +658,25 @@ pub fn card_usage(connection: &Connection, account_id: i64, from: &str, to: &str
         .map_err(|problem| problem.to_string())
 }
 
-/// Progress of a goal comes only from bills already paid: nothing is inferred
-/// from the statement, so the bar cannot move on its own.
+/// Progress of a goal comes from two places: slices of paid bills linked to
+/// the goal, and hand-entered deposits. Nothing is inferred from the
+/// statement, so the bar cannot move on its own.
 pub fn goal_totals(connection: &Connection) -> Result<Vec<GoalTotal>, String> {
     let mut statement = connection
         .prepare(
-            "select b.goal_id, coalesce(sum(p.amount_cents), 0), count(*)
-             from bill_payments p
-             join bills b on b.id = p.bill_id
-             where b.goal_id is not null and p.deleted_at is null and b.deleted_at is null
-             group by b.goal_id",
+            "select goal_id, coalesce(sum(amount_cents), 0), count(*)
+             from (
+                 select b.goal_id as goal_id, p.amount_cents as amount_cents
+                 from bill_payments p
+                 join bills b on b.id = p.bill_id
+                 where b.goal_id is not null and p.deleted_at is null and b.deleted_at is null
+                 union all
+                 select d.goal_id as goal_id, d.amount_cents as amount_cents
+                 from goal_deposits d
+                 join goals g on g.id = d.goal_id
+                 where d.deleted_at is null and g.deleted_at is null
+             )
+             group by goal_id",
         )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
@@ -884,6 +911,52 @@ pub fn delete_debt(connection: &Connection, id: i64) -> Result<(), String> {
         )
         .map_err(|problem| problem.to_string())?;
     Ok(())
+}
+
+/// A hand-entered aporte: money moved into a goal outside any bill.
+pub fn save_deposit(connection: &Connection, input: &DepositInput) -> Result<i64, String> {
+    if input.amount_cents <= 0 {
+        return Err("deposit amount must be positive".to_string());
+    }
+    if input.deposited_on.len() != 10 {
+        return Err("date must be YYYY-MM-DD".to_string());
+    }
+    let stamp = now();
+    match input.id {
+        Some(id) => {
+            connection
+                .execute(
+                    "update goal_deposits
+                     set goal_id = ?1, amount_cents = ?2, deposited_on = ?3, updated_at = ?4
+                     where id = ?5",
+                    params![
+                        input.goal_id,
+                        input.amount_cents,
+                        input.deposited_on,
+                        stamp,
+                        id
+                    ],
+                )
+                .map_err(|problem| problem.to_string())?;
+            Ok(id)
+        }
+        None => {
+            connection
+                .execute(
+                    "insert into goal_deposits
+                     (uid, goal_id, amount_cents, deposited_on, created_at, updated_at)
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?4)",
+                    params![
+                        input.goal_id,
+                        input.amount_cents,
+                        input.deposited_on,
+                        stamp
+                    ],
+                )
+                .map_err(|problem| problem.to_string())?;
+            Ok(connection.last_insert_rowid())
+        }
+    }
 }
 
 pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, String> {
@@ -1142,6 +1215,56 @@ mod tests {
         let shares = list_shares(&connection).expect("list");
         assert_eq!(shares.len(), 1);
         assert_eq!(shares[0].person_id, people[0].id);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn deposits_feed_the_goal_progress_next_to_paid_bills() {
+        let path = temporary_database("deposits");
+        let connection = db::open(&path).expect("should open");
+
+        let goal_id = save_goal(
+            &connection,
+            &GoalInput {
+                id: None,
+                name: "Reserva".into(),
+                kind: "reserve".into(),
+                target_cents: 1_000_000,
+                monthly_cents: 100_000,
+                starts_on: "2026-01-01".into(),
+                account_id: None,
+                color: "#1f6b4f".into(),
+            },
+        )
+        .expect("should save the goal");
+
+        let deposit = DepositInput {
+            id: None,
+            goal_id,
+            amount_cents: 25_000,
+            deposited_on: "2026-11-05".into(),
+        };
+        save_deposit(&connection, &deposit).expect("should save");
+        save_deposit(&connection, &deposit).expect("should save again");
+
+        // Zero and negative amounts are refused.
+        assert!(save_deposit(
+            &connection,
+            &DepositInput { amount_cents: 0, ..deposit.clone() }
+        )
+        .is_err());
+        assert!(save_deposit(
+            &connection,
+            &DepositInput { amount_cents: -100, ..deposit.clone() }
+        )
+        .is_err());
+
+        let totals = goal_totals(&connection).expect("should total");
+        assert_eq!(totals.len(), 1);
+        assert_eq!(totals[0].goal_id, goal_id);
+        assert_eq!(totals[0].paid_cents, 50_000);
+        assert_eq!(totals[0].payments, 2);
 
         let _ = std::fs::remove_file(&path);
     }

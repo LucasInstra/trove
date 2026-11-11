@@ -191,6 +191,13 @@ export interface DebtInput {
   month: string;
 }
 
+export interface DepositInput {
+  id: number | null;
+  goalId: number;
+  amountCents: number;
+  depositedOn: string;
+}
+
 export interface PlannerState {
   incomes: Income[];
   bills: Bill[];
@@ -306,6 +313,7 @@ export const api = {
   deleteDebt: (id: number) => invoke<void>("delete_debt", { id }),
   setDebtSettled: (id: number, settled: boolean) =>
     invoke<void>("set_debt_settled", { id, settled }),
+  saveDeposit: (input: DepositInput) => invoke<number>("save_deposit", { input }),
   markNotificationsRead: (keys: string[]) =>
     invoke<void>("mark_notifications_read", { keys }),
   getSetting: (key: string) => invoke<string | null>("get_setting", { key }),

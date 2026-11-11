@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Dialog } from "./Dialog";
-import type { BillInput, CardInput, Category, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
+import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
 import { useLanguage } from "../lib/language";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -254,6 +254,37 @@ export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClo
         </Field>
         <Field label={t("planner.color")}>
           <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+        </Field>
+        <div className="dialog-actions">
+          <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button type="submit" className="primary">{t("common.save")}</button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+export function DepositDialog({ goal, onClose, onSave }: { goal: Goal; onClose: () => void; onSave: (input: DepositInput) => void }) {
+  const { t } = useLanguage();
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(today());
+
+  return (
+    <Dialog title={t("deposit.title", { name: goal.name })} onClose={onClose}>
+      <form
+        className="dialog-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const cents = parseCents(amount);
+          if (cents <= 0) return;
+          onSave({ id: null, goalId: goal.id, amountCents: cents, depositedOn: date });
+        }}
+      >
+        <Field label={t("planner.amount")}>
+          <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" required />
+        </Field>
+        <Field label={t("manual.date")}>
+          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
         </Field>
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>

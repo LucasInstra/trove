@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 5;
+pub const SCHEMA_VERSION: i64 = 6;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -349,8 +349,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v4(&connection)?;
         write_version(&connection, 4)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 5 {
         migrate_to_v5(&connection)?;
+        write_version(&connection, 5)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v6(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -416,6 +420,31 @@ fn add_column(
     }
     connection
         .execute_batch(&format!("alter table {table} add column {column} {definition}"))
+        .map_err(|problem| problem.to_string())
+}
+
+/// v5 to v6: hand-entered goal deposits. An aporte is a transfer into savings,
+/// not spending, so it lives in its own table instead of inflating the
+/// expense totals. Goal progress counts deposits next to paid bill slices.
+const NEW_TABLES_V6: &str = r#"
+create table if not exists goal_deposits (
+    id           integer primary key,
+    uid          text    not null unique,
+    goal_id      integer not null references goals(id),
+    amount_cents integer not null,
+    deposited_on text    not null,
+    created_at   text    not null,
+    updated_at   text    not null,
+    deleted_at   text
+);
+
+create index if not exists idx_deposits_goal on goal_deposits (goal_id, deposited_on);
+"#;
+
+/// v5 to v6: one table only, so the fact table is untouched.
+fn migrate_to_v6(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V6)
         .map_err(|problem| problem.to_string())
 }
 
@@ -1485,6 +1514,7 @@ mod tests {
         assert!(has_table(&again, "bill_payments").expect("should inspect"));
         assert!(has_column(&again, "bills", "installments_total").expect("should inspect"));
         assert!(has_table(&again, "debts").expect("should inspect"));
+        assert!(has_table(&again, "goal_deposits").expect("should inspect"));
 
         let _ = std::fs::remove_file(&path);
     }

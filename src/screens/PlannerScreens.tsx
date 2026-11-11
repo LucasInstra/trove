@@ -167,10 +167,12 @@ export function ReserveScreen({
   plan,
   onAdd,
   onEdit,
+  onDeposit,
 }: {
   plan: MonthPlan;
   onAdd: () => void;
   onEdit: (goal: Goal) => void;
+  onDeposit: (goal: Goal) => void;
 }) {
   const { t } = useLanguage();
   const summary = summarizeGoals(plan.goals);
@@ -219,6 +221,13 @@ export function ReserveScreen({
                       {t("planner.goalProgress", { percent: Math.round(sharePct) })}
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    className="outline-button entity-edit"
+                    onClick={() => onDeposit(goal)}
+                  >
+                    {t("deposit.button")}
+                  </button>
                   <button
                     type="button"
                     className="outline-button entity-edit"

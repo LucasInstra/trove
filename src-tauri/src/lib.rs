@@ -209,6 +209,12 @@ fn save_debt(app: tauri::AppHandle, input: planner::DebtInput) -> Result<i64, St
 }
 
 #[tauri::command]
+fn save_deposit(app: tauri::AppHandle, input: planner::DepositInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    planner::save_deposit(&connection, &input)
+}
+
+#[tauri::command]
 fn delete_debt(app: tauri::AppHandle, id: i64) -> Result<(), String> {
     let connection = connection(&app)?;
     planner::delete_debt(&connection, id)
@@ -317,6 +323,7 @@ pub fn run() {
             save_debt,
             delete_debt,
             set_debt_settled,
+            save_deposit,
             mark_notifications_read,
             get_setting,
             set_setting

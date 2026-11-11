@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
-import { BillDialog, CardDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
+import { BillDialog, CardDialog, DepositDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
 import { ManualDialog } from "./components/ManualDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
@@ -33,6 +33,7 @@ import type {
   CategoryTotal,
   Debt,
   DebtInput,
+  DepositInput,
   Goal,
   GoalInput,
   Income,
@@ -96,6 +97,7 @@ type DialogState =
   | { kind: "card"; card: CardMeta | null }
   | { kind: "goal"; goal: Goal | null }
   | { kind: "debt"; debt: Debt | null }
+  | { kind: "deposit"; goal: Goal }
   | { kind: "manual" }
   | { kind: "ceiling" }
   | null;
@@ -384,6 +386,16 @@ export function App() {
     }
   };
 
+  const saveDeposit = async (input: DepositInput) => {
+    try {
+      await api.saveDeposit(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
   const toggleDebt = async (id: number, settled: boolean) => {
     if (!month) return;
     await api.setDebtSettled(id, settled);
@@ -664,6 +676,7 @@ export function App() {
               plan={plan}
               onAdd={() => setDialog({ kind: "goal", goal: null })}
               onEdit={(goal) => setDialog({ kind: "goal", goal })}
+              onDeposit={(goal) => setDialog({ kind: "deposit", goal })}
             />
           ) : null}
 
@@ -779,6 +792,14 @@ export function App() {
           goal={dialog.goal}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveGoal(input)}
+        />
+      ) : null}
+
+      {dialog?.kind === "deposit" ? (
+        <DepositDialog
+          goal={dialog.goal}
+          onClose={() => setDialog(null)}
+          onSave={(input) => void saveDeposit(input)}
         />
       ) : null}
 
