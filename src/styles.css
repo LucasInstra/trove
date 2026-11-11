@@ -1624,6 +1624,15 @@ select.tx-category {
   color: var(--negative);
 }
 
+/* The invoice status next to the total: whose card, which month, open or not. */
+.card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Composition bar */
 
 .composition {

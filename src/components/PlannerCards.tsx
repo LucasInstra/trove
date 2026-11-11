@@ -285,6 +285,7 @@ export function CardsCard({
   const values = months.map((candidate) => usageFor(entry.meta, candidate));
   const usage = values[activeIndex];
   const window = invoiceWindow(entry.meta.closingDay, entry.meta.dueDay, activeMonth);
+  const entryOpen = window.to >= today;
   const lines = list ? invoiceLines(list, window) : [];
   const canScroll = cards.length > 1 && !wide && !lean;
 
@@ -348,7 +349,15 @@ export function CardsCard({
       <div className="card-figure">
         <strong>{formatCents(usage)}</strong>
         <span className="muted small">
+          {entry.meta.brand || t("planner.card")} •••• {entry.meta.last4 || "0000"} ·{" "}
           {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
+        </span>
+        <span className="card-status">
+          <span
+            className="dot"
+            style={{ background: entryOpen ? "var(--positive)" : "var(--line-strong)" }}
+          />
+          {entryOpen ? t("planner.open") : t("planner.closed")}
         </span>
       </div>
 
