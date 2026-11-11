@@ -847,21 +847,6 @@ button.primary:hover:not(:disabled) {
   flex: 1;
 }
 
-.bar {
-  width: 100%;
-  border-radius: 7px 7px 3px 3px;
-  background: var(--bar-rest);
-  transition: height 200ms ease;
-}
-
-.bar.current {
-  background: var(--primary);
-}
-
-.bar.blank {
-  background: transparent;
-}
-
 /* Stacked monthly bars: one segment per category, piled from the bottom. The
    segments carry no transition, so a data refresh never replays a height
    animation the packing pass has already measured. */
@@ -2061,6 +2046,9 @@ select.tx-category {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .installment .meter-track {
@@ -2230,6 +2218,10 @@ select.tx-category {
   border-collapse: collapse;
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
+}
+
+.flow-scroll {
+  overflow-x: auto;
 }
 
 .flow-table th {
@@ -3139,9 +3131,9 @@ select.tx-category {
 
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 4px;
-  height: 36px;
+  min-height: 36px;
   padding: 4px;
   border-radius: 12px;
   background: var(--bg-sunken);

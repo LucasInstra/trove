@@ -85,6 +85,7 @@ export function FlowScreen({ series, plan, month, onSelectMonth }: FlowProps) {
         <header className="card-head">
           <h2>{t("flow.table")}</h2>
         </header>
+        <div className="flow-scroll">
         <table className="flow-table">
           <thead>
             <tr>
@@ -107,6 +108,7 @@ export function FlowScreen({ series, plan, month, onSelectMonth }: FlowProps) {
             ))}
           </tbody>
         </table>
+        </div>
         <p className="muted small">{t("flow.note")}</p>
       </article>
     </section>

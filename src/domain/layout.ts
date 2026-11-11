@@ -22,9 +22,9 @@ export const CARD_IDS = [
   "installments",
   "housing",
   "goals",
-  "debts",
-  "split",
   "donut",
+  "split",
+  "debts",
   "series",
   "score",
 ] as const;
@@ -53,9 +53,9 @@ export const DEFAULT_LAYOUT: LayoutCard[] = [
   { id: "installments", span: 1, mode: "full" },
   { id: "housing", span: 1, mode: "full" },
   { id: "goals", span: 1, mode: "full" },
-  { id: "debts", span: 1, mode: "full" },
-  { id: "split", span: 2, mode: "full" },
   { id: "donut", span: 1, mode: "full" },
+  { id: "split", span: 2, mode: "full" },
+  { id: "debts", span: 1, mode: "full" },
   { id: "series", span: 2, mode: "full" },
   { id: "score", span: 1, mode: "full" },
 ];

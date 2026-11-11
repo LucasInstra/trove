@@ -152,21 +152,6 @@
     font-weight: 600;
   }
 
-  .bar {
-    border-radius: 999px 999px 6px 6px;
-    background: linear-gradient(180deg, var(--line-strong), var(--bar-rest));
-    transition: height 160ms ease-out;
-  }
-
-  .bar.current {
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--primary) 48%, var(--surface)),
-      var(--primary)
-    );
-    box-shadow: 0 2px 8px var(--hero-glow);
-  }
-
   .bar-col[aria-current="true"] {
     background: color-mix(in srgb, var(--primary-soft) 65%, transparent);
   }
