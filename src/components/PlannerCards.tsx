@@ -133,12 +133,22 @@ interface CardsProps {
   lean?: boolean;
   /** The compact form: one line of figures instead of the carousel. */
   compact?: boolean;
+  /** Two or more columns: every card at once instead of a carousel. */
+  wide?: boolean;
 }
 
 const CARD_GAP = 12;
 const CARD_FALLBACK = 280;
 
-export function CardsCard({ cards, month, onAdd, onEdit, lean = false, compact = false }: CardsProps) {
+export function CardsCard({
+  cards,
+  month,
+  onAdd,
+  onEdit,
+  lean = false,
+  compact = false,
+  wide = false,
+}: CardsProps) {
   const { lang, t } = useLanguage();
   const [rows, setRows] = useState<Record<number, TransactionRow[]>>({});
   const [activeCard, setActiveCard] = useState(0);
@@ -241,7 +251,7 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false, compact =
   const usage = values[activeIndex];
   const window = invoiceWindow(entry.meta.closingDay, entry.meta.dueDay, activeMonth);
   const lines = list ? invoiceLines(list, window) : [];
-  const canScroll = cards.length > 1;
+  const canScroll = cards.length > 1 && !wide;
 
   // The step comes from the card the browser laid out, so a change in the CSS
   // width cannot desync the arrows from the snap points.
@@ -312,7 +322,7 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false, compact =
         {t("planner.viewInvoice")}
       </button>
 
-      <div className="cards-track" ref={trackRef} onScroll={onScroll}>
+      <div className={wide ? "cards-track as-grid" : "cards-track"} ref={trackRef} onScroll={onScroll}>
         {cards.map(({ meta }) => {
           const state = invoiceWindow(meta.closingDay, meta.dueDay, activeMonth);
           const open = state.to >= today;
@@ -395,9 +405,17 @@ interface HousingProps {
   onScope: (scope: "primary" | "total") => void;
   onEdit: () => void;
   compact?: boolean;
+  wide?: boolean;
 }
 
-export function HousingCard({ plan, scope, onScope, onEdit, compact = false }: HousingProps) {
+export function HousingCard({
+  plan,
+  scope,
+  onScope,
+  onEdit,
+  compact = false,
+  wide = false,
+}: HousingProps) {
   const { lang, t } = useLanguage();
   const ratioPct = scope === "primary" ? plan.housingRatioPrimaryPct : plan.housingRatioPct;
   // 36,8 in Portuguese, 36.8 in English.
@@ -479,6 +497,21 @@ export function HousingCard({ plan, scope, onScope, onEdit, compact = false }: H
           <span>100%</span>
         </div>
       </div>
+
+      {wide && plan.housingBills.length > 0 ? (
+        <ul className="housing-breakdown">
+          {plan.housingBills.map((bill) => (
+            <li key={bill.id}>
+              <span
+                className="dot"
+                style={{ background: bill.categoryColor ?? "var(--primary)" }}
+              />
+              <span className="legend-name">{bill.name}</span>
+              <strong>{formatCents(bill.amountCents)}</strong>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </article>
   );
 }
@@ -487,10 +520,12 @@ export function GoalsCard({
   plan,
   onAdd,
   compact = false,
+  wide = false,
 }: {
   plan: MonthPlan;
   onAdd: () => void;
   compact?: boolean;
+  wide?: boolean;
 }) {
   const { t } = useLanguage();
   const paid = plan.goals.reduce((sum, entry) => sum + entry.paidCents, 0);
@@ -531,7 +566,7 @@ export function GoalsCard({
           {t("planner.addGoal")}
         </button>
       ) : (
-        <ul className="goal-list">
+        <ul className={wide ? "goal-list two-col" : "goal-list"}>
           {plan.goals.map(({ goal, paidCents, sharePct }: { goal: Goal; paidCents: number; sharePct: number }) => (
             <li key={goal.id}>
               <div className="goal-head">

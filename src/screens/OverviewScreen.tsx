@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
+import { BreakdownBar } from "../components/BreakdownBar";
 import { Donut } from "../components/Donut";
 import { Icon3D } from "../components/Icon3D";
 import { Progress } from "../components/ui/progress";
@@ -152,6 +153,14 @@ export function OverviewScreen({
     (item) => item.mode === "hidden" && isCardAvailable(item.id, cardContext),
   );
 
+  // A card that occupies more than one column has room to say more, so it does
+  // instead of stretching the same content over a wider box.
+  const isWide = (id: CardId) => (layout.find((entry) => entry.id === id)?.span ?? 1) >= 2;
+  const seriesPeak = Math.max(
+    ...(isWide("series") ? series.slice(-12) : series.slice(-6)).map((point) => point.expenseCents),
+    1,
+  );
+
   const cardName = (id: CardId) =>
     ({
       forecast: t("overview.forecast"),
@@ -266,11 +275,25 @@ export function OverviewScreen({
       </article>
     ),
     bills: <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
-    cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} />,
-    housing: (
-      <HousingCard plan={plan} scope={housingScope} onScope={onHousingScope} onEdit={onEditHousing} />
+    cards: (
+      <CardsCard
+        cards={cards}
+        month={month}
+        onAdd={onAddCard}
+        onEdit={onEditCard}
+        wide={isWide("cards")}
+      />
     ),
-    goals: <GoalsCard plan={plan} onAdd={onAddGoal} />,
+    housing: (
+      <HousingCard
+        plan={plan}
+        scope={housingScope}
+        onScope={onHousingScope}
+        onEdit={onEditHousing}
+        wide={isWide("housing")}
+      />
+    ),
+    goals: <GoalsCard plan={plan} onAdd={onAddGoal} wide={isWide("goals")} />,
     split: (
       <SplitCard
         people={people}
@@ -294,13 +317,12 @@ export function OverviewScreen({
         {byCategory.length === 0 ? (
           <p className="card-empty">{t("ledger.noSpending")}</p>
         ) : (
-          <div className="donut-row">
-            <Donut
-              segments={donutSlices.map((slice) => ({ color: slice.color, value: slice.value }))}
-              centerLabel={t("common.total")}
-              centerValue={formatCents(spending)}
-              activeIndex={donutHover}
-            />
+          <div className="breakdown">
+            <div className="breakdown-figure">
+              <strong>{formatCents(spending)}</strong>
+              <span className="muted small">{t("ledger.spending")}</span>
+            </div>
+            <BreakdownBar items={donutSlices} active={donutHover} onActive={setDonutHover} />
             <ul className="legend">
               {donutSlices.map((slice, index) => (
                 <li
@@ -327,7 +349,7 @@ export function OverviewScreen({
         <header className="card-head">
           <div className="card-title">
             <Icon3D name="chart-up" size={30} />
-            <h2>{t("ledger.lastSix")}</h2>
+            <h2>{isWide("series") ? t("ledger.lastTwelve") : t("ledger.lastSix")}</h2>
           </div>
           <span className="muted">{t("ledger.spending")}</span>
         </header>
@@ -335,7 +357,7 @@ export function OverviewScreen({
           <p className="card-empty">{t("ledger.noSpending")}</p>
         ) : (
           <div className="bars">
-            {series.slice(-6).map((point) => (
+            {series.slice(isWide("series") ? -12 : -6).map((point) => (
               <button
                 type="button"
                 className="bar-col"
@@ -362,7 +384,7 @@ export function OverviewScreen({
                       height:
                         point.expenseCents === 0
                           ? "0%"
-                          : `${Math.max(3, (point.expenseCents / peak) * 100)}%`,
+                          : `${Math.max(3, (point.expenseCents / seriesPeak) * 100)}%`,
                     }}
                     title={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
                   />

@@ -10,10 +10,10 @@ import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
 import {
   Sidebar,
-  SidebarBrand,
   SidebarFooter,
   SidebarGroup,
   SidebarItem,
+  SidebarProfile,
 } from "./components/ui/sidebar";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { TransactionsScreen } from "./screens/TransactionsScreen";
@@ -399,14 +399,21 @@ export function App() {
   };
 
   const housingCategory = categories.find((category) => category.id === housingCategoryId);
+  const selfPerson = planner.people.find((person) => person.isSelf) ?? planner.people[0] ?? null;
 
   return (
     <div className="app">
-      <TitleBar title={t(`nav.${route}`)} />
+      <TitleBar />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar className="hidden md:flex">
-          <SidebarBrand mark="t" name="trove" tagline={t("app.tagline")} />
+          <SidebarProfile
+            name={selfPerson?.name ?? t("split.you")}
+            detail={t("app.tagline")}
+            initials={(selfPerson?.name ?? t("split.you")).slice(0, 2).toUpperCase()}
+            color={selfPerson?.color}
+            onClick={() => setRoute("settings")}
+          />
 
           <nav aria-label={t("nav.primary")} className="flex flex-col gap-3">
             <SidebarGroup label={t("nav.menu")}>

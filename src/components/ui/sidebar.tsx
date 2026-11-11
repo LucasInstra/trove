@@ -43,6 +43,46 @@ function SidebarBrand({
   );
 }
 
+function SidebarProfile({
+  initials,
+  name,
+  detail,
+  color,
+  onClick,
+  className,
+}: {
+  initials: string;
+  name: string;
+  detail: string;
+  color?: string | null;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-[12px] border-0 bg-transparent px-1 py-1 text-left transition-colors hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
+        className,
+      )}
+      title={name}
+    >
+      <span
+        className="grid size-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold text-white"
+        style={{ background: color ?? "var(--primary)" }}
+        aria-hidden="true"
+      >
+        {initials}
+      </span>
+      <span className="flex min-w-0 flex-col leading-tight">
+        <strong className="truncate text-[13px] font-semibold">{name}</strong>
+        <span className="truncate text-2xs text-faint">{detail}</span>
+      </span>
+    </button>
+  );
+}
+
 function SidebarGroup({
   label,
   children,
@@ -93,4 +133,4 @@ function SidebarFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElem
   return <div className={cn("mt-auto flex flex-col gap-3", className)} {...props} />;
 }
 
-export { Sidebar, SidebarBrand, SidebarGroup, SidebarItem, SidebarFooter };
+export { Sidebar, SidebarBrand, SidebarGroup, SidebarItem, SidebarFooter, SidebarProfile };

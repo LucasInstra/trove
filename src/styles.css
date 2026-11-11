@@ -602,6 +602,87 @@ button.primary:hover:not(:disabled) {
   gap: 14px;
 }
 
+/* The spending breakdown, in the shape the chart references use: one bar split
+   by share, then the same colours in the legend, which reads better than a ring
+   in a narrow card. */
+.breakdown {
+  display: grid;
+  gap: 12px;
+}
+
+.breakdown-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.breakdown-figure strong {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A card that takes more than one column gets more content, not a wider copy of
+   the same content. */
+.cards-track.as-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.cards-track.as-grid .credit-card {
+  flex: initial;
+  width: auto;
+  min-width: 0;
+  height: 170px;
+}
+
+.goal-list.two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 18px;
+}
+
+.housing-breakdown {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.housing-breakdown li {
+  display: grid;
+  grid-template-columns: 9px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+}
+
+.housing-breakdown strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown-track {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.breakdown-seg {
+  min-width: 3px;
+  border-radius: 4px;
+  transition: opacity 140ms ease-out, filter 140ms ease-out;
+}
+
+.breakdown-seg.active {
+  filter: saturate(1.15) brightness(1.04);
+}
+
 .donut-row {
   display: grid;
   grid-template-columns: 148px 1fr;
