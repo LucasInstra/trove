@@ -101,6 +101,7 @@ export function BillDialog({
             goalId: bill?.goalId ?? null,
             startsOn: bill?.startsOn ?? today(),
             endsOn: bill?.endsOn ?? null,
+            installmentsTotal: bill?.installmentsTotal ?? null,
             active: true,
           });
         }}

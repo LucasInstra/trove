@@ -20,6 +20,7 @@ const bill = (id: number, amountCents: number): Bill => ({
   goalId: null,
   startsOn: "2026-01-01",
   endsOn: null,
+  installmentsTotal: null,
   active: true,
 });
 

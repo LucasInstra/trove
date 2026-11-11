@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -330,8 +330,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v2(&connection)?;
         write_version(&connection, 2)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 3 {
         migrate_to_v3(&connection)?;
+        write_version(&connection, 3)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v4(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -398,6 +402,13 @@ fn add_column(
     connection
         .execute_batch(&format!("alter table {table} add column {column} {definition}"))
         .map_err(|problem| problem.to_string())
+}
+
+/// v3 to v4: installment purchases. A bill can carry the total number of
+/// monthly parcels; the current one is derived from `starts_on`, so no row
+/// per parcel is ever stored. Additive and idempotent like the rest.
+fn migrate_to_v4(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "bills", "installments_total", "integer")
 }
 
 /// v2 to v3: new tables only, so nothing on the fact table changes.
@@ -1118,6 +1129,7 @@ mod tests {
         assert_eq!(before, after, "reopening must not rewrite identity");
         assert!(has_table(&again, "bills").expect("should inspect"));
         assert!(has_table(&again, "bill_payments").expect("should inspect"));
+        assert!(has_column(&again, "bills", "installments_total").expect("should inspect"));
 
         let _ = std::fs::remove_file(&path);
     }

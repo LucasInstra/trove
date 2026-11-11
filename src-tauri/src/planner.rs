@@ -33,6 +33,7 @@ pub struct Bill {
     pub goal_id: Option<i64>,
     pub starts_on: String,
     pub ends_on: Option<String>,
+    pub installments_total: Option<i64>,
     pub active: bool,
 }
 
@@ -145,6 +146,8 @@ pub struct BillInput {
     pub goal_id: Option<i64>,
     pub starts_on: String,
     pub ends_on: Option<String>,
+    #[serde(default)]
+    pub installments_total: Option<i64>,
     pub active: bool,
 }
 
@@ -267,7 +270,8 @@ pub fn list_bills(connection: &Connection) -> Result<Vec<Bill>, String> {
     let mut statement = connection
         .prepare(
             "select b.id, b.name, b.amount_cents, b.due_day, b.frequency, b.category_id,
-                    c.name, c.color, b.account_id, b.goal_id, b.starts_on, b.ends_on, b.active
+                    c.name, c.color, b.account_id, b.goal_id, b.starts_on, b.ends_on, b.active,
+                    b.installments_total
              from bills b
              left join categories c on c.id = b.category_id
              where b.deleted_at is null
@@ -290,6 +294,7 @@ pub fn list_bills(connection: &Connection) -> Result<Vec<Bill>, String> {
                 starts_on: row.get(10)?,
                 ends_on: row.get(11)?,
                 active: row.get::<_, i64>(12)? == 1,
+                installments_total: row.get(13)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -306,8 +311,8 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                     "update bills
                      set name = ?1, amount_cents = ?2, due_day = ?3, frequency = ?4,
                          category_id = ?5, account_id = ?6, goal_id = ?7, starts_on = ?8,
-                         ends_on = ?9, active = ?10, updated_at = ?11
-                     where id = ?12",
+                         ends_on = ?9, active = ?10, updated_at = ?11, installments_total = ?12
+                     where id = ?13",
                     params![
                         input.name,
                         input.amount_cents,
@@ -320,6 +325,7 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                         input.ends_on,
                         input.active as i64,
                         stamp,
+                        input.installments_total,
                         id
                     ],
                 )
@@ -331,9 +337,9 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                 .execute(
                     "insert into bills
                      (uid, name, amount_cents, due_day, frequency, category_id, account_id,
-                      goal_id, starts_on, ends_on, active, visibility, created_at, updated_at)
-                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-                             'shared', ?11, ?11)",
+                      goal_id, starts_on, ends_on, active, installments_total, visibility, created_at, updated_at)
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
+                             'shared', ?12, ?12)",
                     params![
                         input.name,
                         input.amount_cents,
@@ -345,6 +351,7 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                         input.starts_on,
                         input.ends_on,
                         input.active as i64,
+                        input.installments_total,
                         stamp
                     ],
                 )
@@ -803,6 +810,7 @@ mod tests {
             goal_id: None,
             starts_on: "2026-01-01".into(),
             ends_on: None,
+            installments_total: None,
             active: true,
         }
     }
@@ -829,6 +837,29 @@ mod tests {
 
         delete_bill(&connection, id).expect("should delete");
         assert_eq!(list_bills(&connection).expect("list").len(), 0);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn installments_round_trip_through_save_and_list() {
+        let path = temporary_database("installments");
+        let connection = db::open(&path).expect("should open");
+
+        let mut input = bill_input();
+        input.installments_total = Some(24);
+        let id = save_bill(&connection, &input).expect("should save");
+        let bills = list_bills(&connection).expect("should list");
+        assert_eq!(bills.len(), 1);
+        assert_eq!(bills[0].installments_total, Some(24));
+
+        input.id = Some(id);
+        input.installments_total = None;
+        save_bill(&connection, &input).expect("should update");
+        assert_eq!(
+            list_bills(&connection).expect("list")[0].installments_total,
+            None
+        );
 
         let _ = std::fs::remove_file(&path);
     }

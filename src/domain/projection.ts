@@ -1,4 +1,5 @@
 import type { Bill, BillPayment, Goal, GoalTotal, Income, MonthTotals } from "../lib/api";
+import { monthOffset } from "./installment";
 
 export interface Composition {
   key: "housing" | "bills" | "spent" | "free";
@@ -64,6 +65,16 @@ export function isDueIn(bill: Bill, month: string): boolean {
   if (start > month) return false;
   if (end && end < month) return false;
   if (bill.frequency === "once") return start === month;
+  // An installment purchase only lives for its parcels: the run starts at
+  // `startsOn` and lasts `installmentsTotal` months. An explicit end still
+  // shortens it, never extends it.
+  if (
+    bill.installmentsTotal !== null &&
+    bill.installmentsTotal !== undefined &&
+    bill.installmentsTotal >= 1
+  ) {
+    return monthOffset(start, month) < Math.floor(bill.installmentsTotal);
+  }
   return true;
 }
 

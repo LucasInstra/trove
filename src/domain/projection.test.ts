@@ -25,6 +25,7 @@ const bill = (id: number, amountCents: number, dueDay: number, patch: Partial<Bi
   goalId: null,
   startsOn: "2026-01-01",
   endsOn: null,
+  installmentsTotal: null,
   active: true,
   ...patch,
 });
@@ -163,6 +164,24 @@ describe("isDueIn", () => {
     const once = bill(1, 1000, 5, { frequency: "once", startsOn: "2026-07-01" });
     expect(isDueIn(once, "2026-07")).toBe(true);
     expect(isDueIn(once, "2026-08")).toBe(false);
+  });
+
+  it("ends an installment purchase after its last parcel", () => {
+    const purchase = bill(1, 250_00, 20, { startsOn: "2026-03-01", installmentsTotal: 24 });
+    expect(isDueIn(purchase, "2026-02")).toBe(false);
+    expect(isDueIn(purchase, "2026-03")).toBe(true);
+    expect(isDueIn(purchase, "2028-02")).toBe(true);
+    expect(isDueIn(purchase, "2028-03")).toBe(false);
+  });
+
+  it("lets an explicit end shorten the installment run", () => {
+    const purchase = bill(1, 250_00, 20, {
+      startsOn: "2026-03-01",
+      endsOn: "2026-05-31",
+      installmentsTotal: 24,
+    });
+    expect(isDueIn(purchase, "2026-05")).toBe(true);
+    expect(isDueIn(purchase, "2026-06")).toBe(false);
   });
 });
 

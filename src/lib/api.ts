@@ -92,6 +92,7 @@ export interface Bill {
   goalId: number | null;
   startsOn: string;
   endsOn: string | null;
+  installmentsTotal: number | null;
   active: boolean;
 }
 
@@ -184,6 +185,7 @@ export interface BillInput {
   goalId: number | null;
   startsOn: string;
   endsOn: string | null;
+  installmentsTotal: number | null;
   active: boolean;
 }
 
