@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
 import { Icon } from "../components/Icons";
@@ -10,6 +10,7 @@ import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
 import { SHOW_HERO_KEEPER } from "../lib/features";
 import type { CardId, LayoutCard } from "../domain/layout";
+import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
@@ -316,6 +317,55 @@ export function OverviewScreen({
     ),
   };
 
+  // Cards have very different heights, so they declare how many row units they
+  // take and the grid packs them without the holes a fixed row height leaves.
+  const ROW_UNIT = 4;
+  const ROW_GAP = 14;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    let frame = 0;
+
+    const measure = () => {
+      const next: Record<string, number> = {};
+      for (const cell of grid.querySelectorAll<HTMLElement>("[data-card]")) {
+        const id = cell.dataset.card ?? "";
+        const card = cell.firstElementChild as HTMLElement | null;
+        if (!id || !card) continue;
+        next[id] = rowSpanFor(card.offsetHeight, ROW_UNIT, ROW_GAP);
+      }
+      setRowSpans((current) => {
+        const keys = Object.keys(next);
+        const stable =
+          keys.length === Object.keys(current).length && keys.every((key) => current[key] === next[key]);
+        return stable ? current : next;
+      });
+    };
+
+    measure();
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(measure);
+      });
+      observer.observe(grid);
+      for (const cell of grid.querySelectorAll<HTMLElement>("[data-card]")) {
+        const card = cell.firstElementChild;
+        if (card) observer.observe(card);
+      }
+    }
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [layout]);
+
   return (
     <section className="screen overview">
       {layoutEditing ? (
@@ -332,30 +382,36 @@ export function OverviewScreen({
         </div>
       ) : null}
 
-      <div className="planner-grid">
-        {layout.map((item, index) => (
+      <div className="planner-grid" ref={gridRef}>
+        {layout.map((item, index) => {
+          // A card that is minimised becomes a chip one column wide, so it can
+          // fill the single column holes the tall cards leave behind. Opening it
+          // again brings back the width the user chose.
+          const span = item.collapsed ? 1 : item.span;
+          return (
           <div
             key={item.id}
-            className={`grid-cell span-${item.span}${item.id === "bills" ? " natural" : ""}${item.collapsed ? " is-collapsed" : ""}`}
+            className={`grid-cell span-${span}${item.id === "bills" ? " natural" : ""}${item.collapsed ? " is-collapsed" : ""}`}
+            data-card={item.id}
+            style={{
+              gridColumn: `span ${span}`,
+              gridRowEnd: `span ${rowSpans[item.id] ?? 1}`,
+            }}
           >
             {item.collapsed ? (
-              <article className="collapsed-card">
-                <header className="collapsed-card-head">
-                  <h2>{cardName(item.id)}</h2>
-                  <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
-                  {!layoutEditing ? (
-                    <button
-                      type="button"
-                      className="collapse-trigger"
-                      aria-label={t("layout.expand")}
-                      title={t("layout.expand")}
-                      onClick={() => onLayoutCollapse(item.id)}
-                    >
-                      <Icon name="chevron-down" size={16} />
-                    </button>
-                  ) : null}
-                </header>
-              </article>
+              <button
+                type="button"
+                className="collapsed-card"
+                onClick={() => onLayoutCollapse(item.id)}
+                title={t("layout.expand")}
+                aria-label={`${cardName(item.id)} · ${t("layout.expand")}`}
+              >
+                <span className="collapsed-card-title">{cardName(item.id)}</span>
+                <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
+                <span className="collapse-trigger" aria-hidden="true">
+                  <Icon name="chevron-down" size={16} />
+                </span>
+              </button>
             ) : (
               cells[item.id]
             )}
@@ -378,23 +434,27 @@ export function OverviewScreen({
                   <Icon name="chevron-down" size={14} />
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
-                <button
-                  type="button"
-                  aria-label={t("layout.narrow")}
-                  disabled={item.span <= 1}
-                  onClick={() => onLayoutResize(item.id, -1)}
-                >
-                  <Icon name="minus" size={14} />
-                </button>
-                <button
-                  type="button"
-                  aria-label={t("layout.widen")}
-                  disabled={item.span >= 3}
-                  onClick={() => onLayoutResize(item.id, 1)}
-                >
-                  <Icon name="plus" size={14} />
-                </button>
-                <span className="cell-tools-sep" aria-hidden="true" />
+                {item.collapsed ? null : (
+                  <>
+                    <button
+                      type="button"
+                      aria-label={t("layout.narrow")}
+                      disabled={item.span <= 1}
+                      onClick={() => onLayoutResize(item.id, -1)}
+                    >
+                      <Icon name="minus" size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t("layout.widen")}
+                      disabled={item.span >= 3}
+                      onClick={() => onLayoutResize(item.id, 1)}
+                    >
+                      <Icon name="plus" size={14} />
+                    </button>
+                    <span className="cell-tools-sep" aria-hidden="true" />
+                  </>
+                )}
                 <button
                   type="button"
                   aria-label={item.collapsed ? t("layout.expand") : t("layout.collapse")}
@@ -406,7 +466,8 @@ export function OverviewScreen({
               </div>
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <TransactionsPanel

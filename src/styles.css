@@ -4046,30 +4046,33 @@ button.primary:hover:not(:disabled) {
   align-self: auto;
 }
 
-.grid-cell.is-collapsed > .collapsed-card {
-  height: 60px;
-}
-
+/* The whole chip opens the card again: the chevron is the affordance, not the
+   only hit area, so a minimised card is never a dead end. */
 .collapsed-card {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: 0 1px 2px var(--shadow-soft);
-}
-
-.collapsed-card-head {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
   min-width: 0;
+  height: 60px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--shadow-soft);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.collapsed-card-head h2 {
+.collapsed-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.08);
+}
+
+.collapsed-card-title {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -4098,15 +4101,14 @@ button.primary:hover:not(:disabled) {
   place-items: center;
   width: 30px;
   height: 30px;
-  padding: 0;
   border: 1px solid var(--line);
   border-radius: 50%;
   background: var(--surface);
   color: var(--muted);
-  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.collapse-trigger:hover {
+.collapsed-card:hover .collapse-trigger {
   background: var(--surface-soft);
   color: var(--ink);
 }
@@ -4157,9 +4159,29 @@ button.primary:hover:not(:disabled) {
 
   .collapsed-card {
     padding: 0 12px;
-  }
-
-  .collapsed-card-head {
     gap: 8px;
   }
+}
+
+
+/* ---------- Packed rows ---------- */
+
+/* A 4px row means a card gets a height that fits it within 4px, instead of the
+   full height of the tallest card in its row. The space between two stacked
+   cards is baked into the span (see rowSpanFor), so the grid itself has no row
+   gap and the spacing stays even. Dense flow lets a short card move up into a
+   hole its neighbours left behind. */
+.planner-grid {
+  grid-auto-rows: 4px;
+  row-gap: 0;
+  grid-auto-flow: dense;
+}
+
+.grid-cell {
+  align-self: start;
+  height: auto;
+}
+
+.grid-cell > * {
+  height: auto;
 }
