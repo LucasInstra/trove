@@ -632,7 +632,20 @@ button.primary:hover:not(:disabled) {
   border-radius: 50%;
 }
 
-.legend-name {
+/* The legend is the chart's handle: pointing at a row lights its slice. */
+.legend-row {
+  padding: 3px 6px;
+  margin: -3px -6px;
+  border-radius: 8px;
+  cursor: default;
+  transition: background-color 120ms ease-out;
+}
+
+.legend-row.active {
+  background: var(--surface-soft);
+}
+
+.legend-row.active .legend-name {
   color: var(--ink);
   font-weight: 600;
 }
