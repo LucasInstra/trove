@@ -42,6 +42,8 @@ export function ManualDialog({
             amountCents: kind === "expense" ? -cents : cents,
             description: description.trim(),
             categoryId,
+            // Notes get their own field with the edit dialog.
+            notes: "",
           });
         }}
       >

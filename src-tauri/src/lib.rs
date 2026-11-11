@@ -25,9 +25,57 @@ fn import_ofx(app: tauri::AppHandle, path: String) -> Result<db::ImportReport, S
 }
 
 #[tauri::command]
+fn create_manual_account(app: tauri::AppHandle, name: String) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::create_manual_account(&connection, &name)
+}
+
+#[tauri::command]
+fn rename_account(app: tauri::AppHandle, id: i64, name: String) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::rename_account(&connection, id, &name)
+}
+
+#[tauri::command]
+fn archive_account(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::archive_account(&connection, id)
+}
+
+#[tauri::command]
 fn save_manual_transaction(app: tauri::AppHandle, input: db::ManualInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::save_manual_transaction(&connection, &input)
+}
+
+#[tauri::command]
+fn update_manual_transaction(app: tauri::AppHandle, input: db::ManualEdit) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::update_manual_transaction(&connection, &input)
+}
+
+#[tauri::command]
+fn delete_manual_transaction(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_manual_transaction(&connection, id)
+}
+
+#[tauri::command]
+fn save_category(app: tauri::AppHandle, input: db::CategoryInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_category(&connection, &input)
+}
+
+#[tauri::command]
+fn delete_category(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_category(&connection, id)
+}
+
+#[tauri::command]
+fn archive_category(app: tauri::AppHandle, id: i64, archived: bool) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::archive_category(&connection, id, archived)
 }
 
 #[tauri::command]
@@ -304,6 +352,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             import_ofx,
             save_manual_transaction,
+            update_manual_transaction,
+            delete_manual_transaction,
+            create_manual_account,
+            rename_account,
+            archive_account,
+            save_category,
+            delete_category,
+            archive_category,
             clear_month,
             set_category_budget,
             category_month_series,

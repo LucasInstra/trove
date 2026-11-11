@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 7;
+pub const SCHEMA_VERSION: i64 = 8;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -229,6 +229,10 @@ pub struct Category {
     pub name: String,
     pub kind: String,
     pub color: String,
+    pub parent_id: Option<i64>,
+    pub emoji: String,
+    pub sort_order: i64,
+    pub archived_at: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -246,6 +250,8 @@ pub struct TransactionRow {
     pub category_color: Option<String>,
     pub trntype: String,
     pub manual: bool,
+    pub notes: String,
+    pub origin: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -358,8 +364,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v6(&connection)?;
         write_version(&connection, 6)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 7 {
         migrate_to_v7(&connection)?;
+        write_version(&connection, 7)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v8(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -451,6 +461,29 @@ fn add_column(
 /// v6 to v7: monthly spending targets per category. Null means no target.
 fn migrate_to_v7(connection: &Connection) -> Result<(), String> {
     add_column(connection, "categories", "budget_cents", "integer")
+}
+
+/// v7 to v8: manual entries grow up, categories grow a tree. Transactions gain
+/// free-form notes and an origin tag ('ofx' | 'manual' | 'csv'); existing
+/// manual rows are backfilled from `source`. Categories gain an optional
+/// parent, an emoji, an explicit order and an archive timestamp instead of
+/// deletion.
+fn migrate_to_v8(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "transactions", "notes", "text not null default ''")?;
+    add_column(connection, "transactions", "origin", "text not null default 'ofx'")?;
+    connection
+        .execute(
+            "update transactions set origin = 'manual' where source = 'manual' and origin = 'ofx'",
+            [],
+        )
+        .map_err(|problem| problem.to_string())?;
+    // No foreign key on the added column: SQLite cannot attach one to an
+    // existing table without a rebuild, so the parent is validated in Rust.
+    add_column(connection, "categories", "parent_id", "integer")?;
+    add_column(connection, "categories", "emoji", "text not null default ''")?;
+    add_column(connection, "categories", "sort_order", "integer not null default 0")?;
+    add_column(connection, "categories", "archived_at", "text")?;
+    Ok(())
 }
 
 /// v5 to v6: hand-entered goal deposits. An aporte is a transfer into savings,
@@ -760,9 +793,252 @@ pub fn list_accounts(connection: &Connection) -> Result<Vec<Account>, String> {
         .map_err(|problem| problem.to_string())
 }
 
+/// A hand-made account: no bank file behind it, so it takes an `acct_id` in
+/// the manual namespace, which can never collide with an import's
+/// (bank_id, acct_id) pair.
+pub fn create_manual_account(connection: &Connection, name: &str) -> Result<i64, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("account name must not be empty".to_string());
+    }
+    let stamp = Utc::now().to_rfc3339();
+    connection
+        .query_row(
+            "insert into accounts (name, kind, bank_id, acct_id, currency, created_at, uid, updated_at)
+             values (?1, 'checking', '', 'manual:' || lower(hex(randomblob(16))), 'BRL', ?2, lower(hex(randomblob(16))), ?2)
+             returning id",
+            params![name, stamp],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())
+}
+
+/// Renames a manual account. Imported accounts keep the bank's name, because
+/// the next import would silently revert any other choice.
+pub fn rename_account(connection: &Connection, id: i64, name: &str) -> Result<(), String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("account name must not be empty".to_string());
+    }
+    let manual: Option<i64> = connection
+        .query_row(
+            "select id from accounts where id = ?1 and bank_id = '' and acct_id like 'manual:%' and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if manual.is_none() {
+        return Err("only manual accounts can be renamed".to_string());
+    }
+    let affected = connection
+        .execute(
+            "update accounts set name = ?1, updated_at = ?2 where id = ?3",
+            params![name, Utc::now().to_rfc3339(), id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("account {id} does not exist"));
+    }
+    Ok(())
+}
+
+/// Archives an account: it leaves every picker, but its history stays in the
+/// database and keeps counting wherever it already counted.
+pub fn archive_account(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = Utc::now().to_rfc3339();
+    let affected = connection
+        .execute(
+            "update accounts set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("account {id} does not exist or is already archived"));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CategoryInput {
+    pub id: Option<i64>,
+    pub name: String,
+    pub kind: String,
+    pub color: String,
+    pub parent_id: Option<i64>,
+    pub emoji: String,
+    pub sort_order: i64,
+}
+
+/// Walks up the parent chain looking for `id`: finding it means assigning
+/// `parent_id` would close a loop.
+fn reaches_itself(connection: &Connection, start: i64, id: i64) -> Result<bool, String> {
+    let mut current = Some(start);
+    let mut steps = 0;
+    while let Some(node) = current {
+        if node == id {
+            return Ok(true);
+        }
+        steps += 1;
+        if steps > 64 {
+            return Err("category hierarchy is too deep".to_string());
+        }
+        current = connection
+            .query_row(
+                "select parent_id from categories where id = ?1 and deleted_at is null",
+                params![node],
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?
+            .flatten();
+    }
+    Ok(false)
+}
+
+fn check_category_parent(
+    connection: &Connection,
+    id: Option<i64>,
+    parent_id: Option<i64>,
+) -> Result<(), String> {
+    let Some(parent) = parent_id else {
+        return Ok(());
+    };
+    if Some(parent) == id {
+        return Err("a category cannot be its own parent".to_string());
+    }
+    let exists: Option<i64> = connection
+        .query_row(
+            "select id from categories where id = ?1 and deleted_at is null",
+            params![parent],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if exists.is_none() {
+        return Err(format!("parent category {parent} does not exist"));
+    }
+    if let Some(own) = id {
+        if reaches_itself(connection, parent, own)? {
+            return Err("a category cannot descend from itself".to_string());
+        }
+    }
+    Ok(())
+}
+
+pub fn save_category(connection: &Connection, input: &CategoryInput) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("category name must not be empty".to_string());
+    }
+    if !["expense", "income", "transfer"].contains(&input.kind.as_str()) {
+        return Err("category kind must be expense, income or transfer".to_string());
+    }
+    check_category_parent(connection, input.id, input.parent_id)?;
+    let stamp = Utc::now().to_rfc3339();
+    let result = match input.id {
+        Some(id) => connection.execute(
+            "update categories
+             set name = ?1, kind = ?2, color = ?3, parent_id = ?4,
+                 emoji = ?5, sort_order = ?6, updated_at = ?7
+             where id = ?8 and deleted_at is null",
+            params![
+                name,
+                input.kind,
+                input.color,
+                input.parent_id,
+                input.emoji,
+                input.sort_order,
+                stamp,
+                id
+            ],
+        ),
+        None => connection.execute(
+            "insert into categories
+             (uid, name, kind, color, parent_id, emoji, sort_order, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                name,
+                input.kind,
+                input.color,
+                input.parent_id,
+                input.emoji,
+                input.sort_order,
+                stamp
+            ],
+        ),
+    }
+    .map_err(|problem| {
+        if problem.to_string().contains("UNIQUE constraint failed") {
+            "a category with this name already exists".to_string()
+        } else {
+            problem.to_string()
+        }
+    })?;
+    if result == 0 {
+        return Err("category does not exist".to_string());
+    }
+    Ok(input.id.unwrap_or_else(|| connection.last_insert_rowid()))
+}
+
+/// Archives instead of deleting: history keeps counting, pickers stop offering.
+pub fn archive_category(connection: &Connection, id: i64, archived: bool) -> Result<(), String> {
+    let stamp = Utc::now().to_rfc3339();
+    let affected = if archived {
+        connection.execute(
+            "update categories set archived_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+    } else {
+        connection.execute(
+            "update categories set archived_at = null, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+    }
+    .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("category {id} does not exist"));
+    }
+    Ok(())
+}
+
+/// Deletes a category only when nothing points at it: transactions, bills and
+/// live children all block, so history never dangles.
+pub fn delete_category(connection: &Connection, id: i64) -> Result<(), String> {
+    let used: i64 = connection
+        .query_row(
+            "select (select count(*) from transactions where category_id = ?1 and deleted_at is null)
+                  + (select count(*) from bills where category_id = ?1 and deleted_at is null)
+                  + (select count(*) from categories where parent_id = ?1 and deleted_at is null)",
+            params![id],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())?;
+    if used > 0 {
+        return Err("category is in use and cannot be deleted".to_string());
+    }
+    let stamp = Utc::now().to_rfc3339();
+    let affected = connection
+        .execute(
+            "update categories set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("category {id} does not exist"));
+    }
+    Ok(())
+}
+
 pub fn list_categories(connection: &Connection) -> Result<Vec<Category>, String> {
     let mut statement = connection
-        .prepare("select id, name, kind, color from categories where deleted_at is null order by name")
+        .prepare(
+            "select id, name, kind, color, parent_id, emoji, sort_order, archived_at
+             from categories
+             where deleted_at is null and archived_at is null
+             order by sort_order, name",
+        )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
         .query_map([], |row| {
@@ -771,6 +1047,10 @@ pub fn list_categories(connection: &Connection) -> Result<Vec<Category>, String>
                 name: row.get(1)?,
                 kind: row.get(2)?,
                 color: row.get(3)?,
+                parent_id: row.get(4)?,
+                emoji: row.get(5)?,
+                sort_order: row.get(6)?,
+                archived_at: row.get(7)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -797,7 +1077,7 @@ pub fn list_transactions(
     let mut statement = connection
         .prepare(
             "select t.id, t.account_id, a.name, t.posted_on, t.amount_cents, t.description,
-                    t.merchant, t.category_id, c.name, c.color, t.trntype, t.source
+                    t.merchant, t.category_id, c.name, c.color, t.trntype, t.origin, t.notes
              from transactions t
              join accounts a on a.id = t.account_id
              left join categories c on c.id = t.category_id
@@ -816,6 +1096,7 @@ pub fn list_transactions(
 
     let rows = statement
         .query_map(params![pattern, month_pattern, account_id, limit], |row| {
+            let origin: String = row.get(11)?;
             Ok(TransactionRow {
                 id: row.get(0)?,
                 account_id: row.get(1)?,
@@ -828,7 +1109,9 @@ pub fn list_transactions(
                 category_name: row.get(8)?,
                 category_color: row.get(9)?,
                 trntype: row.get(10)?,
-                manual: row.get::<_, String>(11)? == "manual",
+                manual: origin == "manual",
+                notes: row.get(12)?,
+                origin,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -908,6 +1191,7 @@ pub struct ManualInput {
     pub amount_cents: i64,
     pub description: String,
     pub category_id: Option<i64>,
+    pub notes: String,
 }
 
 /// A hand-entered row. It takes a unique key in the manual namespace, so it
@@ -955,10 +1239,10 @@ pub fn save_manual_transaction(
         .execute(
             "insert into transactions
              (account_id, posted_on, amount_cents, description, merchant, memo, trntype,
-              category_id, dedupe_key, source, created_at, uid, updated_at)
-             values (?1, ?2, ?3, ?4, ?5, '', ?6, ?7,
-                     'manual:' || lower(hex(randomblob(16))), 'manual', ?8,
-                     lower(hex(randomblob(16))), ?8)",
+              category_id, notes, origin, dedupe_key, source, created_at, uid, updated_at)
+             values (?1, ?2, ?3, ?4, ?5, '', ?6, ?7, ?8, 'manual',
+                     'manual:' || lower(hex(randomblob(16))), 'manual', ?9,
+                     lower(hex(randomblob(16))), ?9)",
             params![
                 input.account_id,
                 input.posted_on,
@@ -967,11 +1251,124 @@ pub fn save_manual_transaction(
                 crate::ofx::merchant_of(description),
                 trntype,
                 input.category_id,
+                input.notes,
                 stamp
             ],
         )
         .map_err(|problem| problem.to_string())?;
     Ok(connection.last_insert_rowid())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManualEdit {
+    pub id: i64,
+    pub account_id: i64,
+    pub posted_on: String,
+    pub amount_cents: i64,
+    pub description: String,
+    pub category_id: Option<i64>,
+    pub notes: String,
+}
+
+/// Edits a hand-entered row. Imported statements are read-only history: only
+/// `origin = 'manual'` rows open here, so an edit can never rewrite a bank file.
+pub fn update_manual_transaction(
+    connection: &Connection,
+    input: &ManualEdit,
+) -> Result<(), String> {
+    if input.amount_cents == 0 {
+        return Err("amount must not be zero".to_string());
+    }
+    let description = input.description.trim();
+    if description.is_empty() {
+        return Err("description must not be empty".to_string());
+    }
+    check_date(&input.posted_on)?;
+    let existing: Option<String> = connection
+        .query_row(
+            "select origin from transactions where id = ?1 and deleted_at is null",
+            params![input.id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    match existing.as_deref() {
+        None => return Err(format!("transaction {} does not exist", input.id)),
+        Some(origin) if origin != "manual" => {
+            return Err("only manual entries can be edited".to_string())
+        }
+        _ => {}
+    }
+    let account: Option<i64> = connection
+        .query_row(
+            "select id from accounts where id = ?1 and deleted_at is null",
+            params![input.account_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if account.is_none() {
+        return Err(format!("account {} does not exist", input.account_id));
+    }
+    if let Some(category_id) = input.category_id {
+        let category: Option<i64> = connection
+            .query_row(
+                "select id from categories where id = ?1 and deleted_at is null",
+                params![category_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?;
+        if category.is_none() {
+            return Err(format!("category {category_id} does not exist"));
+        }
+    }
+    let stamp = Utc::now().to_rfc3339();
+    let trntype = if input.amount_cents < 0 { "DEBIT" } else { "CREDIT" };
+    let affected = connection
+        .execute(
+            "update transactions
+             set account_id = ?1, posted_on = ?2, amount_cents = ?3, description = ?4,
+                 merchant = ?5, trntype = ?6, category_id = ?7, notes = ?8, updated_at = ?9
+             where id = ?10 and origin = 'manual' and deleted_at is null",
+            params![
+                input.account_id,
+                input.posted_on,
+                input.amount_cents,
+                description,
+                crate::ofx::merchant_of(description),
+                trntype,
+                input.category_id,
+                input.notes,
+                stamp,
+                input.id
+            ],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("transaction {} does not exist", input.id));
+    }
+    Ok(())
+}
+
+/// Deletes a hand-entered row through the tombstone, freeing nothing else:
+/// manual keys live in their own namespace, so no import can collide.
+pub fn delete_manual_transaction(connection: &Connection, id: i64) -> Result<(), String> {
+    let origin: Option<String> = connection
+        .query_row(
+            "select origin from transactions where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    match origin.as_deref() {
+        None => return Err(format!("transaction {id} does not exist")),
+        Some("manual") => {}
+        Some(_) => return Err("only manual entries can be deleted".to_string()),
+    }
+    soft_delete_transaction(connection, id)
 }
 
 #[derive(Debug, Serialize)]
@@ -1080,19 +1477,28 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
     })
 }
 
-/// Expense per category for one month, biggest first. Uncategorized spending is
-/// kept as its own row so the numbers on screen always add up to the total.
+/// Expense per category for one month, biggest first. Spending in a child
+/// category rolls up into its top-level parent, so the bar and the budget
+/// compare against the same household buckets. Uncategorized spending is kept
+/// as its own row so the numbers on screen always add up to the total.
 pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<CategoryTotal>, String> {
     check_month(month)?;
     let prefix = format!("{month}%");
     let mut statement = connection
         .prepare(
-            "select c.id, coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
-                    sum(-t.amount_cents) as total, max(c.budget_cents)
+            "with recursive roots(id, root_id) as (
+               select id, id from categories where parent_id is null
+               union all
+               select c.id, roots.root_id from categories c join roots on c.parent_id = roots.id
+             )
+             select coalesce(g.id, t.category_id),
+                    coalesce(g.name, 'Uncategorized'), coalesce(g.color, '#9aa3af'),
+                    sum(-t.amount_cents) as total, max(g.budget_cents)
              from transactions t
-             left join categories c on c.id = t.category_id
+             left join roots r on r.id = t.category_id
+             left join categories g on g.id = coalesce(r.root_id, t.category_id)
              where t.posted_on like ?1 and t.amount_cents < 0 and t.deleted_at is null
-             group by c.id
+             group by coalesce(g.id, t.category_id)
              order by total desc",
         )
         .map_err(|problem| problem.to_string())?;
@@ -1349,6 +1755,7 @@ mod tests {
                 amount_cents: -5_000,
                 description: "Feira".into(),
                 category_id: None,
+                notes: String::new(),
             },
         )
         .expect("should save");
@@ -1385,6 +1792,7 @@ mod tests {
             amount_cents,
             description: description.into(),
             category_id: None,
+            notes: "nota".into(),
         };
         let id = save_manual_transaction(&connection, &entry("Feira livre", -12_000))
             .expect("should save");
@@ -1431,11 +1839,257 @@ mod tests {
         let manual_row = rows.iter().find(|row| row.id == id).expect("manual row");
         assert!(manual_row.manual);
         assert_eq!(manual_row.merchant, "Feira livre");
+        assert_eq!(manual_row.notes, "nota");
+        assert_eq!(manual_row.origin, "manual");
         assert!(rows.iter().filter(|row| !row.manual).count() == 2);
 
         let totals = month_totals(&connection, "2024-03").expect("should total");
         assert_eq!(totals.expense_cents, 2390 + 12_000);
         assert_eq!(totals.transaction_count, 3);
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn manual_accounts_can_be_created_renamed_and_archived() {
+        let path = temporary_database("manual-account");
+        let connection = open(&path).expect("should open");
+
+        let id = create_manual_account(&connection, "  Carteira  ").expect("should create");
+        assert!(id > 0);
+        assert!(create_manual_account(&connection, "   ").is_err());
+
+        let accounts = list_accounts(&connection).expect("should list");
+        let wallet = accounts.iter().find(|account| account.id == id).expect("wallet");
+        assert!(wallet.acct_id.starts_with("manual:"));
+        assert_eq!(wallet.name, "Carteira");
+
+        rename_account(&connection, id, "Bolso").expect("should rename");
+        let renamed: String = connection
+            .query_row("select name from accounts where id = ?1", params![id], |row| row.get(0))
+            .expect("should read");
+        assert_eq!(renamed, "Bolso");
+
+        // Imported accounts keep the bank's name: no silent revert on reimport.
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+        let mut connection = open(&path).expect("should reopen");
+        let report = import_ofx(&mut connection, &file).expect("should import");
+        assert!(rename_account(&connection, report.account_id, "Outro nome").is_err());
+
+        archive_account(&connection, id).expect("should archive");
+        assert!(list_accounts(&connection).expect("list").iter().all(|account| account.id != id));
+        assert!(archive_account(&connection, id).is_err());
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn manual_entries_can_be_edited_and_deleted_but_imports_cannot() {
+        let path = temporary_database("manual-edit");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let report = import_ofx(&mut connection, &file).expect("should import");
+        let id = save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: report.account_id,
+                posted_on: "2024-03-12".into(),
+                amount_cents: -1_000,
+                description: "Feira".into(),
+                category_id: None,
+                notes: "semanal".into(),
+            },
+        )
+        .expect("should save");
+
+        update_manual_transaction(
+            &connection,
+            &ManualEdit {
+                id,
+                account_id: report.account_id,
+                posted_on: "2024-03-13".into(),
+                amount_cents: -1_500,
+                description: "Feira grande".into(),
+                category_id: None,
+                notes: "semanal".into(),
+            },
+        )
+        .expect("should update");
+        let edited = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list")
+            .into_iter()
+            .find(|row| row.id == id)
+            .expect("edited row");
+        assert_eq!(edited.amount_cents, -1_500);
+        assert_eq!(edited.posted_on, "2024-03-13");
+        assert_eq!(edited.notes, "semanal");
+        assert!(update_manual_transaction(
+            &connection,
+            &ManualEdit {
+                id,
+                account_id: report.account_id,
+                posted_on: "ontem".into(),
+                amount_cents: -1_500,
+                description: "Feira".into(),
+                category_id: None,
+                notes: String::new(),
+            }
+        )
+        .is_err());
+
+        // Imported rows are read-only history.
+        let imported = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list")
+            .into_iter()
+            .find(|row| !row.manual)
+            .expect("imported row");
+        assert!(update_manual_transaction(
+            &connection,
+            &ManualEdit {
+                id: imported.id,
+                account_id: report.account_id,
+                posted_on: "2024-03-12".into(),
+                amount_cents: -1,
+                description: "hack".into(),
+                category_id: None,
+                notes: String::new(),
+            }
+        )
+        .is_err());
+        assert!(delete_manual_transaction(&connection, imported.id).is_err());
+
+        delete_manual_transaction(&connection, id).expect("should delete");
+        assert!(list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("list")
+            .iter()
+            .all(|row| row.id != id));
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn categories_form_a_tree_children_roll_up_and_deletion_is_blocked() {
+        let path = temporary_database("categories");
+        let connection = open(&path).expect("should open");
+
+        let food = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Comida".into(),
+                kind: "expense".into(),
+                color: "#d98c3f".into(),
+                parent_id: None,
+                emoji: "🍽".into(),
+                sort_order: 1,
+            },
+        )
+        .expect("should save root");
+        let market = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Mercado".into(),
+                kind: "expense".into(),
+                color: "#4c9f70".into(),
+                parent_id: Some(food),
+                emoji: "🧺".into(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save child");
+        let delivery = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Delivery".into(),
+                kind: "expense".into(),
+                color: "#d1536f".into(),
+                parent_id: Some(food),
+                emoji: "🛵".into(),
+                sort_order: 2,
+            },
+        )
+        .expect("should save second child");
+
+        // Unknown parents, self-parents and cycles are refused.
+        assert!(save_category(
+            &connection,
+            &CategoryInput { id: None, name: "X".into(), kind: "expense".into(), color: "#000".into(), parent_id: Some(999_999), emoji: String::new(), sort_order: 0 }
+        )
+        .is_err());
+        assert!(save_category(
+            &connection,
+            &CategoryInput { id: Some(food), name: "Comida".into(), kind: "expense".into(), color: "#000".into(), parent_id: Some(food), emoji: String::new(), sort_order: 1 }
+        )
+        .is_err());
+        assert!(save_category(
+            &connection,
+            &CategoryInput { id: Some(food), name: "Comida".into(), kind: "expense".into(), color: "#000".into(), parent_id: Some(market), emoji: String::new(), sort_order: 1 }
+        )
+        .is_err());
+        // A fresh tree is still a tree, so a valid update works.
+        save_category(
+            &connection,
+            &CategoryInput { id: Some(market), name: "Mercado".into(), kind: "expense".into(), color: "#4c9f70".into(), parent_id: Some(food), emoji: "🧺".into(), sort_order: 5 }
+        )
+        .expect("should update");
+
+        // Children roll up into the parent in the totals.
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+        let mut connection = open(&path).expect("should reopen");
+        let report = import_ofx(&mut connection, &file).expect("should import");
+        for description in ["IFD*IFOOD MERCADO", "IFD*IFOOD DELIVERY"] {
+            let id = save_manual_transaction(
+                &connection,
+                &ManualInput {
+                    account_id: report.account_id,
+                    posted_on: "2024-03-10".into(),
+                    amount_cents: -100_00,
+                    description: description.into(),
+                    category_id: None,
+                    notes: String::new(),
+                },
+            )
+            .expect("should save");
+            connection
+                .execute(
+                    "update transactions set category_id = ?1 where id = ?2",
+                    params![if description.contains("MERCADO") { market } else { delivery }, id],
+                )
+                .expect("should categorize");
+        }
+        let totals = category_totals(&connection, "2024-03").expect("should total");
+        let food_total = totals.iter().find(|entry| entry.category_id == Some(food)).expect("parent row");
+        assert_eq!(food_total.total_cents, 200_00);
+        assert!(totals.iter().all(|entry| entry.category_id != Some(market)));
+        assert!(totals.iter().all(|entry| entry.category_id != Some(delivery)));
+
+        // In use means: transactions, bills and children block the delete.
+        assert!(delete_category(&connection, market).is_err());
+        assert!(delete_category(&connection, food).is_err());
+        let empty = save_category(
+            &connection,
+            &CategoryInput { id: None, name: "Vazia".into(), kind: "expense".into(), color: "#000".into(), parent_id: None, emoji: String::new(), sort_order: 9 }
+        )
+        .expect("should save");
+        delete_category(&connection, empty).expect("unused deletes fine");
+
+        // Archiving hides from pickers but keeps counting in the totals.
+        archive_category(&connection, delivery, true).expect("should archive");
+        assert!(list_categories(&connection).expect("list").iter().all(|category| category.id != delivery));
+        let totals = category_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(
+            totals.iter().find(|entry| entry.category_id == Some(food)).expect("parent row").total_cents,
+            200_00
+        );
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);
@@ -1457,6 +2111,7 @@ mod tests {
                 amount_cents: -1_000,
                 description: "Feira".into(),
                 category_id: None,
+                notes: "feira da semana".into(),
             },
         )
         .expect("should save");
@@ -1468,6 +2123,7 @@ mod tests {
                 amount_cents: -2_000,
                 description: "Cinema".into(),
                 category_id: None,
+                notes: String::new(),
             },
         )
         .expect("should save");
@@ -1639,6 +2295,12 @@ mod tests {
         assert!(has_table(&again, "debts").expect("should inspect"));
         assert!(has_table(&again, "goal_deposits").expect("should inspect"));
         assert!(has_column(&again, "categories", "budget_cents").expect("should inspect"));
+        assert!(has_column(&again, "transactions", "notes").expect("should inspect"));
+        assert!(has_column(&again, "transactions", "origin").expect("should inspect"));
+        assert!(has_column(&again, "categories", "parent_id").expect("should inspect"));
+        assert!(has_column(&again, "categories", "emoji").expect("should inspect"));
+        assert!(has_column(&again, "categories", "sort_order").expect("should inspect"));
+        assert!(has_column(&again, "categories", "archived_at").expect("should inspect"));
 
         let _ = std::fs::remove_file(&path);
     }

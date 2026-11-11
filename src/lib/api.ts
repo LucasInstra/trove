@@ -14,6 +14,10 @@ export interface Category {
   name: string;
   kind: string;
   color: string;
+  parentId: number | null;
+  emoji: string;
+  sortOrder: number;
+  archivedAt: string | null;
 }
 
 export interface TransactionRow {
@@ -29,6 +33,8 @@ export interface TransactionRow {
   categoryColor: string | null;
   trntype: string;
   manual: boolean;
+  notes: string;
+  origin: string;
 }
 
 export interface CategoryMonth {
@@ -45,6 +51,21 @@ export interface ManualInput {
   amountCents: number;
   description: string;
   categoryId: number | null;
+  notes: string;
+}
+
+export interface ManualEdit extends ManualInput {
+  id: number;
+}
+
+export interface CategoryInput {
+  id: number | null;
+  name: string;
+  kind: string;
+  color: string;
+  parentId: number | null;
+  emoji: string;
+  sortOrder: number;
 }
 
 export interface ClearReport {
@@ -294,6 +315,15 @@ export const api = {
   setCategoryBudget: (categoryId: number, budgetCents: number | null) =>
     invoke<void>("set_category_budget", { categoryId, budgetCents }),
   saveManual: (input: ManualInput) => invoke<number>("save_manual_transaction", { input }),
+  updateManual: (input: ManualEdit) => invoke<void>("update_manual_transaction", { input }),
+  deleteManual: (id: number) => invoke<void>("delete_manual_transaction", { id }),
+  createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
+  renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
+  archiveAccount: (id: number) => invoke<void>("archive_account", { id }),
+  saveCategory: (input: CategoryInput) => invoke<number>("save_category", { input }),
+  deleteCategory: (id: number) => invoke<void>("delete_category", { id }),
+  archiveCategory: (id: number, archived: boolean) =>
+    invoke<void>("archive_category", { id, archived }),
   clearMonth: (month: string) => invoke<ClearReport>("clear_month", { month }),
   categoryMonthSeries: (endMonth: string, count = 6) =>
     invoke<CategoryMonth[]>("category_month_series", { endMonth, count }),
