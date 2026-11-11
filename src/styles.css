@@ -4113,6 +4113,33 @@ button.primary:hover:not(:disabled) {
   color: var(--ink);
 }
 
+/* The second collapse step: one line with no circle, so several of them stack
+   like an index and the number, not the label, carries the row. */
+.collapsed-card.is-mini {
+  height: 36px;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 12px;
+}
+
+.collapsed-card.is-mini .collapsed-card-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.collapsed-card.is-mini .collapsed-card-value {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.collapsed-card.is-mini .collapse-trigger {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+}
+
 @media (min-width: 821px) {
   .grid-cell.span-1 > .card {
     padding: 16px;
@@ -4184,4 +4211,10 @@ button.primary:hover:not(:disabled) {
 
 .grid-cell > * {
   height: auto;
+}
+
+/* A screen of its own, so the ledger can use the room the dashboard does. */
+.transactions {
+  max-width: 1240px;
+  width: 100%;
 }

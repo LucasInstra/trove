@@ -1,9 +1,12 @@
 /**
- * Dashboard layout: which cards exist, in what order, and how wide each one is.
+ * Dashboard layout: which cards exist, in what order, how wide each one is and
+ * how much of it is shown.
  *
  * The layout is a small, validated list. A stored value is never trusted: an
- * unknown card is dropped, a missing one is appended with its default, and the
- * span is clamped to the three columns the grid has.
+ * unknown card is dropped, a missing one is appended with its default, the span
+ * is clamped to the three columns the grid has and an unknown mode falls back to
+ * a full card. A layout saved before the third state existed only knew whether a
+ * card was collapsed, and that still reads as a compact card.
  */
 
 export const CARD_IDS = [
@@ -20,21 +23,25 @@ export const CARD_IDS = [
 export type CardId = (typeof CARD_IDS)[number];
 export type Span = 1 | 2 | 3;
 
+/** Full card, one line summary, or the smallest line. */
+export const CARD_MODES = ["full", "compact", "mini"] as const;
+export type CardMode = (typeof CARD_MODES)[number];
+
 export interface LayoutCard {
   id: CardId;
   span: Span;
-  collapsed: boolean;
+  mode: CardMode;
 }
 
 export const DEFAULT_LAYOUT: LayoutCard[] = [
-  { id: "forecast", span: 2, collapsed: false },
-  { id: "bills", span: 1, collapsed: false },
-  { id: "cards", span: 2, collapsed: false },
-  { id: "housing", span: 1, collapsed: false },
-  { id: "goals", span: 1, collapsed: false },
-  { id: "split", span: 2, collapsed: false },
-  { id: "donut", span: 1, collapsed: false },
-  { id: "series", span: 2, collapsed: false },
+  { id: "forecast", span: 2, mode: "full" },
+  { id: "bills", span: 1, mode: "full" },
+  { id: "cards", span: 2, mode: "full" },
+  { id: "housing", span: 1, mode: "full" },
+  { id: "goals", span: 1, mode: "full" },
+  { id: "split", span: 2, mode: "full" },
+  { id: "donut", span: 1, mode: "full" },
+  { id: "series", span: 2, mode: "full" },
 ];
 
 const clampSpan = (value: unknown, fallback: Span): Span => {
@@ -46,8 +53,18 @@ const clampSpan = (value: unknown, fallback: Span): Span => {
 const isCardId = (value: unknown): value is CardId =>
   typeof value === "string" && (CARD_IDS as readonly string[]).includes(value);
 
+const isMode = (value: unknown): value is CardMode =>
+  typeof value === "string" && (CARD_MODES as readonly string[]).includes(value);
+
 const defaultSpan = (id: CardId): Span =>
   DEFAULT_LAYOUT.find((entry) => entry.id === id)?.span ?? 1;
+
+function modeOf(entry: { mode?: unknown; collapsed?: unknown }): CardMode {
+  if (isMode(entry.mode)) return entry.mode;
+  // An older layout only stored whether the card was collapsed.
+  if (entry.collapsed === true) return "compact";
+  return "full";
+}
 
 export function parseLayout(raw: string | null | undefined): LayoutCard[] {
   if (!raw) return DEFAULT_LAYOUT.map((entry) => ({ ...entry }));
@@ -66,17 +83,17 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
     const id = typeof entry === "object" && entry !== null ? (entry as { id?: unknown }).id : null;
     if (!isCardId(id) || seen.has(id)) continue;
     seen.add(id);
-    const card = entry as { span?: unknown; collapsed?: unknown };
+    const card = entry as { span?: unknown; mode?: unknown; collapsed?: unknown };
     layout.push({
       id,
       span: clampSpan(card.span, defaultSpan(id)),
-      collapsed: typeof card.collapsed === "boolean" ? card.collapsed : false,
+      mode: modeOf(card),
     });
   }
 
   // A card added to the app after the layout was saved still shows up.
   for (const id of CARD_IDS) {
-    if (!seen.has(id)) layout.push({ id, span: defaultSpan(id), collapsed: false });
+    if (!seen.has(id)) layout.push({ id, span: defaultSpan(id), mode: "full" });
   }
   return layout;
 }
@@ -98,16 +115,18 @@ export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): Lay
   );
 }
 
-export function toggleCollapse(layout: LayoutCard[], id: CardId): LayoutCard[] {
-  const index = layout.findIndex((entry) => entry.id === id);
-  if (index < 0) return layout;
-  return layout.map((entry, entryIndex) =>
-    entryIndex === index ? { ...entry, collapsed: !entry.collapsed } : entry,
-  );
+/** full to compact, compact to mini, mini back to full. */
+export function nextMode(mode: CardMode): CardMode {
+  return mode === "full" ? "compact" : mode === "compact" ? "mini" : "full";
+}
+
+export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {
+  const next = isMode(mode) ? mode : "full";
+  return layout.map((entry) => (entry.id === id ? { ...entry, mode: next } : entry));
 }
 
 export function serializeLayout(layout: LayoutCard[]): string {
   return JSON.stringify(
-    layout.map((entry) => ({ id: entry.id, span: entry.span, collapsed: entry.collapsed })),
+    layout.map((entry) => ({ id: entry.id, span: entry.span, mode: entry.mode })),
   );
 }

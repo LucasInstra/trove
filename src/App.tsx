@@ -8,6 +8,7 @@ import { BillDialog, CardDialog, GoalDialog, IncomeDialog } from "./components/P
 import { Dialog } from "./components/Dialog";
 import { Icon, type IconName } from "./components/Icons";
 import { OverviewScreen } from "./screens/OverviewScreen";
+import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -43,17 +44,19 @@ import {
   parseLayout,
   resizeCard,
   serializeLayout,
-  toggleCollapse,
+  setMode,
   type CardId,
+  type CardMode,
   type LayoutCard,
 } from "./domain/layout";
 import type { Mood } from "./components/Mascot";
 import { BUILD_LABEL } from "./lib/build";
 
-type Route = "overview" | "flow" | "import" | "settings";
+type Route = "overview" | "transactions" | "flow" | "import" | "settings";
 
 const MENU: Array<{ route: Route; icon: IconName }> = [
   { route: "overview", icon: "grid" },
+  { route: "transactions", icon: "ledger" },
   { route: "flow", icon: "arrow-left-right" },
 ];
 
@@ -275,6 +278,17 @@ export function App() {
     [plan, cards, planner.reads, planner.incomes],
   );
 
+  const groups = useMemo(() => {
+    const map = new Map<string, { rows: TransactionRow[]; total: number }>();
+    for (const row of rows) {
+      const entry = map.get(row.postedOn) ?? { rows: [], total: 0 };
+      entry.rows.push(row);
+      entry.total += row.amountCents;
+      map.set(row.postedOn, entry);
+    }
+    return [...map.entries()].map(([day, value]) => ({ day, ...value }));
+  }, [rows]);
+
   const onMonth = (delta: number) => {
     if (!month) return;
     const [year, index] = month.split("-").map(Number);
@@ -429,7 +443,7 @@ export function App() {
             </div>
           ) : null}
 
-          {route === "overview" || route === "flow" ? (
+          {route === "overview" || route === "flow" || route === "transactions" ? (
             <TopBar
               month={month ?? currentMonth()}
               onMonth={onMonth}
@@ -442,6 +456,7 @@ export function App() {
               }}
               onImport={() => setRoute("import")}
               primaryLabel={t("ledger.import")}
+              showLayout={route === "overview"}
               layoutEditing={layoutEditing}
               onToggleLayout={() => setLayoutEditing((value) => !value)}
             />
@@ -451,20 +466,9 @@ export function App() {
             <OverviewScreen
               plan={plan}
               cards={cards}
-              rows={rows}
-              categories={categories}
               byCategory={byCategory}
               series={series}
-              search={search}
-              loading={loading}
               month={month ?? currentMonth()}
-              onSearch={setSearch}
-              accounts={accounts}
-              look={look}
-              accountFilter={accountFilter}
-              onAccountFilter={setAccountFilter}
-              onCategory={(id, categoryId) => void onCategory(id, categoryId)}
-              onImport={() => setRoute("import")}
               onSelectMonth={setMonth}
               onToggleBill={(id, paid) => void toggleBill(id, paid)}
               onAddBill={() => setDialog({ kind: "bill", bill: null })}
@@ -493,8 +497,8 @@ export function App() {
                 setLayout(next);
                 void api.setSetting("dashboard_layout", serializeLayout(next));
               }}
-              onLayoutCollapse={(id: CardId) => {
-                const next = toggleCollapse(layout, id);
+              onLayoutMode={(id: CardId, mode: CardMode) => {
+                const next = setMode(layout, id, mode);
                 setLayout(next);
                 void api.setSetting("dashboard_layout", serializeLayout(next));
               }}
@@ -515,6 +519,23 @@ export function App() {
                 void api.setSetting(`split_settled_${month}`, "1");
               }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
+              look={look}
+            />
+          ) : null}
+
+          {route === "transactions" ? (
+            <TransactionsScreen
+              rows={rows}
+              categories={categories}
+              search={search}
+              loading={loading}
+              onSearch={setSearch}
+              onCategory={(id, categoryId) => void onCategory(id, categoryId)}
+              onImport={() => setRoute("import")}
+              groups={groups}
+              accounts={accounts}
+              accountFilter={accountFilter}
+              onAccountFilter={setAccountFilter}
             />
           ) : null}
 

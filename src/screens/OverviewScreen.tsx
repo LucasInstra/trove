@@ -1,45 +1,27 @@
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
-import { Icon } from "../components/Icons";
+import { Icon, type IconName } from "../components/Icons";
 import { Mascot } from "../components/Mascot";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
-import { TransactionsPanel } from "../components/TransactionsPanel";
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
 import { SHOW_HERO_KEEPER } from "../lib/features";
-import type { CardId, LayoutCard } from "../domain/layout";
+import { nextMode, type CardId, type CardMode, type LayoutCard } from "../domain/layout";
 import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
-import type {
-  Account,
-  Bill,
-  CardMeta,
-  Category,
-  CategoryTotal,
-  MonthPoint,
-  Person,
-  Share,
-  TransactionRow,
-} from "../lib/api";
+import type { Bill, CardMeta, CategoryTotal, MonthPoint, Person, Share } from "../lib/api";
 
 interface OverviewProps {
   plan: MonthPlan;
   cards: { meta: CardMeta; usageCents: number; window: InvoiceWindow }[];
-  rows: TransactionRow[];
-  categories: Category[];
   byCategory: CategoryTotal[];
   series: MonthPoint[];
-  search: string;
-  loading: boolean;
   month: string;
-  onSearch: (value: string) => void;
-  onCategory: (transactionId: number, categoryId: number | null) => void;
-  onImport: () => void;
   onSelectMonth: (month: string) => void;
   onToggleBill: (billId: number, paid: boolean) => void;
   onAddBill: () => void;
@@ -59,29 +41,19 @@ interface OverviewProps {
   layoutEditing: boolean;
   onLayoutMove: (id: CardId, delta: number) => void;
   onLayoutResize: (id: CardId, delta: number) => void;
-  onLayoutCollapse: (id: CardId) => void;
+  onLayoutMode: (id: CardId, mode: CardMode) => void;
   onLayoutReset: () => void;
   onLayoutDone: () => void;
   onEditIncome: () => void;
-  accounts: Account[];
   look: KeeperLook;
-  accountFilter: number | null;
-  onAccountFilter: (accountId: number | null) => void;
 }
 
 export function OverviewScreen({
   plan,
   cards,
-  rows,
-  categories,
   byCategory,
   series,
-  search,
-  loading,
   month,
-  onSearch,
-  onCategory,
-  onImport,
   onSelectMonth,
   onToggleBill,
   onAddBill,
@@ -102,30 +74,16 @@ export function OverviewScreen({
   layoutEditing,
   onLayoutMove,
   onLayoutResize,
-  onLayoutCollapse,
+  onLayoutMode,
   onLayoutReset,
   onLayoutDone,
-  accounts,
   look,
-  accountFilter,
-  onAccountFilter,
 }: OverviewProps) {
   const { lang, t } = useLanguage();
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
   const peak = Math.max(...series.slice(-6).map((point) => point.expenseCents), 1);
   const keptShare =
     plan.incomeCents > 0 ? Math.round((plan.forecastCents / plan.incomeCents) * 100) : 0;
-
-  const groups = useMemo(() => {
-    const map = new Map<string, { rows: TransactionRow[]; total: number }>();
-    for (const row of rows) {
-      const entry = map.get(row.postedOn) ?? { rows: [], total: 0 };
-      entry.rows.push(row);
-      entry.total += row.amountCents;
-      map.set(row.postedOn, entry);
-    }
-    return [...map.entries()].map(([day, value]) => ({ day, ...value }));
-  }, [rows]);
 
   const cardName = (id: CardId) =>
     ({
@@ -165,6 +123,17 @@ export function OverviewScreen({
         return formatCents(series.find((point) => point.month === month)?.expenseCents ?? 0);
     }
   };
+
+  // The button in the card toolbar always names what the next step will do.
+  const modeLabel = (mode: CardMode) =>
+    mode === "compact"
+      ? t("layout.collapse")
+      : mode === "mini"
+        ? t("layout.minimise")
+        : t("layout.expand");
+
+  const modeIcon = (mode: CardMode): IconName =>
+    mode === "compact" ? "chevron-down" : mode === "mini" ? "arrow-down-to-line" : "chevron-up";
 
   const cells: Record<CardId, ReactNode> = {
     forecast: (
@@ -387,29 +356,31 @@ export function OverviewScreen({
           // A card that is minimised becomes a chip one column wide, so it can
           // fill the single column holes the tall cards leave behind. Opening it
           // again brings back the width the user chose.
-          const span = item.collapsed ? 1 : item.span;
+          const small = item.mode !== "full";
+          const span = small ? 1 : item.span;
+          const target = nextMode(item.mode);
           return (
           <div
             key={item.id}
-            className={`grid-cell span-${span}${item.id === "bills" ? " natural" : ""}${item.collapsed ? " is-collapsed" : ""}`}
+            className={`grid-cell span-${span}${item.id === "bills" ? " natural" : ""}`}
             data-card={item.id}
             style={{
               gridColumn: `span ${span}`,
               gridRowEnd: `span ${rowSpans[item.id] ?? 1}`,
             }}
           >
-            {item.collapsed ? (
+            {small ? (
               <button
                 type="button"
-                className="collapsed-card"
-                onClick={() => onLayoutCollapse(item.id)}
+                className={item.mode === "mini" ? "collapsed-card is-mini" : "collapsed-card"}
+                onClick={() => onLayoutMode(item.id, "full")}
                 title={t("layout.expand")}
                 aria-label={`${cardName(item.id)} · ${t("layout.expand")}`}
               >
                 <span className="collapsed-card-title">{cardName(item.id)}</span>
                 <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
                 <span className="collapse-trigger" aria-hidden="true">
-                  <Icon name="chevron-down" size={16} />
+                  <Icon name="chevron-down" size={item.mode === "mini" ? 13 : 16} />
                 </span>
               </button>
             ) : (
@@ -434,7 +405,7 @@ export function OverviewScreen({
                   <Icon name="chevron-down" size={14} />
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
-                {item.collapsed ? null : (
+                {small ? null : (
                   <>
                     <button
                       type="button"
@@ -457,11 +428,11 @@ export function OverviewScreen({
                 )}
                 <button
                   type="button"
-                  aria-label={item.collapsed ? t("layout.expand") : t("layout.collapse")}
-                  title={item.collapsed ? t("layout.expand") : t("layout.collapse")}
-                  onClick={() => onLayoutCollapse(item.id)}
+                  aria-label={modeLabel(target)}
+                  title={modeLabel(target)}
+                  onClick={() => onLayoutMode(item.id, target)}
                 >
-                  <Icon name={item.collapsed ? "chevron-down" : "chevron-up"} size={14} />
+                  <Icon name={modeIcon(target)} size={14} />
                 </button>
               </div>
             ) : null}
@@ -469,21 +440,6 @@ export function OverviewScreen({
           );
         })}
       </div>
-
-      <TransactionsPanel
-        rows={rows}
-        categories={categories}
-        search={search}
-        loading={loading}
-        onSearch={onSearch}
-        onCategory={onCategory}
-        onImport={onImport}
-        groups={groups}
-        accounts={accounts}
-        accountFilter={accountFilter}
-        onAccountFilter={onAccountFilter}
-      />
-
     </section>
   );
 }
