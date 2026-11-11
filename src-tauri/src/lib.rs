@@ -166,6 +166,18 @@ fn apply_rules(app: tauri::AppHandle) -> Result<i64, String> {
 }
 
 #[tauri::command]
+fn budget_status(app: tauri::AppHandle, month: String) -> Result<db::BudgetStatus, String> {
+    let connection = connection(&app)?;
+    db::budget_status(&connection, &month)
+}
+
+#[tauri::command]
+fn save_budget_limit(app: tauri::AppHandle, input: db::BudgetLimitInput) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::save_budget_limit(&connection, &input)
+}
+
+#[tauri::command]
 fn save_category(app: tauri::AppHandle, input: db::CategoryInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::save_category(&connection, &input)
@@ -497,6 +509,8 @@ pub fn run() {
             delete_rule,
             list_rules,
             apply_rules,
+            budget_status,
+            save_budget_limit,
             create_manual_account,
             rename_account,
             archive_account,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Dialog } from "./Dialog";
 import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
+import { monthLabel } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -295,9 +296,27 @@ export function DepositDialog({ goal, onClose, onSave }: { goal: Goal; onClose: 
   );
 }
 
-export function BudgetDialog({ name, budget, onClose, onSave }: { name: string; budget: number | null; onClose: () => void; onSave: (budget: number | null) => void }) {
-  const { t } = useLanguage();
+export function BudgetDialog({
+  name,
+  budget,
+  month,
+  monthly,
+  carryover,
+  onClose,
+  onSave,
+}: {
+  name: string;
+  budget: number | null;
+  month: string;
+  monthly: number | null;
+  carryover: boolean;
+  onClose: () => void;
+  onSave: (budget: number | null, monthly: number | null, carryover: boolean) => void;
+}) {
+  const { lang, t } = useLanguage();
   const [raw, setRaw] = useState(budget == null ? "" : (budget / 100).toFixed(2));
+  const [monthRaw, setMonthRaw] = useState(monthly == null ? "" : (monthly / 100).toFixed(2));
+  const [carry, setCarry] = useState(carryover);
 
   return (
     <Dialog title={t("budget.title", { name })} onClose={onClose}>
@@ -305,13 +324,11 @@ export function BudgetDialog({ name, budget, onClose, onSave }: { name: string; 
         className="dialog-form"
         onSubmit={(event) => {
           event.preventDefault();
-          if (raw.trim() === "") {
-            onSave(null);
-            return;
-          }
-          const cents = parseCents(raw);
-          if (cents <= 0) return;
-          onSave(cents);
+          const base = raw.trim() === "" ? null : parseCents(raw);
+          if (base !== null && base <= 0) return;
+          const only = monthRaw.trim() === "" ? null : parseCents(monthRaw);
+          if (only !== null && only <= 0) return;
+          onSave(base, only, carry);
         }}
       >
         <Field label={t("planner.amount")}>
@@ -323,6 +340,19 @@ export function BudgetDialog({ name, budget, onClose, onSave }: { name: string; 
           />
         </Field>
         <p className="muted small">{t("budget.hint")}</p>
+        <Field label={`${t("budgets.monthly")} · ${monthLabel(month, lang)}`}>
+          <input
+            value={monthRaw}
+            onChange={(event) => setMonthRaw(event.target.value)}
+            inputMode="decimal"
+            placeholder={t("budget.none")}
+          />
+        </Field>
+        <p className="muted small">{t("budgets.monthlyHint", { month: monthLabel(month, lang) })}</p>
+        <label className="check">
+          <input type="checkbox" checked={carry} onChange={(event) => setCarry(event.target.checked)} />
+          {t("budgets.carryover")}
+        </label>
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" className="primary">{t("common.save")}</button>

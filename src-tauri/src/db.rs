@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 12;
+pub const SCHEMA_VERSION: i64 = 13;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -389,8 +389,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v11(&connection)?;
         write_version(&connection, 11)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 12 {
         migrate_to_v12(&connection)?;
+        write_version(&connection, 12)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v13(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -505,6 +509,31 @@ create table if not exists csv_profiles (
     deleted_at    text
 );
 "#;
+
+/// v12 to v13: monthly budget rows. A row overrides the category's base cap
+/// for one month (`category_id` null is the whole-month cap); `carryover`
+/// lets the unused part roll forward. Limits are the only thing stored —
+/// spent, leftover and pace are always computed on read.
+const NEW_TABLES_V13: &str = r#"
+create table if not exists budgets (
+    id            integer primary key,
+    uid           text    not null unique,
+    month         text    not null,
+    category_id   integer,
+    limit_cents   integer not null,
+    carryover     integer not null default 0,
+    created_at    text    not null,
+    updated_at    text    not null,
+    unique (month, category_id)
+);
+"#;
+
+/// v12 to v13: per-month budget overrides plus the whole-month cap.
+fn migrate_to_v13(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V13)
+        .map_err(|problem| problem.to_string())
+}
 
 /// v11 to v12: auto-categorization rules. Each rule names a substring plus
 /// an optional amount window; the predicate mirrors `src/domain/rules.ts`
@@ -1513,6 +1542,287 @@ pub fn apply_rules(connection: &mut Connection) -> Result<i64, String> {
     let affected = apply_rules_in(&transaction)?;
     transaction.commit().map_err(|problem| problem.to_string())?;
     Ok(affected)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BudgetLimitInput {
+    pub month: String,
+    pub category_id: Option<i64>,
+    pub limit_cents: Option<i64>,
+    pub carryover: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BudgetLine {
+    pub category_id: Option<i64>,
+    pub name: String,
+    pub color: String,
+    pub limit_cents: i64,
+    pub overridden: bool,
+    pub carryover: bool,
+    pub carry_in_cents: i64,
+    pub effective_cents: i64,
+    pub spent_cents: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BudgetStatus {
+    pub month: String,
+    pub global: Option<BudgetLine>,
+    pub lines: Vec<BudgetLine>,
+}
+
+/// Writes one monthly row. A null limit deletes the row, falling back to the
+/// base cap (or no cap). Overrides live on top-level categories only, because
+/// spending rolls up to them; the whole-month cap is a single row enforced
+/// here, since SQLite treats every NULL as distinct under UNIQUE.
+pub fn save_budget_limit(connection: &Connection, input: &BudgetLimitInput) -> Result<(), String> {
+    check_month(&input.month)?;
+    if let Some(limit) = input.limit_cents {
+        if limit <= 0 {
+            return Err("budget limit must be positive".to_string());
+        }
+    }
+    if let Some(category_id) = input.category_id {
+        let parent: Option<Option<i64>> = connection
+            .query_row(
+                "select parent_id from categories where id = ?1 and deleted_at is null",
+                params![category_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?
+            .ok_or_else(|| format!("category {category_id} does not exist"))?;
+        if parent.is_some() {
+            return Err("monthly limits live on top-level categories".to_string());
+        }
+    }
+
+    let stamp = Utc::now().to_rfc3339();
+    if input.limit_cents.is_none() {
+        connection
+            .execute(
+                "delete from budgets where month = ?1 and ((?2 is null and category_id is null) or category_id = ?2)",
+                params![input.month, input.category_id],
+            )
+            .map_err(|problem| problem.to_string())?;
+        return Ok(());
+    }
+    let limit = input.limit_cents.unwrap_or(0);
+    if input.category_id.is_none() {
+        connection
+            .execute(
+                "delete from budgets where month = ?1 and category_id is null",
+                params![input.month],
+            )
+            .map_err(|problem| problem.to_string())?;
+    }
+    connection
+        .execute(
+            "insert into budgets (uid, month, category_id, limit_cents, carryover, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5)
+             on conflict (month, category_id) do update
+             set limit_cents = excluded.limit_cents, carryover = excluded.carryover,
+                 updated_at = excluded.updated_at",
+            params![
+                input.month,
+                input.category_id,
+                limit,
+                input.carryover as i64,
+                stamp
+            ],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
+struct MonthRow {
+    limit: i64,
+    carryover: bool,
+}
+
+fn budget_row_of(
+    connection: &Connection,
+    month: &str,
+    category_id: Option<i64>,
+) -> Result<Option<MonthRow>, String> {
+    connection
+        .query_row(
+            "select limit_cents, carryover from budgets
+             where month = ?1 and ((?2 is null and category_id is null) or category_id = ?2)",
+            params![month, category_id],
+            |row| {
+                Ok(MonthRow {
+                    limit: row.get(0)?,
+                    carryover: row.get::<_, i64>(1)? != 0,
+                })
+            },
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())
+}
+
+fn month_key_of(month: &str, delta: i32) -> Result<String, String> {
+    let end = NaiveDate::parse_from_str(&format!("{month}-01"), "%Y-%m-%d")
+        .map_err(|problem| problem.to_string())?;
+    let shifted = if delta >= 0 {
+        end.checked_add_months(Months::new(delta as u32))
+    } else {
+        end.checked_sub_months(Months::new((-delta) as u32))
+    };
+    shifted
+        .map(|date| date.format("%Y-%m").to_string())
+        .ok_or_else(|| "month out of range".to_string())
+}
+
+fn spent_map_of(connection: &Connection, month: &str) -> Result<std::collections::HashMap<Option<i64>, i64>, String> {
+    let mut map = std::collections::HashMap::new();
+    for total in category_totals(connection, month)? {
+        map.insert(total.category_id, total.total_cents);
+    }
+    Ok(map)
+}
+
+/// Leftover that flows into `month`: the previous month's unused effective
+/// cap, when either side opted into carryover. The previous effective cap is
+/// itself recursive, bounded twelve months back so history cannot loop.
+fn carry_into(
+    connection: &Connection,
+    month: &str,
+    category_id: Option<i64>,
+    base: Option<i64>,
+    spent: &std::collections::HashMap<String, std::collections::HashMap<Option<i64>, i64>>,
+    depth: u32,
+) -> Result<i64, String> {
+    if depth > 12 {
+        return Ok(0);
+    }
+    let previous = month_key_of(month, -1)?;
+    let current_row = budget_row_of(connection, month, category_id)?;
+    let previous_row = budget_row_of(connection, &previous, category_id)?;
+    let pulls = current_row.as_ref().is_some_and(|row| row.carryover)
+        || previous_row.as_ref().is_some_and(|row| row.carryover);
+    if !pulls {
+        return Ok(0);
+    }
+    let previous_limit = previous_row.map(|row| row.limit).or(base).unwrap_or(0);
+    if previous_limit <= 0 {
+        return Ok(0);
+    }
+    let previous_spent = spent
+        .get(&previous)
+        .and_then(|map| map.get(&category_id))
+        .copied()
+        .unwrap_or(0);
+    let previous_carry =
+        carry_into(connection, &previous, category_id, base, spent, depth + 1)?;
+    Ok((previous_limit + previous_carry - previous_spent).max(0))
+}
+
+fn line_of(
+    connection: &Connection,
+    month: &str,
+    category_id: Option<i64>,
+    name: String,
+    color: String,
+    base: Option<i64>,
+    spent: &std::collections::HashMap<String, std::collections::HashMap<Option<i64>, i64>>,
+    global_spent: i64,
+    spent_now: &std::collections::HashMap<Option<i64>, i64>,
+) -> Result<Option<BudgetLine>, String> {
+    let row = budget_row_of(connection, month, category_id)?;
+    let limit = match (row.as_ref().map(|entry| entry.limit), base) {
+        (Some(value), _) | (None, Some(value)) => value,
+        (None, None) => return Ok(None),
+    };
+    let carryover = row.as_ref().is_some_and(|entry| entry.carryover);
+    let carry_in = carry_into(connection, month, category_id, base, spent, 0)?;
+    let spent_cents = if category_id.is_none() {
+        global_spent
+    } else {
+        spent_now.get(&category_id).copied().unwrap_or(0)
+    };
+    Ok(Some(BudgetLine {
+        category_id,
+        name,
+        color,
+        limit_cents: limit,
+        overridden: row.is_some(),
+        carryover,
+        carry_in_cents: carry_in,
+        effective_cents: limit + carry_in,
+        spent_cents,
+    }))
+}
+
+/// Every cap that applies to `month`, with what was already spent against it.
+/// Limits come from the monthly row or fall back to the base cap; spending
+/// reuses the netted category totals, so refunds and transfers behave here
+/// exactly like they do on the dashboard.
+pub fn budget_status(connection: &Connection, month: &str) -> Result<BudgetStatus, String> {
+    check_month(month)?;
+    // Carryover looks backwards, so the spent maps cover a trailing year.
+    let mut spent = std::collections::HashMap::new();
+    for back in 0..13 {
+        let key = month_key_of(month, -(back as i32))?;
+        spent.insert(key.clone(), spent_map_of(connection, &key)?);
+    }
+    let spent_now = spent.get(month).cloned().unwrap_or_default();
+    let global_spent = month_totals(connection, month)?.expense_cents;
+
+    let global = line_of(
+        connection,
+        month,
+        None,
+        String::new(),
+        "#8b8798".to_string(),
+        None,
+        &spent,
+        global_spent,
+        &spent_now,
+    )?;
+
+    let mut roots: Vec<(i64, String, String, Option<i64>)> = Vec::new();
+    let mut statement = connection
+        .prepare(
+            "select c.id, c.name, c.color, c.budget_cents
+             from categories c
+             where c.parent_id is null and c.deleted_at is null and c.archived_at is null
+               and (c.budget_cents is not null
+                    or exists (select 1 from budgets b
+                               where b.month = ?1 and b.category_id = c.id))
+             order by c.sort_order, c.name",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let fetched = statement
+        .query_map(params![month], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .map_err(|problem| problem.to_string())?;
+    for entry in fetched {
+        roots.push(entry.map_err(|problem| problem.to_string())?);
+    }
+    let mut lines = Vec::new();
+    for (id, name, color, base) in roots {
+        if let Some(line) = line_of(
+            connection,
+            month,
+            Some(id),
+            name,
+            color,
+            base,
+            &spent,
+            global_spent,
+            &spent_now,
+        )? {
+            lines.push(line);
+        }
+    }
+
+    Ok(BudgetStatus { month: month.to_string(), global, lines })
 }
 
 /// Imports a bank CSV into one account. Rows carry no FITID, so the dedupe
@@ -4074,6 +4384,160 @@ mod tests {
             .expect("should list");
         assert_eq!(legs.len(), 2);
         assert!(legs.iter().all(|row| row.category_id.is_none()));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    fn budget_category(connection: &Connection, name: &str) -> i64 {
+        save_category(
+            connection,
+            &CategoryInput {
+                id: None,
+                name: name.into(),
+                kind: "expense".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the category")
+    }
+
+    fn spend(
+        connection: &Connection,
+        account: i64,
+        category: i64,
+        posted_on: &str,
+        amount_cents: i64,
+    ) {
+        save_manual_transaction(
+            connection,
+            &ManualInput {
+                account_id: account,
+                posted_on: posted_on.to_string(),
+                amount_cents,
+                description: "Compra".to_string(),
+                category_id: Some(category),
+                notes: String::new(),
+            },
+        )
+        .expect("should spend");
+    }
+
+    #[test]
+    fn budget_status_uses_base_caps_and_monthly_overrides() {
+        let path = temporary_database("budget-status");
+        let connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let food = budget_category(&connection, "Comida");
+        set_category_budget(&connection, food, Some(10000)).expect("should set the base cap");
+        spend(&connection, account, food, "2024-03-05", -3000);
+
+        let status = budget_status(&connection, "2024-03").expect("should load");
+        assert_eq!(status.lines.len(), 1);
+        let line = &status.lines[0];
+        assert_eq!(line.limit_cents, 10000);
+        assert!(!line.overridden);
+        assert_eq!(line.effective_cents, 10000);
+        assert_eq!(line.spent_cents, 3000);
+        assert!(status.global.is_none());
+
+        save_budget_limit(
+            &connection,
+            &BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(food), limit_cents: Some(5000), carryover: false },
+        )
+        .expect("should override");
+        let status = budget_status(&connection, "2024-03").expect("should reload");
+        assert_eq!(status.lines[0].limit_cents, 5000);
+        assert!(status.lines[0].overridden);
+
+        // A null limit deletes the row: the base cap shows through again.
+        save_budget_limit(
+            &connection,
+            &BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(food), limit_cents: None, carryover: false },
+        )
+        .expect("should clear the override");
+        assert!(!budget_status(&connection, "2024-03").expect("should reload").lines[0].overridden);
+
+        // The whole-month cap is one row: saving twice keeps a single cap.
+        save_budget_limit(
+            &connection,
+            &BudgetLimitInput { month: "2024-03".to_string(), category_id: None, limit_cents: Some(50000), carryover: false },
+        )
+        .expect("should save the global cap");
+        save_budget_limit(
+            &connection,
+            &BudgetLimitInput { month: "2024-03".to_string(), category_id: None, limit_cents: Some(40000), carryover: true },
+        )
+        .expect("should replace the global cap");
+        let status = budget_status(&connection, "2024-03").expect("should reload");
+        let global = status.global.expect("should have a global cap");
+        assert_eq!(global.limit_cents, 40000);
+        assert!(global.carryover);
+        assert_eq!(global.spent_cents, 3000);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn budget_carryover_pulls_last_month_leftover() {
+        let path = temporary_database("budgets-carry");
+        let connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let food = budget_category(&connection, "Comida");
+        set_category_budget(&connection, food, Some(10000)).expect("should set the base cap");
+        spend(&connection, account, food, "2024-02-10", -6000);
+        save_budget_limit(
+            &connection,
+            &BudgetLimitInput { month: "2024-02".to_string(), category_id: Some(food), limit_cents: Some(10000), carryover: true },
+        )
+        .expect("should enable carryover");
+
+        let status = budget_status(&connection, "2024-03").expect("should load");
+        // Envelope math: January left its full base cap unused, February spent
+        // 6000 of its 20000 available, so March holds 10000 + 14000. Budgeted
+        // Jan-Mar (30000) minus spent (6000) equals available (24000).
+        assert_eq!(status.lines[0].carry_in_cents, 14000);
+        assert_eq!(status.lines[0].effective_cents, 24000);
+
+        // Without carryover on either side, nothing rolls forward.
+        save_budget_limit(
+            &connection,
+            &BudgetLimitInput { month: "2024-02".to_string(), category_id: Some(food), limit_cents: Some(10000), carryover: false },
+        )
+        .expect("should disable carryover");
+        assert_eq!(budget_status(&connection, "2024-03").expect("should reload").lines[0].carry_in_cents, 0);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn budget_limits_refuse_nonsense() {
+        let path = temporary_database("budgets-guards");
+        let connection = open(&path).expect("should open");
+        let food = budget_category(&connection, "Comida");
+        let child = save_category(
+            &connection,
+            &CategoryInput {
+                id: None, name: "Mercado".into(), kind: "expense".into(), color: "#000".into(),
+                parent_id: Some(food), emoji: String::new(), sort_order: 0,
+            },
+        )
+        .expect("should save the child");
+        let good = BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(food), limit_cents: Some(1000), carryover: false };
+        assert!(save_budget_limit(&connection, &good).is_ok());
+        for bad in [
+            BudgetLimitInput { month: "março".to_string(), category_id: Some(food), limit_cents: Some(1000), carryover: false },
+            BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(food), limit_cents: Some(0), carryover: false },
+            BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(food), limit_cents: Some(-5), carryover: false },
+            BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(999_999), limit_cents: Some(1000), carryover: false },
+            // Children roll up, so only top-level categories take a monthly cap.
+            BudgetLimitInput { month: "2024-03".to_string(), category_id: Some(child), limit_cents: Some(1000), carryover: false },
+        ] {
+            assert!(save_budget_limit(&connection, &bad).is_err());
+        }
+        assert!(budget_status(&connection, "março").is_err());
 
         let _ = std::fs::remove_file(&path);
     }

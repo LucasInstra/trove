@@ -100,6 +100,31 @@ export interface RuleInput {
   priority: number;
 }
 
+export interface BudgetLine {
+  categoryId: number | null;
+  name: string;
+  color: string;
+  limitCents: number;
+  overridden: boolean;
+  carryover: boolean;
+  carryInCents: number;
+  effectiveCents: number;
+  spentCents: number;
+}
+
+export interface BudgetStatus {
+  month: string;
+  global: BudgetLine | null;
+  lines: BudgetLine[];
+}
+
+export interface BudgetLimitInput {
+  month: string;
+  categoryId: number | null;
+  limitCents: number | null;
+  carryover: boolean;
+}
+
 export interface CategoryInput {
   id: number | null;
   name: string;
@@ -423,6 +448,8 @@ export const api = {
   deleteRule: (id: number) => invoke<void>("delete_rule", { id }),
   listRules: () => invoke<Rule[]>("list_rules"),
   applyRules: () => invoke<number>("apply_rules"),
+  budgetStatus: (month: string) => invoke<BudgetStatus>("budget_status", { month }),
+  saveBudgetLimit: (input: BudgetLimitInput) => invoke<void>("save_budget_limit", { input }),
   createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
   renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
   archiveAccount: (id: number) => invoke<void>("archive_account", { id }),

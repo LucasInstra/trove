@@ -27,6 +27,8 @@ import type {
   Account,
   Bill,
   BillInput,
+  BudgetLimitInput,
+  BudgetStatus,
   CardInput,
   CardMeta,
   Category,
@@ -117,7 +119,7 @@ type DialogState =
   | { kind: "goal"; goal: Goal | null }
   | { kind: "debt"; debt: Debt | null }
   | { kind: "deposit"; goal: Goal }
-  | { kind: "budget"; id: number; name: string; budget: number | null }
+  | { kind: "budget"; id: number; name: string; budget: number | null; monthly: number | null; carryover: boolean; overridden: boolean }
   | { kind: "manual"; entry: TransactionRow | null }
   | { kind: "ceiling" }
   | null;
@@ -135,6 +137,7 @@ export function App() {
   const [byCategory, setByCategory] = useState<CategoryTotal[]>([]);
   const [series, setSeries] = useState<MonthPoint[]>([]);
   const [matrix, setMatrix] = useState<CategoryMonth[]>([]);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
@@ -197,7 +200,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -207,6 +210,7 @@ export function App() {
           api.monthSeries(at, 12),
           api.categoryMonthSeries(at, 12),
           api.plannerState(at),
+          api.budgetStatus(at).catch(() => null),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
@@ -221,6 +225,7 @@ export function App() {
       setSeries(nextSeries);
       setMatrix(nextMatrix);
       setPlanner(nextPlanner);
+      setBudgetStatus(nextBudgetStatus);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
       setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
@@ -463,11 +468,45 @@ export function App() {
     }
   };
 
-  const saveBudget = async (id: number, budget: number | null) => {
+  const saveBudget = async (
+    id: number,
+    budget: number | null,
+    monthly: number | null,
+    carryover: boolean,
+  ) => {
+    if (!month) return;
     try {
       await api.setCategoryBudget(id, budget);
+      const input: BudgetLimitInput = {
+        month,
+        categoryId: id,
+        limitCents: monthly,
+        carryover,
+      };
+      await api.saveBudgetLimit(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const openBudgetDialog = (category: { id: number; name: string; budget: number | null }) => {
+    const line = budgetStatus?.lines.find((entry) => entry.categoryId === category.id);
+    setDialog({
+      kind: "budget",
+      ...category,
+      monthly: line?.overridden ? line.limitCents : null,
+      carryover: line?.carryover ?? false,
+      overridden: line?.overridden ?? false,
+    });
+  };
+
+  const saveGlobalBudget = async (limit: number | null, carryover: boolean) => {
+    if (!month) return;
+    try {
+      await api.saveBudgetLimit({ month, categoryId: null, limitCents: limit, carryover });
+      await reload(search, month, accountFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -756,7 +795,7 @@ export function App() {
                 void api.setSetting(`split_settled_${month}`, "1");
               }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
-              onEditBudget={(category) => setDialog({ kind: "budget", ...category })}
+              onEditBudget={(category) => openBudgetDialog(category)}
               housingCategoryId={housingCategoryId}
             />
           ) : null}
@@ -822,9 +861,11 @@ export function App() {
               totals={totals}
               byCategory={byCategory}
               month={month ?? currentMonth()}
+              status={budgetStatus}
               onAddIncome={() => setDialog({ kind: "income", income: null })}
               onEditIncome={(income) => setDialog({ kind: "income", income })}
-              onEditBudget={(category) => setDialog({ kind: "budget", ...category })}
+              onEditBudget={(category) => openBudgetDialog(category)}
+              onSaveGlobal={(limit, carryover) => void saveGlobalBudget(limit, carryover)}
             />
           ) : null}
 
@@ -992,8 +1033,11 @@ export function App() {
         <BudgetDialog
           name={dialog.name}
           budget={dialog.budget}
+          month={month ?? currentMonth()}
+          monthly={dialog.monthly}
+          carryover={dialog.carryover}
           onClose={() => setDialog(null)}
-          onSave={(value) => void saveBudget(dialog.id, value)}
+          onSave={(base, only, carry) => void saveBudget(dialog.id, base, only, carry)}
         />
       ) : null}
 

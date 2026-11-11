@@ -9,13 +9,14 @@ import {
   summarizeCards,
   summarizeGoals,
 } from "../domain/planner";
+import { freeToSpend, paceOf } from "../domain/budgets";
 import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
 import { installmentEndMonth, remainingInstallments } from "../domain/installment";
 import { netWorthCurve } from "../domain/patrimony";
 import { retirementProjection } from "../domain/retirement";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
-import type { Bill, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, Share } from "../lib/api";
+import type { Bill, BudgetStatus, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, Share } from "../lib/api";
 import { formatCents, monthLabel, monthName, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
@@ -848,23 +849,33 @@ export function FlowsScreen({
   totals,
   byCategory,
   month,
+  status,
   onAddIncome,
   onEditIncome,
   onEditBudget,
+  onSaveGlobal,
 }: {
   incomes: Income[];
   totals: MonthTotals | null;
   byCategory: CategoryTotal[];
   month: string;
+  status: BudgetStatus | null;
   onAddIncome: () => void;
   onEditIncome: (income: Income) => void;
   onEditBudget: (category: { id: number; name: string; budget: number | null }) => void;
+  onSaveGlobal: (limit: number | null, carryover: boolean) => void;
 }) {
   const { lang, t } = useLanguage();
   const incomeCents = totals?.incomeCents ?? 0;
   const expenseCents = totals?.expenseCents ?? 0;
   const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
   const peak = Math.max(...ranked.map((item) => item.totalCents), 1);
+  const today = new Date().toISOString().slice(0, 10);
+  const lines = new Map((status?.lines ?? []).map((line) => [line.categoryId, line]));
+  const free = freeToSpend(expenseCents, status?.global?.effectiveCents ?? null);
+  const [capOpen, setCapOpen] = useState(false);
+  const [capRaw, setCapRaw] = useState("");
+  const [capCarry, setCapCarry] = useState(false);
 
   return (
     <section className="screen planner-screen">
@@ -891,6 +902,92 @@ export function FlowsScreen({
           <span className="metric-note">{monthLabel(month, lang)}</span>
         </article>
       </div>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="target" size={15} />
+            </span>
+            <h2>{t("budgets.freeTitle")}</h2>
+          </div>
+          <span className="muted">{monthLabel(month, lang)}</span>
+        </header>
+        {status?.global && free !== null ? (
+          <>
+            <strong className="metric-value">{formatCents(free)}</strong>
+            <span className="muted small">
+              {t("budgets.freeNote", {
+                remaining: formatCents(free),
+                effective: formatCents(status.global.effectiveCents),
+                perDay: formatCents(
+                  paceOf(expenseCents, status.global.effectiveCents, today, month).perDayCents,
+                ),
+              })}
+              {status.global.carryInCents > 0
+                ? ` · ${t("budgets.carryIn", { amount: formatCents(status.global.carryInCents) })}`
+                : null}
+            </span>
+          </>
+        ) : (
+          <>
+            <p className="muted">{t("budgets.noCapHint")}</p>
+            <span className="muted small">{t("budgets.noCap")}</span>
+          </>
+        )}
+        {capOpen ? (
+          <form
+            className="row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (capRaw.trim() === "") {
+                onSaveGlobal(null, false);
+                setCapOpen(false);
+                return;
+              }
+              const cents = parseCents(capRaw);
+              if (cents <= 0) return;
+              onSaveGlobal(cents, capCarry);
+              setCapOpen(false);
+            }}
+          >
+            <input
+              value={capRaw}
+              onChange={(event) => setCapRaw(event.target.value)}
+              inputMode="decimal"
+              placeholder={t("budget.none")}
+              aria-label={t("budgets.setCap")}
+            />
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={capCarry}
+                onChange={(event) => setCapCarry(event.target.checked)}
+              />
+              {t("budgets.carryover")}
+            </label>
+            <button type="submit" className="primary">
+              {t("common.save")}
+            </button>
+          </form>
+        ) : (
+          <div>
+            <button
+              type="button"
+              className="outline-button small-button"
+              onClick={() => {
+                setCapRaw(
+                  status?.global ? (status.global.limitCents / 100).toFixed(2) : "",
+                );
+                setCapCarry(status?.global?.carryover ?? false);
+                setCapOpen(true);
+              }}
+            >
+              {status?.global ? t("budgets.editCap") : t("budgets.setCap")}
+            </button>
+          </div>
+        )}
+      </article>
 
       <article className="card">
         <header className="card-head">
@@ -945,21 +1042,38 @@ export function FlowsScreen({
         ) : (
           <ul className="installment-list">
             {ranked.map((item) => {
-              const over = item.budgetCents != null && item.totalCents > item.budgetCents;
+              const line = item.categoryId != null ? lines.get(item.categoryId) : undefined;
+              const cap = line?.effectiveCents ?? item.budgetCents ?? null;
+              const over = cap != null && item.totalCents > cap;
               const pct =
-                item.budgetCents != null
-                  ? Math.min(100, (item.totalCents / item.budgetCents) * 100)
+                cap != null
+                  ? Math.min(100, (item.totalCents / cap) * 100)
                   : (item.totalCents / peak) * 100;
+              const pace =
+                line != null
+                  ? paceOf(line.spentCents, line.effectiveCents, today, month)
+                  : null;
+              const paceKey =
+                pace?.status === "over"
+                  ? "budgets.paceOver"
+                  : pace?.status === "watch"
+                    ? "budgets.paceWatch"
+                    : pace != null
+                      ? "budgets.paceOk"
+                      : null;
               const row = (
                 <>
                   <div className="installment-head">
                     <span className="installment-name">
                       <span className="dot" style={{ background: item.color }} />
                       {item.name}
+                      {line?.overridden ? (
+                        <em className="pill-soft">{t("budgets.overridden")}</em>
+                      ) : null}
                     </span>
                     <span className={over ? "muted small over" : "muted small"}>
                       {formatCents(item.totalCents)}
-                      {item.budgetCents != null ? ` / ${formatCents(item.budgetCents)}` : null}
+                      {cap != null ? ` / ${formatCents(cap)}` : null}
                     </span>
                   </div>
                   <div className="meter-track slim">
@@ -968,6 +1082,15 @@ export function FlowsScreen({
                       style={{ width: `${Math.max(2, pct)}%` }}
                     />
                   </div>
+                  {paceKey && pace ? (
+                    <span className="muted small">
+                      {t(paceKey)} · {formatCents(pace.remainingCents)} ·{" "}
+                      {t("budgets.perDay", { amount: formatCents(pace.perDayCents) })}
+                      {line && line.carryInCents > 0
+                        ? ` · ${t("budgets.carryIn", { amount: formatCents(line.carryInCents) })}`
+                        : null}
+                    </span>
+                  ) : null}
                 </>
               );
               return (
