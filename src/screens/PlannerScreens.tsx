@@ -11,6 +11,7 @@ import {
 } from "../domain/planner";
 import { freeToSpend, paceOf } from "../domain/budgets";
 import { detectRecurring } from "../domain/recurrence";
+import { buildMonthlyReport } from "../domain/report";
 import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
 import { installmentEndMonth, remainingInstallments } from "../domain/installment";
 import { netWorthCurve } from "../domain/patrimony";
@@ -773,11 +774,26 @@ const HEALTH_TONE: Record<HealthStatus, string> = {
 export function HealthScreen({
   plan,
   byCategory,
+  totals,
+  month,
+  status,
+  history,
 }: {
   plan: MonthPlan;
   byCategory: CategoryTotal[];
+  totals: MonthTotals | null;
+  month: string;
+  status: BudgetStatus | null;
+  history: RecurrenceRow[];
 }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const today = new Date().toISOString().slice(0, 10);
+  const recurring = useMemo(() => detectRecurring(history, month), [history, month]);
+  const report =
+    totals != null
+      ? buildMonthlyReport({ month, todayYmd: today, totals, byCategory, status, recurring })
+      : null;
+  const [copied, setCopied] = useState(false);
   const signals = healthSignals(plan, byCategory);
   const overBudgets = byCategory.filter(
     (item) => item.budgetCents != null && item.totalCents > item.budgetCents,
@@ -841,6 +857,122 @@ export function HealthScreen({
           ))}
         </ul>
       </article>
+
+      {report ? (
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon slate">
+                <Icon name="file-text" size={15} />
+              </span>
+              <h2>{t("report.title")}</h2>
+            </div>
+            <span className="muted">{monthLabel(month, lang)}</span>
+          </header>
+          <div className="installment-head">
+            <span className="installment-name">{t("flow.balance")}</span>
+            <span className="muted small">
+              {t("report.balanceLine", {
+                income: formatCents(report.incomeCents),
+                expense: formatCents(report.expenseCents),
+                balance: formatCents(report.balanceCents),
+              })}
+            </span>
+          </div>
+          <div className="installment-head">
+            <span className="installment-name">{t("report.saved")}</span>
+            <span className="muted small">
+              {report.savingsRatePct !== null
+                ? t("report.savedPct", { percent: report.savingsRatePct })
+                : t("report.noSavings")}
+            </span>
+          </div>
+          {report.top.length > 0 ? (
+            <ul className="installment-list">
+              {report.top.map((item) => (
+                <li key={item.name} className="installment">
+                  <div className="installment-head">
+                    <span className="installment-name">{item.name}</span>
+                    <span className="muted small">
+                      {formatCents(item.totalCents)}
+                      {item.effectiveCents != null ? ` / ${formatCents(item.effectiveCents)}` : null}
+                      {item.pace === "over" ? ` · ${t("budgets.paceOver")}` : null}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {report.freeCents !== null && report.globalEffectiveCents !== null ? (
+            <p className="muted small">
+              {t("report.freeLine", {
+                amount: formatCents(report.freeCents),
+                effective: formatCents(report.globalEffectiveCents),
+              })}
+            </p>
+          ) : null}
+          {report.recurring.length > 0 ? (
+            <ul className="installment-list">
+              {report.recurring.map((charge) => (
+                <li key={`${charge.label}-${charge.amountCents}`} className="installment">
+                  <div className="installment-head">
+                    <span className="installment-name">{charge.label}</span>
+                    <span className={charge.status === "overdue" ? "muted small over" : "muted small"}>
+                      {t(`recurrence.${charge.status}`, {
+                        month: monthLabel(charge.nextMonth, lang),
+                        day: charge.dayOfMonth,
+                      })}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="row">
+            <button
+              type="button"
+              className="outline-button small-button"
+              onClick={() => {
+                const lines = [
+                  `${monthLabel(month, lang)} · ${t("report.title")}`,
+                  t("report.balanceLine", {
+                    income: formatCents(report.incomeCents),
+                    expense: formatCents(report.expenseCents),
+                    balance: formatCents(report.balanceCents),
+                  }),
+                  report.savingsRatePct !== null
+                    ? t("report.savedPct", { percent: report.savingsRatePct })
+                    : t("report.noSavings"),
+                  ...report.top.map(
+                    (item) =>
+                      `${item.name}: ${formatCents(item.totalCents)}${item.effectiveCents != null ? ` / ${formatCents(item.effectiveCents)}` : ""}`,
+                  ),
+                  ...(report.freeCents !== null && report.globalEffectiveCents !== null
+                    ? [
+                        t("report.freeLine", {
+                          amount: formatCents(report.freeCents),
+                          effective: formatCents(report.globalEffectiveCents),
+                        }),
+                      ]
+                    : []),
+                ];
+                const text = lines.join("\n");
+                const done = () => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                };
+                if (navigator.clipboard?.writeText) {
+                  void navigator.clipboard.writeText(text).then(done).catch(done);
+                } else {
+                  done();
+                }
+              }}
+            >
+              {copied ? t("report.copied") : t("report.copy")}
+            </button>
+          </div>
+        </article>
+      ) : null}
     </section>
   );
 }

@@ -934,7 +934,16 @@ export function App() {
             />
           ) : null}
 
-          {route === "health" ? <HealthScreen plan={plan} byCategory={byCategory} /> : null}
+          {route === "health" ? (
+            <HealthScreen
+              plan={plan}
+              byCategory={byCategory}
+              totals={totals}
+              month={month ?? currentMonth()}
+              status={budgetStatus}
+              history={recurrence}
+            />
+          ) : null}
 
           {route === "debts" ? (
             <DebtsScreen

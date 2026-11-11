@@ -452,6 +452,15 @@ const en: Dictionary = {
   "forecast.title": "Cash forecast",
   "forecast.note": "{balance} by {end}, repeating the trailing 6-month average.",
 
+  "report.title": "Month report",
+  "report.copy": "Copy",
+  "report.copied": "Copied",
+  "report.saved": "Saved",
+  "report.savedPct": "{percent}% saved",
+  "report.noSavings": "no income this month",
+  "report.balanceLine": "in {income} · out {expense} · net {balance}",
+  "report.freeLine": "Free: {amount} of {effective}",
+
   "transfer.title": "Transfer between accounts",
   "transfer.new": "Transfer",
   "transfer.from": "From",
@@ -981,6 +990,15 @@ const pt: Dictionary = {
 
   "forecast.title": "Previsão de caixa",
   "forecast.note": "{balance} até {end}, repetindo a média dos últimos 6 meses.",
+
+  "report.title": "Relatório do mês",
+  "report.copy": "Copiar",
+  "report.copied": "Copiado",
+  "report.saved": "Guardado",
+  "report.savedPct": "{percent}% guardado",
+  "report.noSavings": "sem renda no mês",
+  "report.balanceLine": "entrou {income} · saiu {expense} · resultado {balance}",
+  "report.freeLine": "Livre: {amount} de {effective}",
 
   "transfer.title": "Transferir entre contas",
   "transfer.new": "Transferir",
