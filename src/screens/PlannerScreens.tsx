@@ -9,7 +9,7 @@ import {
 import { netWorthCurve } from "../domain/patrimony";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
-import type { Bill, CardMeta, Category, Goal, Income, MonthPoint, Person, Share } from "../lib/api";
+import type { Bill, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, Share } from "../lib/api";
 import { formatCents, monthLabel, monthName, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
@@ -603,6 +603,163 @@ export function PatrimonyScreen({
             </svg>
             <p className="muted small">{t("patrimony.note")}</p>
           </>
+        )}
+      </article>
+    </section>
+  );
+}
+
+export function FlowsScreen({
+  incomes,
+  totals,
+  byCategory,
+  month,
+  onAddIncome,
+  onEditIncome,
+  onEditBudget,
+}: {
+  incomes: Income[];
+  totals: MonthTotals | null;
+  byCategory: CategoryTotal[];
+  month: string;
+  onAddIncome: () => void;
+  onEditIncome: (income: Income) => void;
+  onEditBudget: (category: { id: number; name: string; budget: number | null }) => void;
+}) {
+  const { lang, t } = useLanguage();
+  const incomeCents = totals?.incomeCents ?? 0;
+  const expenseCents = totals?.expenseCents ?? 0;
+  const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
+  const peak = Math.max(...ranked.map((item) => item.totalCents), 1);
+
+  return (
+    <section className="screen planner-screen">
+      <ScreenHeader
+        eyebrow={t("nav.strategyGroup")}
+        title={t("nav.flows")}
+        description={t("flows.description")}
+        action={{ label: t("planner.addIncome"), onClick: onAddIncome }}
+      />
+      <div className="planner-metrics">
+        <article className="card metric-card metric-card-primary">
+          <span className="metric-label">{t("flow.in")}</span>
+          <strong className="metric-value">{formatCents(incomeCents)}</strong>
+          <span className="metric-note">{t("planner.incomeSources", { count: incomes.filter((entry) => entry.active).length })}</span>
+        </article>
+        <article className="card metric-card">
+          <span className="metric-label">{t("flow.out")}</span>
+          <strong className="metric-value">{formatCents(expenseCents)}</strong>
+          <span className="metric-note">{monthLabel(month, lang)}</span>
+        </article>
+        <article className="card metric-card metric-card-secondary">
+          <span className="metric-label">{t("flow.balance")}</span>
+          <strong className="metric-value">{formatCents(incomeCents - expenseCents)}</strong>
+          <span className="metric-note">{monthLabel(month, lang)}</span>
+        </article>
+      </div>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="trend" size={15} />
+            </span>
+            <h2>{t("flows.incomeTitle")}</h2>
+          </div>
+        </header>
+        {incomes.length === 0 ? (
+          <EmptyList label={t("planner.noIncome")} action={onAddIncome} />
+        ) : (
+          <ul className="installment-list">
+            {incomes.map((income) => (
+              <li key={income.id} className="installment">
+                <div className="installment-head">
+                  <span className="installment-name">{income.name}</span>
+                  <span className="muted small">{formatCents(income.amountCents)}</span>
+                </div>
+                <span className="muted small">
+                  {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
+                  {income.active ? t("planner.active") : t("planner.inactive")}
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    className="outline-button small-button"
+                    onClick={() => onEditIncome(income)}
+                  >
+                    {t("common.edit")}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="ledger" size={15} />
+            </span>
+            <h2>{t("flows.byCategory")}</h2>
+          </div>
+          <span className="muted">{monthLabel(month, lang)}</span>
+        </header>
+        {ranked.length === 0 ? (
+          <p className="card-empty">{t("ledger.noSpending")}</p>
+        ) : (
+          <ul className="installment-list">
+            {ranked.map((item) => {
+              const over = item.budgetCents != null && item.totalCents > item.budgetCents;
+              const pct =
+                item.budgetCents != null
+                  ? Math.min(100, (item.totalCents / item.budgetCents) * 100)
+                  : (item.totalCents / peak) * 100;
+              const row = (
+                <>
+                  <div className="installment-head">
+                    <span className="installment-name">
+                      <span className="dot" style={{ background: item.color }} />
+                      {item.name}
+                    </span>
+                    <span className={over ? "muted small over" : "muted small"}>
+                      {formatCents(item.totalCents)}
+                      {item.budgetCents != null ? ` / ${formatCents(item.budgetCents)}` : null}
+                    </span>
+                  </div>
+                  <div className="meter-track slim">
+                    <div
+                      className={over ? "meter-fill over" : "meter-fill"}
+                      style={{ width: `${Math.max(2, pct)}%` }}
+                    />
+                  </div>
+                </>
+              );
+              return (
+                <li key={item.categoryId ?? item.name} className="installment">
+                  {item.categoryId == null ? (
+                    row
+                  ) : (
+                    <button
+                      type="button"
+                      className="legend-edit"
+                      onClick={() =>
+                        onEditBudget({
+                          id: item.categoryId as number,
+                          name: item.name,
+                          budget: item.budgetCents,
+                        })
+                      }
+                      aria-label={t("budget.title", { name: item.name })}
+                    >
+                      {row}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </article>
     </section>

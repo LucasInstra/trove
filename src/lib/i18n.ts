@@ -196,6 +196,7 @@ const en: Dictionary = {
   "nav.house": "Home",
   "nav.income": "Income",
   "nav.patrimony": "Net worth",
+  "nav.flows": "Income & spending",
   "nav.strategyGroup": "Strategy",
   "nav.import": "Import",
   "nav.settings": "Settings",
@@ -204,6 +205,10 @@ const en: Dictionary = {
   "patrimony.curve": "Accumulated balance",
   "patrimony.accumulated": "Accumulated",
   "patrimony.note": "Period estimate: what entered minus what left, plus goal reserves.",
+
+  "flows.description": "Where the money comes from and where it goes, this month.",
+  "flows.incomeTitle": "Income sources",
+  "flows.byCategory": "Spending by category",
 
   "planner.section": "Planning",
   "planner.cardsDescription": "Statements, available credit and limits for this month.",
@@ -535,6 +540,7 @@ const pt: Dictionary = {
   "nav.house": "Casa",
   "nav.income": "Renda",
   "nav.patrimony": "Patrimônio",
+  "nav.flows": "Receitas e gastos",
   "nav.strategyGroup": "Visão estratégica",
   "nav.import": "Importar",
   "nav.settings": "Ajustes",
@@ -543,6 +549,10 @@ const pt: Dictionary = {
   "patrimony.curve": "Saldo acumulado",
   "patrimony.accumulated": "Acumulado",
   "patrimony.note": "Estimativa do período: o que entrou menos o que saiu, mais as reservas em metas.",
+
+  "flows.description": "De onde o dinheiro vem e para onde vai, neste mês.",
+  "flows.incomeTitle": "Fontes de renda",
+  "flows.byCategory": "Gastos por categoria",
 
   "planner.section": "Planejamento",
   "planner.cardsDescription": "Faturas, crédito disponível e limites deste mês.",

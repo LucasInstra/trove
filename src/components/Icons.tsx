@@ -34,6 +34,7 @@ export type IconName =
   | "chevron-up"
   | "grip"
   | "bank"
+  | "swap"
   | "minus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -190,6 +191,13 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="m3 9.5 9-5.5 9 5.5" />
       <path d="M5.5 9.5V18M9.75 9.5V18M14.25 9.5V18M18.5 9.5V18" />
       <path d="M3 18.5h18M3 21h18" />
+    </>
+  ),
+  // Placeholder arrows until the final glyphs arrive: in on top, out below.
+  swap: (
+    <>
+      <path d="M7 4v13m0 0-3.5-3.5M7 17l3.5-3.5" />
+      <path d="M17 20V7m0 0 3.5 3.5M17 7l-3.5 3.5" />
     </>
   ),
   minus: <path d="M4.5 12h15" />,

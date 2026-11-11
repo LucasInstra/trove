@@ -20,7 +20,7 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { CardsScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
+import { CardsScreen, FlowsScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -71,6 +71,7 @@ type Route =
   | "house"
   | "income"
   | "patrimony"
+  | "flows"
   | "import"
   | "settings";
 
@@ -88,6 +89,7 @@ const PLANNING: Array<{ route: Route; icon: IconName }> = [
 ];
 
 const STRATEGY: Array<{ route: Route; icon: IconName }> = [
+  { route: "flows", icon: "swap" },
   { route: "patrimony", icon: "bank" },
 ];
 
@@ -714,6 +716,18 @@ export function App() {
               plan={plan}
               series={series}
               month={month ?? currentMonth()}
+            />
+          ) : null}
+
+          {route === "flows" ? (
+            <FlowsScreen
+              incomes={planner.incomes}
+              totals={totals}
+              byCategory={byCategory}
+              month={month ?? currentMonth()}
+              onAddIncome={() => setDialog({ kind: "income", income: null })}
+              onEditIncome={(income) => setDialog({ kind: "income", income })}
+              onEditBudget={(category) => setDialog({ kind: "budget", ...category })}
             />
           ) : null}
 
