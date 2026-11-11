@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 8;
+pub const SCHEMA_VERSION: i64 = 9;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -368,8 +368,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v7(&connection)?;
         write_version(&connection, 7)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 8 {
         migrate_to_v8(&connection)?;
+        write_version(&connection, 8)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v9(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -461,6 +465,26 @@ fn add_column(
 /// v6 to v7: monthly spending targets per category. Null means no target.
 fn migrate_to_v7(connection: &Connection) -> Result<(), String> {
     add_column(connection, "categories", "budget_cents", "integer")
+}
+
+/// v8 to v9: repairs databases stamped 8 without the v8 columns, which can
+/// happen when the version number and the migration land in separate builds.
+/// Every step below is idempotent, so healthy databases pass through
+/// untouched and stuck ones gain exactly what they missed.
+fn migrate_to_v9(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "transactions", "notes", "text not null default ''")?;
+    add_column(connection, "transactions", "origin", "text not null default 'ofx'")?;
+    connection
+        .execute(
+            "update transactions set origin = 'manual' where source = 'manual' and origin = 'ofx'",
+            [],
+        )
+        .map_err(|problem| problem.to_string())?;
+    add_column(connection, "categories", "parent_id", "integer")?;
+    add_column(connection, "categories", "emoji", "text not null default ''")?;
+    add_column(connection, "categories", "sort_order", "integer not null default 0")?;
+    add_column(connection, "categories", "archived_at", "text")?;
+    Ok(())
 }
 
 /// v7 to v8: manual entries grow up, categories grow a tree. Transactions gain
@@ -2301,6 +2325,83 @@ mod tests {
         assert!(has_column(&again, "categories", "emoji").expect("should inspect"));
         assert!(has_column(&again, "categories", "sort_order").expect("should inspect"));
         assert!(has_column(&again, "categories", "archived_at").expect("should inspect"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn reopening_a_database_stamped_ahead_without_its_columns_repairs_it() {
+        // A version stamped without its migration leaves a database the app
+        // cannot query. Reopening must add exactly what is missing.
+        let path = temporary_database("stuck");
+        build_v1_database(&path);
+        {
+            let connection = Connection::open(&path).expect("should open raw");
+            migrate_to_v2(&connection).expect("v2");
+            write_version(&connection, 2).expect("should stamp");
+            migrate_to_v3(&connection).expect("v3");
+            write_version(&connection, 3).expect("should stamp");
+            migrate_to_v4(&connection).expect("v4");
+            write_version(&connection, 4).expect("should stamp");
+            migrate_to_v5(&connection).expect("v5");
+            write_version(&connection, 5).expect("should stamp");
+            migrate_to_v6(&connection).expect("v6");
+            write_version(&connection, 6).expect("should stamp");
+            migrate_to_v7(&connection).expect("v7");
+            write_version(&connection, 8).expect("should stamp ahead");
+        }
+        assert!(!has_column(
+            &Connection::open(&path).expect("should peek"),
+            "transactions",
+            "origin"
+        )
+        .expect("should inspect"));
+
+        let connection = open(&path).expect("should repair on open");
+        let version: String = connection
+            .query_row("select value from settings where key = 'schema_version'", [], |row| {
+                row.get(0)
+            })
+            .expect("should read the version");
+        assert_eq!(version, SCHEMA_VERSION.to_string());
+        assert!(has_column(&connection, "transactions", "notes").expect("should inspect"));
+        assert!(has_column(&connection, "transactions", "origin").expect("should inspect"));
+        assert!(has_column(&connection, "categories", "parent_id").expect("should inspect"));
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.income_cents, 150000);
+        assert_eq!(totals.expense_cents, 2390);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn backfill_marks_source_manual_rows_as_manual_origin() {
+        let path = temporary_database("backfill");
+        let connection = open(&path).expect("should open");
+        connection
+            .execute(
+                "insert into accounts (name, kind, bank_id, acct_id, currency, created_at, uid, updated_at)
+                 values ('Manual', 'checking', '', 'manual-1', 'BRL', '2026-01-01T00:00:00Z', 'u1', '2026-01-01T00:00:00Z')",
+                [],
+            )
+            .expect("should insert the account");
+        connection
+            .execute(
+                "insert into transactions (account_id, posted_on, amount_cents, description, dedupe_key, source, created_at, uid, updated_at, origin)
+                 values (1, '2026-03-05', -100, 'Feira', 'k1', 'manual', '2026-03-05T00:00:00Z', 'u2', '2026-03-05T00:00:00Z', 'ofx')",
+                [],
+            )
+            .expect("should insert a manual row with a stale origin");
+        connection
+            .execute(
+                "update transactions set origin = 'manual' where source = 'manual' and origin = 'ofx'",
+                [],
+            )
+            .expect("should backfill");
+        let origin: String = connection
+            .query_row("select origin from transactions where id = 1", [], |row| row.get(0))
+            .expect("should read the origin");
+        assert_eq!(origin, "manual");
 
         let _ = std::fs::remove_file(&path);
     }

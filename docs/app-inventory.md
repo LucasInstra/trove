@@ -43,7 +43,7 @@ Gráficos hoje: `Donut.tsx` (anel SVG, **não mexer na Fase 3**), `BreakdownBar.
 
 ## 3. Tabelas (16, `src-tauri/src/db.rs`)
 
-Baseline congelada `BASELINE_V1` (db.rs:18-69): `accounts` (:18, unique `(bank_id, acct_id)`), `categories` (:29, sem parent_id/emoji/sort_order/archived_at), `transactions` (:37, sem `notes` nem `origin`; `source` texto livre), `imports` (:56), `settings` (:65). Migrações aditivas e idempotentes até `SCHEMA_VERSION = 7` (db.rs:12), cadeia em db.rs:340-364, nunca editar a baseline.
+Baseline congelada `BASELINE_V1` (db.rs:18-69): `accounts` (:18, unique `(bank_id, acct_id)`), `categories` (:29, sem parent_id/emoji/sort_order/archived_at), `transactions` (:37, sem `notes` nem `origin`; `source` texto livre), `imports` (:56), `settings` (:65). Migrações aditivas e idempotentes até `SCHEMA_VERSION = 9` (db.rs:12), cadeia em db.rs:340-377, nunca editar a baseline. A v9 é também reparo: bancos carimbados à frente das colunas ganham exatamente o que faltava na próxima abertura.
 
 | Tabela | Origem | Colunas-chave |
 |---|---|---|
