@@ -1,4 +1,5 @@
 import { HousingCard, SplitCard } from "../components/PlannerCards";
+import { ScoreCard } from "../components/ScoreCard";
 import { Icon } from "../components/Icons";
 import {
   activeIncomeCount,
@@ -6,6 +7,7 @@ import {
   summarizeCards,
   summarizeGoals,
 } from "../domain/planner";
+import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
 import { netWorthCurve } from "../domain/patrimony";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
@@ -604,6 +606,87 @@ export function PatrimonyScreen({
             <p className="muted small">{t("patrimony.note")}</p>
           </>
         )}
+      </article>
+    </section>
+  );
+}
+
+const HEALTH_TONE: Record<HealthStatus, string> = {
+  ok: "var(--positive)",
+  warn: "var(--primary)",
+  bad: "var(--negative)",
+};
+
+export function HealthScreen({
+  plan,
+  byCategory,
+}: {
+  plan: MonthPlan;
+  byCategory: CategoryTotal[];
+}) {
+  const { t } = useLanguage();
+  const signals = healthSignals(plan, byCategory);
+  const overBudgets = byCategory.filter(
+    (item) => item.budgetCents != null && item.totalCents > item.budgetCents,
+  ).length;
+  const details: Record<string, string> = {
+    bills: t("health.billsDetail", { paid: plan.paidBillIds.length, count: plan.dueBills.length }),
+    margin: t("health.marginDetail", { amount: formatCents(plan.forecastCents) }),
+    reserve: t("health.reserveDetail", { months: reserveMonths(plan) }),
+    housing:
+      plan.housingCents === 0
+        ? t("health.noHousing")
+        : t("health.housingDetail", { percent: Math.round(plan.housingRatioPct) }),
+    budgets:
+      overBudgets === 0 ? t("health.budgetsOk") : t("health.budgetsDetail", { count: overBudgets }),
+  };
+  const titles: Record<string, string> = {
+    bills: t("health.bills"),
+    margin: t("health.margin"),
+    reserve: t("health.reserve"),
+    housing: t("health.housing"),
+    budgets: t("health.budgets"),
+  };
+
+  return (
+    <section className="screen planner-screen">
+      <ScreenHeader
+        eyebrow={t("nav.strategyGroup")}
+        title={t("nav.health")}
+        description={t("health.description")}
+      />
+      <ScoreCard plan={plan} />
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="scale" size={15} />
+            </span>
+            <h2>{t("health.checklist")}</h2>
+          </div>
+        </header>
+        <ul className="installment-list">
+          {signals.map((signal) => (
+            <li key={signal.id} className="installment">
+              <div className="installment-head">
+                <span className="installment-name">
+                  <span className="dot" style={{ background: HEALTH_TONE[signal.status] }} />
+                  {titles[signal.id]}
+                </span>
+                <span className="muted small">{details[signal.id]}</span>
+              </div>
+              <div className="meter-track slim">
+                <div
+                  className="meter-fill"
+                  style={{
+                    width: `${signal.share * 100}%`,
+                    background: HEALTH_TONE[signal.status],
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       </article>
     </section>
   );

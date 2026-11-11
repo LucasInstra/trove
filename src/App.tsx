@@ -20,7 +20,7 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { CardsScreen, FlowsScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
+import { CardsScreen, FlowsScreen, HealthScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -72,6 +72,7 @@ type Route =
   | "income"
   | "patrimony"
   | "flows"
+  | "health"
   | "import"
   | "settings";
 
@@ -91,6 +92,7 @@ const PLANNING: Array<{ route: Route; icon: IconName }> = [
 const STRATEGY: Array<{ route: Route; icon: IconName }> = [
   { route: "flows", icon: "swap" },
   { route: "patrimony", icon: "bank" },
+  { route: "health", icon: "scale" },
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
@@ -730,6 +732,8 @@ export function App() {
               onEditBudget={(category) => setDialog({ kind: "budget", ...category })}
             />
           ) : null}
+
+          {route === "health" ? <HealthScreen plan={plan} byCategory={byCategory} /> : null}
 
           {route === "house" ? (
             <HouseScreen
