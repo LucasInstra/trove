@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
+import { CsvImport } from "../components/CsvImport";
 import { api, type ImportReport, type ImportRow } from "../lib/api";
 import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -12,10 +13,12 @@ export function ImportScreen({
   onImported: () => void;
 }) {
   const { lang, t } = useLanguage();
+  const [tab, setTab] = useState<"ofx" | "csv">("ofx");
   const [reports, setReports] = useState<ImportReport[]>([]);
   const [history, setHistory] = useState<ImportRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [accounts, setAccounts] = useState<Awaited<ReturnType<typeof api.accounts>>>([]);
 
   const refreshHistory = useCallback(() => {
     api
@@ -26,6 +29,10 @@ export function ImportScreen({
 
   useEffect(() => {
     refreshHistory();
+    api
+      .accounts()
+      .then(setAccounts)
+      .catch(() => setAccounts([]));
   }, [refreshHistory]);
 
   const importPaths = useCallback(
@@ -77,8 +84,34 @@ export function ImportScreen({
         <div>
           <h1>{t("import.title")}</h1>
         </div>
+        <div className="segmented" role="group" aria-label={t("import.title")}>
+          <button
+            type="button"
+            className={tab === "ofx" ? "active" : undefined}
+            aria-pressed={tab === "ofx"}
+            onClick={() => setTab("ofx")}
+          >
+            OFX
+          </button>
+          <button
+            type="button"
+            className={tab === "csv" ? "active" : undefined}
+            aria-pressed={tab === "csv"}
+            onClick={() => setTab("csv")}
+          >
+            CSV
+          </button>
+        </div>
       </header>
 
+      {tab === "csv" ? (
+        <CsvImport
+          accounts={accounts}
+          onImported={() => {
+            refreshHistory();
+          }}
+        />
+      ) : (
       <div className="import-grid">
         <button type="button" className="dropzone" onClick={() => void pickFile()} disabled={busy}>
           <span className="drop-icon">
@@ -115,6 +148,7 @@ export function ImportScreen({
           </ol>
         </aside>
       </div>
+      )}
 
       {history.length > 0 ? (
         <article className="card">
