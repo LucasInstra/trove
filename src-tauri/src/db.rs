@@ -399,6 +399,26 @@ fn has_table(connection: &Connection, table: &str) -> Result<bool, String> {
     Ok(count > 0)
 }
 
+pub(crate) fn check_month(month: &str) -> Result<(), String> {
+    let bytes = month.as_bytes();
+    let valid = month.len() == 7
+        && month.is_ascii()
+        && bytes[4] == b'-'
+        && month[..4].parse::<u32>().is_ok()
+        && matches!(month[5..].parse::<u32>(), Ok(1..=12));
+    if valid {
+        Ok(())
+    } else {
+        Err(format!("month must be YYYY-MM, got {month}"))
+    }
+}
+
+pub(crate) fn check_date(iso: &str) -> Result<(), String> {
+    NaiveDate::parse_from_str(iso, "%Y-%m-%d")
+        .map(|_| ())
+        .map_err(|_| format!("date must be a real YYYY-MM-DD, got {iso}"))
+}
+
 fn has_column(connection: &Connection, table: &str, column: &str) -> Result<bool, String> {
     let mut statement = connection
         .prepare(&format!("pragma table_info({table})"))
@@ -904,9 +924,7 @@ pub fn save_manual_transaction(
     if description.is_empty() {
         return Err("description must not be empty".to_string());
     }
-    if input.posted_on.len() != 10 {
-        return Err("date must be YYYY-MM-DD".to_string());
-    }
+    check_date(&input.posted_on)?;
     let account: Option<i64> = connection
         .query_row(
             "select id from accounts where id = ?1 and deleted_at is null",
@@ -917,6 +935,19 @@ pub fn save_manual_transaction(
         .map_err(|problem| problem.to_string())?;
     if account.is_none() {
         return Err(format!("account {} does not exist", input.account_id));
+    }
+    if let Some(category_id) = input.category_id {
+        let category: Option<i64> = connection
+            .query_row(
+                "select id from categories where id = ?1 and deleted_at is null",
+                params![category_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?;
+        if category.is_none() {
+            return Err(format!("category {category_id} does not exist"));
+        }
     }
     let stamp = Utc::now().to_rfc3339();
     let trntype = if input.amount_cents < 0 { "DEBIT" } else { "CREDIT" };
@@ -954,6 +985,7 @@ pub struct ClearReport {
 /// marks go away, imported statements never do. Debts are records of their
 /// own and stay, settled or not.
 pub fn clear_month(connection: &mut Connection, month: &str) -> Result<ClearReport, String> {
+    check_month(month)?;
     let transaction = connection
         .transaction()
         .map_err(|problem| problem.to_string())?;
@@ -1018,7 +1050,9 @@ pub fn latest_month(connection: &Connection) -> Result<Option<String>, String> {
         .map_err(|problem| problem.to_string())
 }
 
-pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals, String> {    let prefix = format!("{month}%");
+pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals, String> {
+    check_month(month)?;
+    let prefix = format!("{month}%");
     let (income, expense, count) = connection
         .query_row(
             "select
@@ -1049,6 +1083,7 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
 /// Expense per category for one month, biggest first. Uncategorized spending is
 /// kept as its own row so the numbers on screen always add up to the total.
 pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<CategoryTotal>, String> {
+    check_month(month)?;
     let prefix = format!("{month}%");
     let mut statement = connection
         .prepare(
@@ -1367,6 +1402,22 @@ mod tests {
             &ManualInput { account_id: 999_999, ..entry("Feira", -100) }
         )
         .is_err());
+        // Impossible dates and unknown categories are refused too.
+        assert!(save_manual_transaction(
+            &connection,
+            &ManualInput { posted_on: "2026-99-99".into(), ..entry("Feira", -100) }
+        )
+        .is_err());
+        assert!(save_manual_transaction(
+            &connection,
+            &ManualInput { posted_on: "ontem".into(), ..entry("Feira", -100) }
+        )
+        .is_err());
+        assert!(save_manual_transaction(
+            &connection,
+            &ManualInput { category_id: Some(999_999), ..entry("Feira", -100) }
+        )
+        .is_err());
 
         // The same statement imports exactly as before: manual rows never
         // collide with the import dedupe keys.
@@ -1445,6 +1496,11 @@ mod tests {
         let cleared = clear_month(&mut connection, "2024-03").expect("should clear");
         assert_eq!(cleared.manual_deleted, 1);
         assert_eq!(cleared.payments_cleared, 1);
+
+        // A malformed month never becomes a LIKE wildcard.
+        assert!(clear_month(&mut connection, "2024").is_err());
+        assert!(clear_month(&mut connection, "2024-13").is_err());
+        assert!(clear_month(&mut connection, "").is_err());
 
         // Imports stay, April is untouched.
         let march = list_transactions(&connection, None, Some("2024-03"), None, 50)

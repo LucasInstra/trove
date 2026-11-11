@@ -35,11 +35,13 @@ export function DebtDialog({
         className="dialog-form"
         onSubmit={(event) => {
           event.preventDefault();
+          const cents = parseCents(amount);
+          if (cents <= 0 || personId === 0) return;
           onSave({
             id: debt?.id ?? null,
             personId,
-            label: label.trim() || t("debts.newDebt"),
-            amountCents: parseCents(amount),
+            label: label.trim(),
+            amountCents: cents,
             month: debt?.month ?? month,
           });
         }}

@@ -128,7 +128,7 @@ pub struct Debt {
     pub settled_on: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DebtInput {
     pub id: Option<i64>,
@@ -840,6 +840,25 @@ pub fn list_debts(connection: &Connection, month: &str) -> Result<Vec<Debt>, Str
 }
 
 pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, String> {
+    if input.amount_cents <= 0 {
+        return Err("debt amount must be positive".to_string());
+    }
+    let label = input.label.trim();
+    if label.is_empty() {
+        return Err("debt needs a label".to_string());
+    }
+    crate::db::check_month(&input.month)?;
+    let person: Option<i64> = connection
+        .query_row(
+            "select id from people where id = ?1 and deleted_at is null",
+            params![input.person_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if person.is_none() {
+        return Err(format!("person {} does not exist", input.person_id));
+    }
     let stamp = now();
     match input.id {
         Some(id) => {
@@ -850,7 +869,7 @@ pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, Stri
                      where id = ?6",
                     params![
                         input.person_id,
-                        input.label,
+                        label,
                         input.amount_cents,
                         input.month,
                         stamp,
@@ -868,7 +887,7 @@ pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, Stri
                      values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5)",
                     params![
                         input.person_id,
-                        input.label,
+                        label,
                         input.amount_cents,
                         input.month,
                         stamp
@@ -909,8 +928,17 @@ pub fn save_deposit(connection: &Connection, input: &DepositInput) -> Result<i64
     if input.amount_cents <= 0 {
         return Err("deposit amount must be positive".to_string());
     }
-    if input.deposited_on.len() != 10 {
-        return Err("date must be YYYY-MM-DD".to_string());
+    crate::db::check_date(&input.deposited_on)?;
+    let goal: Option<i64> = connection
+        .query_row(
+            "select id from goals where id = ?1 and deleted_at is null",
+            params![input.goal_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if goal.is_none() {
+        return Err(format!("goal {} does not exist", input.goal_id));
     }
     let stamp = now();
     match input.id {
@@ -1051,17 +1079,23 @@ mod tests {
         let people = ensure_people(&connection).expect("should seed");
         let partner = people.iter().find(|person| !person.is_self).expect("partner");
 
-        let first = save_debt(
-            &connection,
-            &DebtInput {
-                id: None,
-                person_id: partner.id,
-                label: "Cobasi".into(),
-                amount_cents: 6_800,
-                month: "2026-11".into(),
-            },
-        )
-        .expect("should save");
+        let valid = DebtInput {
+            id: None,
+            person_id: partner.id,
+            label: "Cobasi".into(),
+            amount_cents: 6_800,
+            month: "2026-11".into(),
+        };
+        // Zero and negative amounts, blank labels, bad months and strangers
+        // are refused before they reach the table.
+        assert!(save_debt(&connection, &DebtInput { amount_cents: 0, ..valid.clone() }).is_err());
+        assert!(save_debt(&connection, &DebtInput { amount_cents: -1, ..valid.clone() }).is_err());
+        assert!(save_debt(&connection, &DebtInput { label: "  ".into(), ..valid.clone() }).is_err());
+        assert!(save_debt(&connection, &DebtInput { month: "2026-13".into(), ..valid.clone() }).is_err());
+        assert!(save_debt(&connection, &DebtInput { month: "novembro".into(), ..valid.clone() }).is_err());
+        assert!(save_debt(&connection, &DebtInput { person_id: 999_999, ..valid.clone() }).is_err());
+
+        let first = save_debt(&connection, &valid).expect("should save");
         let second = save_debt(
             &connection,
             &DebtInput {
@@ -1238,6 +1272,28 @@ mod tests {
         };
         save_deposit(&connection, &deposit).expect("should save");
         save_deposit(&connection, &deposit).expect("should save again");
+
+        // Zero and negative amounts, impossible dates and unknown goals fail.
+        assert!(save_deposit(
+            &connection,
+            &DepositInput { amount_cents: 0, ..deposit.clone() }
+        )
+        .is_err());
+        assert!(save_deposit(
+            &connection,
+            &DepositInput { deposited_on: "2026-13-40".into(), ..deposit.clone() }
+        )
+        .is_err());
+        assert!(save_deposit(
+            &connection,
+            &DepositInput { deposited_on: "soon".into(), ..deposit.clone() }
+        )
+        .is_err());
+        assert!(save_deposit(
+            &connection,
+            &DepositInput { goal_id: 999_999, ..deposit.clone() }
+        )
+        .is_err());
 
         // Zero and negative amounts are refused.
         assert!(save_deposit(
