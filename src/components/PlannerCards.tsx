@@ -251,7 +251,7 @@ export function CardsCard({
   const usage = values[activeIndex];
   const window = invoiceWindow(entry.meta.closingDay, entry.meta.dueDay, activeMonth);
   const lines = list ? invoiceLines(list, window) : [];
-  const canScroll = cards.length > 1 && !wide;
+  const canScroll = cards.length > 1 && !wide && !lean;
 
   // The step comes from the card the browser laid out, so a change in the CSS
   // width cannot desync the arrows from the snap points.
@@ -322,7 +322,11 @@ export function CardsCard({
         {t("planner.viewInvoice")}
       </button>
 
-      <div className={wide ? "cards-track as-grid" : "cards-track"} ref={trackRef} onScroll={onScroll}>
+      <div
+        className={wide ? "cards-track as-grid" : lean ? "cards-track as-dense" : "cards-track"}
+        ref={trackRef}
+        onScroll={onScroll}
+      >
         {cards.map(({ meta }) => {
           const state = invoiceWindow(meta.closingDay, meta.dueDay, activeMonth);
           const open = state.to >= today;

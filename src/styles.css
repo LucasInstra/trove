@@ -625,6 +625,50 @@ button.primary:hover:not(:disabled) {
 
 /* A card that takes more than one column gets more content, not a wider copy of
    the same content. */
+/* The lean cards card: no upcoming invoices and no full size cards, just the
+   wallet in a row, which is all that is left to say about a card once the
+   month's invoice is already the figure above. */
+.cards-track.as-dense {
+  gap: 8px;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.cards-track.as-dense .credit-card {
+  flex: 0 0 132px;
+  width: 132px;
+  height: 78px;
+  padding: 9px 10px;
+  border-radius: 12px;
+}
+
+.cards-track.as-dense .credit-middle,
+.cards-track.as-dense .credit-foot,
+.cards-track.as-dense .credit-chip {
+  display: none;
+}
+
+.cards-track.as-dense .credit-top {
+  margin-bottom: auto;
+}
+
+.cards-track.as-dense .credit-brand {
+  font-size: 11px;
+}
+
+.cards-track.as-dense .credit-state {
+  padding: 1px 6px;
+  font-size: 9px;
+}
+
+.cards-track.as-dense .credit-foot {
+  display: none;
+}
+
+.cards-track.as-dense .credit-middle + * {
+  display: none;
+}
+
 .cards-track.as-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
