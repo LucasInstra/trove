@@ -175,6 +175,24 @@ fn set_share(app: tauri::AppHandle, input: planner::ShareInput) -> Result<(), St
 }
 
 #[tauri::command]
+fn set_debt_settled(app: tauri::AppHandle, id: i64, settled: bool) -> Result<(), String> {
+    let connection = connection(&app)?;
+    planner::set_debt_settled(&connection, id, settled)
+}
+
+#[tauri::command]
+fn save_debt(app: tauri::AppHandle, input: planner::DebtInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    planner::save_debt(&connection, &input)
+}
+
+#[tauri::command]
+fn delete_debt(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    planner::delete_debt(&connection, id)
+}
+
+#[tauri::command]
 fn mark_notifications_read(app: tauri::AppHandle, keys: Vec<String>) -> Result<(), String> {
     let connection = connection(&app)?;
     planner::mark_read(&connection, &keys)
@@ -271,6 +289,9 @@ pub fn run() {
             save_goal,
             card_usage,
             set_share,
+            save_debt,
+            delete_debt,
+            set_debt_settled,
             mark_notifications_read,
             get_setting,
             set_setting

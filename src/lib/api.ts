@@ -152,6 +152,24 @@ export interface ShareInput {
   personId: number;
 }
 
+export interface Debt {
+  id: number;
+  personId: number;
+  personName: string | null;
+  label: string;
+  amountCents: number;
+  month: string;
+  settledOn: string | null;
+}
+
+export interface DebtInput {
+  id: number | null;
+  personId: number;
+  label: string;
+  amountCents: number;
+  month: string;
+}
+
 export interface PlannerState {
   incomes: Income[];
   bills: Bill[];
@@ -162,6 +180,7 @@ export interface PlannerState {
   reads: string[];
   people: Person[];
   shares: Share[];
+  debts: Debt[];
 }
 
 export interface IncomeInput {
@@ -222,6 +241,7 @@ export const EMPTY_PLANNER: PlannerState = {
   reads: [],
   people: [],
   shares: [],
+  debts: [],
 };
 
 export const api = {
@@ -257,6 +277,10 @@ export const api = {
   cardUsage: (accountId: number, from: string, to: string) =>
     invoke<number>("card_usage", { accountId, from, to }),
   setShare: (input: ShareInput) => invoke<void>("set_share", { input }),
+  saveDebt: (input: DebtInput) => invoke<number>("save_debt", { input }),
+  deleteDebt: (id: number) => invoke<void>("delete_debt", { id }),
+  setDebtSettled: (id: number, settled: boolean) =>
+    invoke<void>("set_debt_settled", { id, settled }),
   markNotificationsRead: (keys: string[]) =>
     invoke<void>("mark_notifications_read", { keys }),
   getSetting: (key: string) => invoke<string | null>("get_setting", { key }),

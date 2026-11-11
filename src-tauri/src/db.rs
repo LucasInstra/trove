@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 4;
+pub const SCHEMA_VERSION: i64 = 5;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -334,8 +334,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v3(&connection)?;
         write_version(&connection, 3)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 4 {
         migrate_to_v4(&connection)?;
+        write_version(&connection, 4)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v5(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -401,6 +405,33 @@ fn add_column(
     }
     connection
         .execute_batch(&format!("alter table {table} add column {column} {definition}"))
+        .map_err(|problem| problem.to_string())
+}
+
+/// v4 to v5: money other people owe me. A debt is its own record with an
+/// individual settlement, not derived from the split, so marking one as
+/// received never touches the others.
+const NEW_TABLES_V5: &str = r#"
+create table if not exists debts (
+    id           integer primary key,
+    uid          text    not null unique,
+    person_id    integer not null references people(id),
+    label        text    not null,
+    amount_cents integer not null,
+    month        text    not null,
+    settled_on   text,
+    created_at   text    not null,
+    updated_at   text    not null,
+    deleted_at   text
+);
+
+create index if not exists idx_debts_month on debts (month, settled_on);
+"#;
+
+/// v4 to v5: one table only, so the fact table is untouched.
+fn migrate_to_v5(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V5)
         .map_err(|problem| problem.to_string())
 }
 
@@ -1130,6 +1161,7 @@ mod tests {
         assert!(has_table(&again, "bills").expect("should inspect"));
         assert!(has_table(&again, "bill_payments").expect("should inspect"));
         assert!(has_column(&again, "bills", "installments_total").expect("should inspect"));
+        assert!(has_table(&again, "debts").expect("should inspect"));
 
         let _ = std::fs::remove_file(&path);
     }

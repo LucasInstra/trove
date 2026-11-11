@@ -109,6 +109,28 @@ pub struct ShareInput {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Debt {
+    pub id: i64,
+    pub person_id: i64,
+    pub person_name: Option<String>,
+    pub label: String,
+    pub amount_cents: i64,
+    pub month: String,
+    pub settled_on: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebtInput {
+    pub id: Option<i64>,
+    pub person_id: i64,
+    pub label: String,
+    pub amount_cents: i64,
+    pub month: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlannerState {
     pub incomes: Vec<Income>,
     pub bills: Vec<Bill>,
@@ -119,6 +141,7 @@ pub struct PlannerState {
     pub reads: Vec<String>,
     pub people: Vec<Person>,
     pub shares: Vec<Share>,
+    pub debts: Vec<Debt>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -771,6 +794,98 @@ pub fn set_share(connection: &Connection, input: &ShareInput) -> Result<(), Stri
     Ok(())
 }
 
+pub fn list_debts(connection: &Connection, month: &str) -> Result<Vec<Debt>, String> {
+    let mut statement = connection
+        .prepare(
+            "select d.id, d.person_id, p.name, d.label, d.amount_cents, d.month, d.settled_on
+             from debts d
+             left join people p on p.id = d.person_id
+             where d.month = ?1 and d.deleted_at is null
+             order by d.settled_on, d.id",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map(params![month], |row| {
+            Ok(Debt {
+                id: row.get(0)?,
+                person_id: row.get(1)?,
+                person_name: row.get(2)?,
+                label: row.get(3)?,
+                amount_cents: row.get(4)?,
+                month: row.get(5)?,
+                settled_on: row.get(6)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, String> {
+    let stamp = now();
+    match input.id {
+        Some(id) => {
+            connection
+                .execute(
+                    "update debts
+                     set person_id = ?1, label = ?2, amount_cents = ?3, month = ?4, updated_at = ?5
+                     where id = ?6",
+                    params![
+                        input.person_id,
+                        input.label,
+                        input.amount_cents,
+                        input.month,
+                        stamp,
+                        id
+                    ],
+                )
+                .map_err(|problem| problem.to_string())?;
+            Ok(id)
+        }
+        None => {
+            connection
+                .execute(
+                    "insert into debts
+                     (uid, person_id, label, amount_cents, month, created_at, updated_at)
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5)",
+                    params![
+                        input.person_id,
+                        input.label,
+                        input.amount_cents,
+                        input.month,
+                        stamp
+                    ],
+                )
+                .map_err(|problem| problem.to_string())?;
+            Ok(connection.last_insert_rowid())
+        }
+    }
+}
+
+/// Receiving is per debt: settling one leaves the others exactly as they were.
+pub fn set_debt_settled(connection: &Connection, id: i64, settled: bool) -> Result<(), String> {
+    let stamp = now();
+    let settled_on: Option<String> = if settled { Some(stamp.clone()) } else { None };
+    connection
+        .execute(
+            "update debts set settled_on = ?1, updated_at = ?2 where id = ?3",
+            params![settled_on, stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
+pub fn delete_debt(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = now();
+    connection
+        .execute(
+            "update debts set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
 pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, String> {
     Ok(PlannerState {
         incomes: list_incomes(connection)?,
@@ -782,6 +897,7 @@ pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, Strin
         reads: list_reads(connection)?,
         people: ensure_people(connection)?,
         shares: list_shares(connection)?,
+        debts: list_debts(connection, month)?,
     })
 }
 
@@ -860,6 +976,65 @@ mod tests {
             list_bills(&connection).expect("list")[0].installments_total,
             None
         );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn debts_settle_one_by_one() {
+        let path = temporary_database("debts");
+        let connection = db::open(&path).expect("should open");
+        let people = ensure_people(&connection).expect("should seed");
+        let partner = people.iter().find(|person| !person.is_self).expect("partner");
+
+        let first = save_debt(
+            &connection,
+            &DebtInput {
+                id: None,
+                person_id: partner.id,
+                label: "Cobasi".into(),
+                amount_cents: 6_800,
+                month: "2026-11".into(),
+            },
+        )
+        .expect("should save");
+        let second = save_debt(
+            &connection,
+            &DebtInput {
+                id: None,
+                person_id: partner.id,
+                label: "Cinema".into(),
+                amount_cents: 4_000,
+                month: "2026-11".into(),
+            },
+        )
+        .expect("should save");
+
+        let debts = list_debts(&connection, "2026-11").expect("should list");
+        assert_eq!(debts.len(), 2);
+        assert_eq!(debts[0].person_name, Some(partner.name.clone()));
+        assert!(debts.iter().all(|debt| debt.settled_on.is_none()));
+
+        set_debt_settled(&connection, first, true).expect("should settle");
+        let debts = list_debts(&connection, "2026-11").expect("list");
+        let settled: Vec<_> = debts.iter().filter(|debt| debt.settled_on.is_some()).collect();
+        assert_eq!(settled.len(), 1);
+        assert_eq!(settled[0].id, first);
+
+        // Other months and deleted rows stay out of the list.
+        save_debt(
+            &connection,
+            &DebtInput {
+                id: None,
+                person_id: partner.id,
+                label: "Outubro".into(),
+                amount_cents: 1_000,
+                month: "2026-10".into(),
+            },
+        )
+        .expect("should save");
+        delete_debt(&connection, second).expect("should delete");
+        assert_eq!(list_debts(&connection, "2026-11").expect("list").len(), 1);
 
         let _ = std::fs::remove_file(&path);
     }
