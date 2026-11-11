@@ -10,6 +10,7 @@ import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../comp
 import { KpisCard } from "../components/KpiCards";
 import { InstallmentsCard } from "../components/InstallmentsCard";
 import { DebtsCard } from "../components/DebtsCard";
+import { ScoreCard } from "../components/ScoreCard";
 import type { InvoiceWindow } from "../domain/invoice";
 import {
   hasDetailsSection,
@@ -22,6 +23,7 @@ import {
 } from "../domain/layout";
 import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
+import { computeScore } from "../domain/score";
 import { computeSplit } from "../domain/split";
 import { formatCents, monthLabel, monthShort, shiftMonth } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -206,6 +208,7 @@ export function OverviewScreen({
       series: t("ledger.lastSix"),
       installments: t("planner.installments"),
       debts: t("debts.title"),
+      score: t("score.title"),
     })[id];
 
   const collapsedFigure = (id: CardId): ReactNode => {
@@ -244,6 +247,8 @@ export function OverviewScreen({
         return formatCents(
           debts.filter((debt) => !debt.settledOn).reduce((sum, debt) => sum + debt.amountCents, 0),
         );
+      case "score":
+        return `${computeScore(plan).total}/100`;
     }
   };
 
@@ -273,6 +278,7 @@ export function OverviewScreen({
     kpis: <KpisCard plan={plan} series={series} month={month} />,
     installments: <InstallmentsCard plan={plan} month={month} />,
     debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} />,
+    score: <ScoreCard plan={plan} />,
     forecast: (
       <article className="account-card">
         <div className="account-top">
@@ -462,6 +468,7 @@ export function OverviewScreen({
     kpis: <KpisCard plan={plan} series={series} month={month} compact />,
     installments: <InstallmentsCard plan={plan} month={month} compact />,
     debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} compact />,
+    score: <ScoreCard plan={plan} compact />,
     forecast: (
       <article className="card card-compact">
         <div className="compact-head">

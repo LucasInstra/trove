@@ -26,6 +26,7 @@ export const CARD_IDS = [
   "split",
   "donut",
   "series",
+  "score",
 ] as const;
 
 export type CardId = (typeof CARD_IDS)[number];
@@ -55,7 +56,8 @@ export const DEFAULT_LAYOUT: LayoutCard[] = [
   { id: "debts", span: 1, mode: "full" },
   { id: "split", span: 2, mode: "full" },
   { id: "donut", span: 1, mode: "full" },
-  { id: "series", span: 3, mode: "full" },
+  { id: "series", span: 2, mode: "full" },
+  { id: "score", span: 1, mode: "full" },
 ];
 
 /** What the plan says about the household, for the cards that depend on it. */

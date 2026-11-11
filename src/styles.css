@@ -2058,6 +2058,28 @@ select.tx-category {
   margin: 6px 0 4px;
 }
 
+/* Score: gauge on the left, one row per rule on the right. */
+.score-gauge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.score-parts li {
+  display: grid;
+  gap: 3px;
+}
+
 /* Dialog */
 
 .dialog-backdrop {
