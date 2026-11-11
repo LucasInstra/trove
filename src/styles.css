@@ -3076,28 +3076,30 @@ select.tx-category {
   color: var(--muted);
 }
 
+/* The dotted line belongs to the tiles, not to the space above them: each tile
+   keeps a band at the top for its dot and the dashes run across that band. */
 .upcoming-row {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  padding-top: 44px;
 }
 
 .upcoming-line {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 2;
   pointer-events: none;
 }
 
 .upcoming-tile {
-  height: 170px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 12px;
+  height: 120px;
+  padding: 46px 12px 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-soft);
@@ -3112,7 +3114,7 @@ select.tx-category {
 
 .upcoming-tile.active {
   border: 2px solid var(--primary);
-  padding: 11px;
+  padding: 47px 11px 11px;
   background-image: linear-gradient(to top, var(--primary-soft), transparent 72%);
 }
 

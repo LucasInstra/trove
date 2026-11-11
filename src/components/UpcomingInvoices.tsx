@@ -51,7 +51,7 @@ export function UpcomingInvoices({ months, values, activeIndex, onSelect }: Prop
                 cx={point.x}
                 cy={point.y}
                 r={5}
-                fill="var(--surface)"
+                fill="var(--surface-soft)"
                 stroke={index === activeIndex ? "var(--primary)" : "var(--line-strong)"}
                 strokeWidth="1.5"
               />
