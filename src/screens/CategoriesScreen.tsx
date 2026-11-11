@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icons";
 import { ScreenHeader } from "./PlannerScreens";
-import type { Category, CategoryInput } from "../lib/api";
+import type { Category, CategoryInput, Rule, RuleInput } from "../lib/api";
+import { RulesManager } from "../components/RulesManager";
 import { useLanguage } from "../lib/language";
 
 const KINDS = ["expense", "income", "transfer"] as const;
@@ -122,14 +123,22 @@ function CategoryDialog({
  */
 export function CategoriesScreen({
   categories,
+  rules,
   onSave,
   onDelete,
   onArchive,
+  onSaveRule,
+  onDeleteRule,
+  onApplyRules,
 }: {
   categories: Category[];
+  rules: Rule[];
   onSave: (input: CategoryInput) => void;
   onDelete: (id: number) => void;
   onArchive: (id: number, archived: boolean) => void;
+  onSaveRule: (input: RuleInput) => void;
+  onDeleteRule: (id: number) => void;
+  onApplyRules: () => Promise<number>;
 }) {
   const { t } = useLanguage();
   const [dialog, setDialog] = useState<{ category?: Category | null } | null>(null);
@@ -246,6 +255,14 @@ export function CategoriesScreen({
           }}
         />
       ) : null}
+
+      <RulesManager
+        rules={rules}
+        categories={active}
+        onSave={onSaveRule}
+        onDelete={onDeleteRule}
+        onApply={onApplyRules}
+      />
 
       {confirmDelete ? (
         <Dialog title={t("categories.confirmDeleteTitle", { name: confirmDelete.name })} onClose={() => setConfirmDelete(null)}>

@@ -12,6 +12,8 @@ interface TransactionsScreenProps {
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;
+  onRefund: (id: number) => void;
+  onNewTransfer: () => void;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];

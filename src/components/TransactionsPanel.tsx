@@ -18,6 +18,8 @@ interface Props {
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;
+  onRefund: (id: number) => void;
+  onNewTransfer: () => void;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
@@ -41,6 +43,8 @@ export function TransactionsPanel({
   onClearMonth,
   onEditEntry,
   onDeleteEntry,
+  onRefund,
+  onNewTransfer,
   month,
   groups,
   accounts,
@@ -51,6 +55,8 @@ export function TransactionsPanel({
   const searchRef = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmRefundId, setConfirmRefundId] = useState<number | null>(null);
+  const confirmDeleteRow = rows.find((row) => row.id === confirmDeleteId) ?? null;
   const [exported, setExported] = useState("");
   const [exportError, setExportError] = useState("");
 
@@ -78,6 +84,12 @@ export function TransactionsPanel({
         {rows.length > 0 ? (
           <button type="button" className="ghost" onClick={() => void onExport()}>
             {t("ledger.exportCsv")}
+          </button>
+        ) : null}
+        {accounts.length > 1 ? (
+          <button type="button" className="ghost" onClick={onNewTransfer}>
+            <Icon name="arrow-left-right" size={14} />
+            {t("transfer.new")}
           </button>
         ) : null}
         {rows.length > 0 ? (
@@ -151,7 +163,10 @@ export function TransactionsPanel({
                       <div className="tx-main">
                         <span className="tx-title">
                           {row.merchant || row.description}
-                          {row.manual ? <em className="pill-soft">{t("ledger.manual")}</em> : null}
+                          {row.manual && !row.transferGroup ? <em className="pill-soft">{t("ledger.manual")}</em> : null}
+                          {row.transferGroup ? <em className="pill-soft">{t("transfer.badge")}</em> : null}
+                          {row.refundOf != null ? <em className="pill-soft">{t("refund.badge")}</em> : null}
+                          {row.hasRefund ? <em className="pill-soft">{t("refund.refunded")}</em> : null}
                         </span>
                         <span className="tx-sub">
                           {row.categoryName ?? t("ledger.noCategory")} · {row.accountName}
@@ -180,6 +195,17 @@ export function TransactionsPanel({
                         {formatSignedCents(row.amountCents)}
                       </span>
                       <span className="tx-actions">
+                        {row.transferGroup == null && row.refundOf == null && !row.hasRefund ? (
+                          <button
+                            type="button"
+                            className="icon-button"
+                            title={t("refund.action")}
+                            aria-label={`${t("refund.action")}: ${row.description}`}
+                            onClick={() => setConfirmRefundId(row.id)}
+                          >
+                            <Icon name="swap" size={15} />
+                          </button>
+                        ) : null}
                         {row.manual ? (
                           <>
                             <button
@@ -250,8 +276,13 @@ export function TransactionsPanel({
       ) : null}
 
       {confirmDeleteId !== null ? (
-        <Dialog title={t("ledger.deleteTitle")} onClose={() => setConfirmDeleteId(null)}>
-          <p className="muted">{t("ledger.deleteDesc")}</p>
+        <Dialog
+          title={confirmDeleteRow?.transferGroup ? t("transfer.deleteTitle") : t("ledger.deleteTitle")}
+          onClose={() => setConfirmDeleteId(null)}
+        >
+          <p className="muted">
+            {confirmDeleteRow?.transferGroup ? t("transfer.deleteDesc") : t("ledger.deleteDesc")}
+          </p>
           <div className="dialog-actions">
             <button type="button" className="ghost" onClick={() => setConfirmDeleteId(null)}>
               {t("common.cancel")}
@@ -265,6 +296,27 @@ export function TransactionsPanel({
               }}
             >
               {t("common.delete")}
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
+
+      {confirmRefundId !== null ? (
+        <Dialog title={t("refund.title")} onClose={() => setConfirmRefundId(null)}>
+          <p className="muted">{t("refund.desc")}</p>
+          <div className="dialog-actions">
+            <button type="button" className="ghost" onClick={() => setConfirmRefundId(null)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                onRefund(confirmRefundId);
+                setConfirmRefundId(null);
+              }}
+            >
+              {t("refund.confirm")}
             </button>
           </div>
         </Dialog>

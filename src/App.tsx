@@ -4,6 +4,7 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
 import { BillDialog, BudgetDialog, CardDialog, DepositDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
 import { ManualDialog } from "./components/ManualDialog";
+import { TransferDialog } from "./components/TransferDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
 import { Icon, type IconName } from "./components/Icons";
@@ -48,7 +49,11 @@ import type {
   MonthTotals,
   PlannerState,
   RecurrenceRow,
+  RefundInput,
+  Rule,
+  RuleInput,
   TransactionRow,
+  TransferInput,
 } from "./lib/api";
 import { useLanguage } from "./lib/language";
 import { useUpdater } from "./lib/updater";
@@ -122,6 +127,7 @@ type DialogState =
   | { kind: "deposit"; goal: Goal }
   | { kind: "budget"; id: number; name: string; budget: number | null; monthly: number | null; carryover: boolean; overridden: boolean }
   | { kind: "manual"; entry: TransactionRow | null }
+  | { kind: "transfer" }
   | { kind: "ceiling" }
   | null;
 
@@ -140,6 +146,7 @@ export function App() {
   const [matrix, setMatrix] = useState<CategoryMonth[]>([]);
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [recurrence, setRecurrence] = useState<RecurrenceRow[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
@@ -202,7 +209,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextRules, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -214,6 +221,7 @@ export function App() {
           api.plannerState(at),
           api.budgetStatus(at).catch(() => null),
           api.recurrenceRows(at, 12).catch(() => []),
+          api.listRules().catch(() => []),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
@@ -230,6 +238,7 @@ export function App() {
       setPlanner(nextPlanner);
       setBudgetStatus(nextBudgetStatus);
       setRecurrence(nextHistory);
+      setRules(nextRules);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
       setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
@@ -433,6 +442,50 @@ export function App() {
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
+  };
+
+  const saveTransfer = async (input: TransferInput) => {
+    try {
+      await api.saveTransfer(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const saveRefund = async (originalId: number) => {
+    try {
+      const input: RefundInput = { originalId };
+      await api.saveRefund(input);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const saveRule = async (input: RuleInput) => {
+    try {
+      await api.saveRule(input);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const deleteRule = async (id: number) => {
+    try {
+      await api.deleteRule(id);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const applyRules = async (): Promise<number> => {
+    const count = await api.applyRules();
+    if (month) await reload(search, month, accountFilter);
+    return count;
   };
 
   const createManualAccount = async (name: string) => {
@@ -816,6 +869,8 @@ export function App() {
               onClearMonth={() => void clearMonth()}
               onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
               onDeleteEntry={(id) => void deleteManual(id)}
+              onRefund={(id) => void saveRefund(id)}
+              onNewTransfer={() => setDialog({ kind: "transfer" })}
               month={month ?? currentMonth()}
               groups={groups}
               accounts={accounts}
@@ -938,9 +993,13 @@ export function App() {
           {route === "categories" ? (
             <CategoriesScreen
               categories={categories}
+              rules={rules}
               onSave={(input) => void saveCategory(input)}
               onDelete={(id) => void deleteCategory(id)}
               onArchive={(id, archived) => void archiveCategory(id, archived)}
+              onSaveRule={(input) => void saveRule(input)}
+              onDeleteRule={(id) => void deleteRule(id)}
+              onApplyRules={() => applyRules()}
             />
           ) : null}
 
@@ -1066,6 +1125,14 @@ export function App() {
           onCreate={(input) => void saveManual(input)}
           onUpdate={(input) => void updateManual(input)}
           onDelete={(id) => void deleteManual(id)}
+        />
+      ) : null}
+
+      {dialog?.kind === "transfer" ? (
+        <TransferDialog
+          accounts={accounts}
+          onClose={() => setDialog(null)}
+          onSave={(input) => void saveTransfer(input)}
         />
       ) : null}
 
