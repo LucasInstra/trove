@@ -422,14 +422,22 @@ export function App() {
 
   const toggleDebt = async (id: number, settled: boolean) => {
     if (!month) return;
-    await api.setDebtSettled(id, settled);
-    await reload(search, month, accountFilter);
+    try {
+      await api.setDebtSettled(id, settled);
+      await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const toggleBill = async (billId: number, paid: boolean) => {
     if (!month) return;
-    await api.setBillPaid(billId, month, paid);
-    await reload(search, month, accountFilter);
+    try {
+      await api.setBillPaid(billId, month, paid);
+      await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const saveCard = async (input: CardInput) => {

@@ -471,7 +471,7 @@ create table if not exists goal_deposits (
 create index if not exists idx_deposits_goal on goal_deposits (goal_id, deposited_on);
 "#;
 
-/// v5 to v6: one table only, so the fact table is untouched.
+/// v5 to v6: the deposits table only; the fact table is untouched.
 fn migrate_to_v6(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(NEW_TABLES_V6)
@@ -498,7 +498,7 @@ create table if not exists debts (
 create index if not exists idx_debts_month on debts (month, settled_on);
 "#;
 
-/// v4 to v5: one table only, so the fact table is untouched.
+/// v4 to v5: the debts table only; the fact table is untouched.
 fn migrate_to_v5(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(NEW_TABLES_V5)

@@ -437,6 +437,7 @@ pub fn set_bill_paid(
     month: &str,
     paid: bool,
 ) -> Result<(), String> {
+    crate::db::check_month(month)?;
     if paid {
         let stamp = now();
         connection
@@ -903,12 +904,15 @@ pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, Stri
 pub fn set_debt_settled(connection: &Connection, id: i64, settled: bool) -> Result<(), String> {
     let stamp = now();
     let settled_on: Option<String> = if settled { Some(stamp.clone()) } else { None };
-    connection
+    let affected = connection
         .execute(
             "update debts set settled_on = ?1, updated_at = ?2 where id = ?3",
             params![settled_on, stamp, id],
         )
         .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("debt {id} does not exist"));
+    }
     Ok(())
 }
 
@@ -1036,6 +1040,10 @@ mod tests {
         assert_eq!(paid.len(), 1);
         assert_eq!(paid[0].amount_cents, 480_000);
 
+        // A malformed month never touches the table.
+        assert!(set_bill_paid(&connection, id, "2026", true).is_err());
+        assert!(set_bill_paid(&connection, id, "2026-13", true).is_err());
+
         // Marking twice must not duplicate the payment.
         set_bill_paid(&connection, id, "2026-12", true).expect("should pay again");
         assert_eq!(list_payments(&connection, "2026-12").expect("list").len(), 1);
@@ -1133,6 +1141,7 @@ mod tests {
         .expect("should save");
         delete_debt(&connection, second).expect("should delete");
         assert_eq!(list_debts(&connection, "2026-11").expect("list").len(), 1);
+        assert!(set_debt_settled(&connection, 999_999, true).is_err());
 
         let _ = std::fs::remove_file(&path);
     }
