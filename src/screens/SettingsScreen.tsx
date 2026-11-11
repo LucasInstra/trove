@@ -30,13 +30,33 @@ function statusText(updater: UpdaterState, t: Translate): string {
 export function SettingsScreen({ updater }: { updater: UpdaterState }) {
   const { lang, setLang, t } = useLanguage();
   const [databasePath, setDatabasePath] = useState("");
+  const [userName, setUserName] = useState("");
+  const [savedName, setSavedName] = useState("");
 
   useEffect(() => {
     api
       .databaseLocation()
       .then(setDatabasePath)
       .catch(() => setDatabasePath(""));
+    api
+      .getSetting("user_name")
+      .then((stored) => {
+        if (stored) {
+          setUserName(stored);
+          setSavedName(stored);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const saveName = () => {
+    const value = userName.trim();
+    if (value === savedName) return;
+    void api
+      .setSetting("user_name", value)
+      .then(() => setSavedName(value))
+      .catch(() => {});
+  };
 
   const busy = updater.status === "checking" || updater.status === "downloading";
 
@@ -65,6 +85,25 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
             </button>
           ))}
         </div>
+      </article>
+
+      <article className="card">
+        <header className="card-head">
+          <h2>{t("settings.profile")}</h2>
+        </header>
+        <label className="field">
+          <span>{t("settings.userName")}</span>
+          <input
+            value={userName}
+            maxLength={40}
+            placeholder={t("settings.userNamePlaceholder")}
+            onChange={(event) => setUserName(event.target.value)}
+            onBlur={saveName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+          />
+        </label>
       </article>
 
       <article className="card">

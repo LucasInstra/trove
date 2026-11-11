@@ -291,6 +291,9 @@ const en: Dictionary = {
     "This app reads OFX statements and stores everything in SQLite on your computer. No financial data leaves the machine, and there is no login. The only network call is the update check against GitHub.",
   "settings.language": "Language",
   "settings.languageDesc": "Choose the language of the interface.",
+  "settings.profile": "Profile",
+  "settings.userName": "Your name",
+  "settings.userNamePlaceholder": "e.g. Willy",
 
   "kpi.title": "Month at a glance",
   "kpi.income": "Income",
@@ -585,6 +588,9 @@ const pt: Dictionary = {
     "Este app lê extratos OFX e guarda tudo em SQLite no seu computador. Nenhum dado financeiro sai da máquina, e não existe login. A única chamada de rede é a verificação de atualização no GitHub.",
   "settings.language": "Idioma",
   "settings.languageDesc": "Escolha o idioma da interface.",
+  "settings.profile": "Perfil",
+  "settings.userName": "Seu nome",
+  "settings.userNamePlaceholder": "ex.: Willy",
 
   "kpi.title": "Resumo do mês",
   "kpi.income": "Entradas",
