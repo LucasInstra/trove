@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 11;
+pub const SCHEMA_VERSION: i64 = 12;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -314,6 +314,7 @@ pub struct ImportReport {
     pub inserted: i64,
     pub duplicates: i64,
     pub skipped: i64,
+    pub categorized: i64,
     pub ledger_balance_cents: Option<i64>,
     pub ledger_balance_on: Option<String>,
 }
@@ -384,8 +385,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v10(&connection)?;
         write_version(&connection, 10)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 11 {
         migrate_to_v11(&connection)?;
+        write_version(&connection, 11)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v12(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -500,6 +505,34 @@ create table if not exists csv_profiles (
     deleted_at    text
 );
 "#;
+
+/// v11 to v12: auto-categorization rules. Each rule names a substring plus
+/// an optional amount window; the predicate mirrors `src/domain/rules.ts`
+/// (`instr(lower(...))`, first match by priority) so the app and the tests
+/// agree on what matches.
+const NEW_TABLES_V12: &str = r#"
+create table if not exists rules (
+    id            integer primary key,
+    uid           text    not null unique,
+    pattern       text    not null,
+    target        text    not null default 'both',
+    category_id   integer not null,
+    sign          text    not null default 'any',
+    min_amount_cents integer,
+    max_amount_cents integer,
+    priority      integer not null default 0,
+    created_at    text    not null,
+    updated_at    text    not null,
+    deleted_at    text
+);
+"#;
+
+/// v11 to v12: named auto-categorization rules applied on every import.
+fn migrate_to_v12(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V12)
+        .map_err(|problem| problem.to_string())
+}
 
 /// v10 to v11: transfers link two legs through a shared group id, refunds
 /// point at the row they return. Both columns are nullable and every link is
@@ -829,6 +862,8 @@ pub fn import_ofx(connection: &mut Connection, path: &Path) -> Result<ImportRepo
         )
         .map_err(|problem| problem.to_string())?;
 
+    let categorized = apply_rules_in(&transaction)?;
+
     transaction.commit().map_err(|problem| problem.to_string())?;
 
     Ok(ImportReport {
@@ -838,6 +873,7 @@ pub fn import_ofx(connection: &mut Connection, path: &Path) -> Result<ImportRepo
         inserted,
         duplicates,
         skipped: 0,
+        categorized,
         ledger_balance_cents: statement.ledger_balance_cents,
         ledger_balance_on: statement.ledger_balance_on,
     })
@@ -1282,6 +1318,203 @@ pub fn list_csv_profiles(connection: &Connection) -> Result<Vec<CsvProfile>, Str
         .map_err(|problem| problem.to_string())
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Rule {
+    pub id: i64,
+    pub pattern: String,
+    pub target: String,
+    pub category_id: i64,
+    pub category_name: String,
+    pub category_color: String,
+    pub sign: String,
+    pub min_amount_cents: Option<i64>,
+    pub max_amount_cents: Option<i64>,
+    pub priority: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleInput {
+    pub id: Option<i64>,
+    pub pattern: String,
+    pub target: String,
+    pub category_id: i64,
+    pub sign: String,
+    pub min_amount_cents: Option<i64>,
+    pub max_amount_cents: Option<i64>,
+    pub priority: i64,
+}
+
+fn check_rule_target(target: &str) -> Result<(), String> {
+    match target {
+        "merchant" | "description" | "both" => Ok(()),
+        other => Err(format!("unknown rule target: {other}")),
+    }
+}
+
+fn check_rule_sign(sign: &str) -> Result<(), String> {
+    match sign {
+        "any" | "in" | "out" => Ok(()),
+        other => Err(format!("unknown rule sign: {other}")),
+    }
+}
+
+pub fn save_rule(connection: &Connection, input: &RuleInput) -> Result<i64, String> {
+    let pattern = input.pattern.trim();
+    if pattern.is_empty() {
+        return Err("rule pattern must not be empty".to_string());
+    }
+    check_rule_target(&input.target)?;
+    check_rule_sign(&input.sign)?;
+    if let (Some(min), Some(max)) = (input.min_amount_cents, input.max_amount_cents) {
+        if min > max {
+            return Err("rule minimum is above its maximum".to_string());
+        }
+    }
+    let category: Option<i64> = connection
+        .query_row(
+            "select id from categories where id = ?1 and deleted_at is null",
+            params![input.category_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if category.is_none() {
+        return Err(format!("category {} does not exist", input.category_id));
+    }
+    let stamp = Utc::now().to_rfc3339();
+    let affected = match input.id {
+        Some(id) => connection.execute(
+            "update rules
+             set pattern = ?1, target = ?2, category_id = ?3, sign = ?4,
+                 min_amount_cents = ?5, max_amount_cents = ?6, priority = ?7, updated_at = ?8
+             where id = ?9 and deleted_at is null",
+            params![
+                pattern,
+                input.target,
+                input.category_id,
+                input.sign,
+                input.min_amount_cents,
+                input.max_amount_cents,
+                input.priority,
+                stamp,
+                id
+            ],
+        ),
+        None => connection.execute(
+            "insert into rules
+             (uid, pattern, target, category_id, sign, min_amount_cents, max_amount_cents,
+              priority, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+            params![
+                pattern,
+                input.target,
+                input.category_id,
+                input.sign,
+                input.min_amount_cents,
+                input.max_amount_cents,
+                input.priority,
+                stamp
+            ],
+        ),
+    }
+    .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err("rule does not exist".to_string());
+    }
+    Ok(input.id.unwrap_or_else(|| connection.last_insert_rowid()))
+}
+
+pub fn delete_rule(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = Utc::now().to_rfc3339();
+    let affected = connection
+        .execute(
+            "update rules set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("rule {id} does not exist"));
+    }
+    Ok(())
+}
+
+pub fn list_rules(connection: &Connection) -> Result<Vec<Rule>, String> {
+    let mut statement = connection
+        .prepare(
+            "select r.id, r.pattern, r.target, r.category_id, c.name, c.color,
+                    r.sign, r.min_amount_cents, r.max_amount_cents, r.priority
+             from rules r
+             join categories c on c.id = r.category_id
+             where r.deleted_at is null and c.deleted_at is null
+             order by r.priority, r.id",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(Rule {
+                id: row.get(0)?,
+                pattern: row.get(1)?,
+                target: row.get(2)?,
+                category_id: row.get(3)?,
+                category_name: row.get(4)?,
+                category_color: row.get(5)?,
+                sign: row.get(6)?,
+                min_amount_cents: row.get(7)?,
+                max_amount_cents: row.get(8)?,
+                priority: row.get(9)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+/// The one predicate behind every categorization, in SQL form. It mirrors
+/// `ruleMatches` in `src/domain/rules.ts`: a literal case-insensitive
+/// substring (`instr` has no wildcards to escape) plus the amount window,
+/// first match by priority. Transfer legs never qualify — they must stay
+/// uncategorized so the totals keep ignoring them.
+const RULE_MATCH: &str = "rules r
+              join categories c on c.id = r.category_id and c.deleted_at is null
+              where r.deleted_at is null and length(r.pattern) > 0
+                and ((r.target in ('merchant', 'both')
+                      and instr(lower(t.merchant), lower(r.pattern)) > 0)
+                     or (r.target in ('description', 'both')
+                         and instr(lower(t.description), lower(r.pattern)) > 0))
+                and (r.sign = 'any'
+                     or (r.sign = 'in' and t.amount_cents > 0)
+                     or (r.sign = 'out' and t.amount_cents < 0))
+                and (r.min_amount_cents is null or t.amount_cents >= r.min_amount_cents)
+                and (r.max_amount_cents is null or t.amount_cents <= r.max_amount_cents)";
+
+fn apply_rules_in(transaction: &rusqlite::Transaction) -> Result<i64, String> {
+    let affected = transaction
+        .execute(
+            &format!(
+                "update transactions as t set category_id =
+                   (select r.category_id from {RULE_MATCH} order by r.priority, r.id limit 1)
+                 where t.category_id is null and t.transfer_group is null and t.deleted_at is null
+                   and exists (select 1 from {RULE_MATCH} order by r.priority, r.id limit 1)"
+            ),
+            [],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(affected as i64)
+}
+
+/// Runs every rule over all uncategorized rows. Imports call this themselves;
+/// the command below re-runs it after the user edits the rulebook.
+pub fn apply_rules(connection: &mut Connection) -> Result<i64, String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|problem| problem.to_string())?;
+    let affected = apply_rules_in(&transaction)?;
+    transaction.commit().map_err(|problem| problem.to_string())?;
+    Ok(affected)
+}
+
 /// Imports a bank CSV into one account. Rows carry no FITID, so the dedupe
 /// falls back to the statement fingerprint — the same key an OFX without
 /// FITID would produce, which is what makes reimports and OFX/CSV overlaps
@@ -1359,6 +1592,8 @@ pub fn import_csv(
         )
         .map_err(|problem| problem.to_string())?;
 
+    let categorized = apply_rules_in(&transaction)?;
+
     transaction.commit().map_err(|problem| problem.to_string())?;
 
     Ok(ImportReport {
@@ -1368,6 +1603,7 @@ pub fn import_csv(
         inserted,
         duplicates,
         skipped,
+        categorized,
         ledger_balance_cents: None,
         ledger_balance_on: None,
     })
@@ -3007,6 +3243,7 @@ mod tests {
         assert_eq!(version, SCHEMA_VERSION.to_string());
         assert!(has_table(&connection, "people").expect("should inspect"));
         assert!(has_table(&connection, "shares").expect("should inspect"));
+        assert!(has_table(&connection, "rules").expect("should inspect"));
 
         let (count, distinct, blank): (i64, i64, i64) = connection
             .query_row(
@@ -3637,6 +3874,206 @@ mod tests {
             }
         )
         .is_err());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    fn rule_input(pattern: &str, target: &str, category_id: i64) -> RuleInput {
+        RuleInput {
+            id: None,
+            pattern: pattern.to_string(),
+            target: target.to_string(),
+            category_id,
+            sign: "any".to_string(),
+            min_amount_cents: None,
+            max_amount_cents: None,
+            priority: 0,
+        }
+    }
+
+    #[test]
+    fn rules_categorize_on_import_and_never_overwrite() {
+        let path = temporary_database("rules-import");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let food = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Comida".into(),
+                kind: "expense".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the category");
+        save_rule(&connection, &rule_input("IFOOD", "both", food)).expect("should save the rule");
+        // A merchant-only rule for the salary row proves the target matters.
+        let other = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Salário".into(),
+                kind: "income".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the second category");
+        let mut salary_rule = rule_input("SALARIO", "merchant", other);
+        salary_rule.priority = 5;
+        save_rule(&connection, &salary_rule).expect("should save the salary rule");
+
+        let report = import_ofx(&mut connection, &file).expect("should import");
+        assert_eq!(report.inserted, 2);
+        assert_eq!(report.categorized, 2);
+        let rows = list_transactions(&connection, None, None, None, 50).expect("should list");
+        let food_row = rows.iter().find(|row| row.amount_cents < 0).expect("expense");
+        let pay_row = rows.iter().find(|row| row.amount_cents > 0).expect("income");
+        assert_eq!(food_row.category_id, Some(food));
+        assert_eq!(pay_row.category_id, Some(other));
+
+        // The user's explicit choice wins over every later run.
+        set_category(&connection, food_row.id, None).expect("should uncategorize");
+        set_category(&connection, pay_row.id, Some(food)).expect("should pin");
+        let rerun = apply_rules(&mut connection).expect("should rerun");
+        assert_eq!(rerun, 1, "only the uncategorized row moves");
+        let rows = list_transactions(&connection, None, None, None, 50).expect("should list");
+        assert_eq!(
+            rows.iter().find(|row| row.id == pay_row.id).expect("pinned").category_id,
+            Some(food)
+        );
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn rules_refuse_garbage_and_first_priority_wins() {
+        let path = temporary_database("rules-guards");
+        let mut connection = open(&path).expect("should open");
+        let food = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Comida".into(),
+                kind: "expense".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the category");
+        let second = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Outros".into(),
+                kind: "expense".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the second category");
+
+        assert!(save_rule(&connection, &rule_input("   ", "both", food)).is_err());
+        let mut bad = rule_input("x", "everywhere", food);
+        assert!(save_rule(&connection, &bad).is_err());
+        bad = rule_input("x", "both", food);
+        bad.sign = "sometimes".to_string();
+        assert!(save_rule(&connection, &bad).is_err());
+        assert!(save_rule(&connection, &rule_input("x", "both", 999_999)).is_err());
+        let mut inverted = rule_input("x", "both", food);
+        inverted.min_amount_cents = Some(100);
+        inverted.max_amount_cents = Some(-100);
+        assert!(save_rule(&connection, &inverted).is_err());
+        let ghost = RuleInput { id: Some(999_999), ..rule_input("x", "both", food) };
+        assert!(save_rule(&connection, &ghost).is_err());
+        assert!(delete_rule(&connection, 999_999).is_err());
+
+        // Same substring, two owners: the lower priority takes the row.
+        let mut low = rule_input("IFOOD", "both", food);
+        low.priority = 10;
+        save_rule(&connection, &low).expect("should save the low rule");
+        let mut high = rule_input("IFOOD", "both", second);
+        high.priority = 1;
+        save_rule(&connection, &high).expect("should save the high rule");
+        let rules = list_rules(&connection).expect("should list");
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].category_id, second, "ordered by priority");
+
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: account,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: -100,
+                description: "ifood".to_string(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("should save the expense");
+        assert_eq!(apply_rules(&mut connection).expect("should run"), 1);
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].category_id, Some(second), "the lower priority takes the row");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn rules_skip_transfer_legs() {
+        let path = temporary_database("rules-transfers");
+        let mut connection = open(&path).expect("should open");
+        let food = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Comida".into(),
+                kind: "expense".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the category");
+        // A catch-all rule would claim everything categorizable.
+        let mut catch_all = rule_input("a", "both", food);
+        catch_all.sign = "any".to_string();
+        save_rule(&connection, &catch_all).expect("should save the rule");
+
+        let from = create_manual_account(&connection, "A").expect("should create A");
+        let to = create_manual_account(&connection, "B").expect("should create B");
+        save_transfer(
+            &mut connection,
+            &TransferInput {
+                from_account_id: from,
+                to_account_id: to,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: 1000,
+                description: "Caixa para banco".to_string(),
+                notes: String::new(),
+            },
+        )
+        .expect("should transfer");
+        assert_eq!(apply_rules(&mut connection).expect("should run"), 0);
+        let legs = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list");
+        assert_eq!(legs.len(), 2);
+        assert!(legs.iter().all(|row| row.category_id.is_none()));
 
         let _ = std::fs::remove_file(&path);
     }

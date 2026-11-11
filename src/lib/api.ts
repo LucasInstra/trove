@@ -76,6 +76,30 @@ export interface RefundInput {
   notes?: string | null;
 }
 
+export interface Rule {
+  id: number;
+  pattern: string;
+  target: "merchant" | "description" | "both";
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
+  sign: "any" | "in" | "out";
+  minAmountCents: number | null;
+  maxAmountCents: number | null;
+  priority: number;
+}
+
+export interface RuleInput {
+  id?: number | null;
+  pattern: string;
+  target: "merchant" | "description" | "both";
+  categoryId: number;
+  sign: "any" | "in" | "out";
+  minAmountCents: number | null;
+  maxAmountCents: number | null;
+  priority: number;
+}
+
 export interface CategoryInput {
   id: number | null;
   name: string;
@@ -118,6 +142,7 @@ export interface ImportReport {  accountId: number;
   inserted: number;
   duplicates: number;
   skipped: number;
+  categorized: number;
   ledgerBalanceCents: number | null;
   ledgerBalanceOn: string | null;
 }
@@ -394,6 +419,10 @@ export const api = {
   saveTransfer: (input: TransferInput) => invoke<string>("save_transfer", { input }),
   deleteTransfer: (id: number) => invoke<void>("delete_transfer", { id }),
   saveRefund: (input: RefundInput) => invoke<number>("save_refund", { input }),
+  saveRule: (input: RuleInput) => invoke<number>("save_rule", { input }),
+  deleteRule: (id: number) => invoke<void>("delete_rule", { id }),
+  listRules: () => invoke<Rule[]>("list_rules"),
+  applyRules: () => invoke<number>("apply_rules"),
   createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
   renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
   archiveAccount: (id: number) => invoke<void>("archive_account", { id }),

@@ -142,6 +142,30 @@ fn save_refund(app: tauri::AppHandle, input: db::RefundInput) -> Result<i64, Str
 }
 
 #[tauri::command]
+fn save_rule(app: tauri::AppHandle, input: db::RuleInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_rule(&connection, &input)
+}
+
+#[tauri::command]
+fn delete_rule(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_rule(&connection, id)
+}
+
+#[tauri::command]
+fn list_rules(app: tauri::AppHandle) -> Result<Vec<db::Rule>, String> {
+    let connection = connection(&app)?;
+    db::list_rules(&connection)
+}
+
+#[tauri::command]
+fn apply_rules(app: tauri::AppHandle) -> Result<i64, String> {
+    let mut connection = connection(&app)?;
+    db::apply_rules(&mut connection)
+}
+
+#[tauri::command]
 fn save_category(app: tauri::AppHandle, input: db::CategoryInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::save_category(&connection, &input)
@@ -469,6 +493,10 @@ pub fn run() {
             save_transfer,
             delete_transfer,
             save_refund,
+            save_rule,
+            delete_rule,
+            list_rules,
+            apply_rules,
             create_manual_account,
             rename_account,
             archive_account,
