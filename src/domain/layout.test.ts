@@ -28,7 +28,7 @@ describe("parseLayout", () => {
       { id: "forecast", span: 3 },
     ]);
     const layout = parseLayout(stored);
-    expect(layout.slice(0, 3).map((entry) => entry.id)).toEqual(["bills", "forecast", "cards"]);
+    expect(layout.slice(0, 3).map((entry) => entry.id)).toEqual(["bills", "forecast", "kpis"]);
     expect(layout[0].span).toBe(2);
     expect(layout[1].span).toBe(3);
     expect(layout.some((entry) => (entry.id as string) === "ghost")).toBe(false);
@@ -121,7 +121,8 @@ describe("moveCardTo", () => {
     const next = moveCardTo(DEFAULT_LAYOUT, "series", "forecast");
     expect(next).toHaveLength(DEFAULT_LAYOUT.length);
     expect(new Set(next.map((entry) => entry.id)).size).toBe(DEFAULT_LAYOUT.length);
-    expect(next[0].id).toBe("series");
+    expect(next[0].id).toBe("kpis");
+    expect(next[1].id).toBe("series");
   });
 });
 
@@ -220,19 +221,19 @@ describe("setMode", () => {
 describe("setSpan", () => {
   it("sets the width the control asked for", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "bills", 3)[1].span).toBe(3);
-    expect(setSpan(layout, "forecast", 1)[0].span).toBe(1);
+    expect(setSpan(layout, "bills", 3)[2].span).toBe(3);
+    expect(setSpan(layout, "forecast", 1)[1].span).toBe(1);
   });
 
   it("clamps to the columns the grid has", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "bills", 9)[1].span).toBe(3);
-    expect(setSpan(layout, "bills", 0)[1].span).toBe(1);
+    expect(setSpan(layout, "bills", 9)[2].span).toBe(3);
+    expect(setSpan(layout, "bills", 0)[2].span).toBe(1);
   });
 
   it("falls back to one column on a width it cannot read", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "forecast", Number.NaN)[0].span).toBe(1);
+    expect(setSpan(layout, "forecast", Number.NaN)[1].span).toBe(1);
   });
 
   it("returns the same layout when the width does not change", () => {

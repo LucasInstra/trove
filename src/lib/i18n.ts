@@ -280,6 +280,11 @@ const en: Dictionary = {
   "settings.language": "Language",
   "settings.languageDesc": "Choose the language of the interface.",
 
+  "kpi.title": "Month at a glance",
+  "kpi.income": "Income",
+  "kpi.expense": "Spending",
+  "kpi.balance": "Balance",
+
 };
 
 const pt: Dictionary = {
@@ -556,6 +561,11 @@ const pt: Dictionary = {
     "Este app lê extratos OFX e guarda tudo em SQLite no seu computador. Nenhum dado financeiro sai da máquina, e não existe login. A única chamada de rede é a verificação de atualização no GitHub.",
   "settings.language": "Idioma",
   "settings.languageDesc": "Escolha o idioma da interface.",
+
+  "kpi.title": "Resumo do mês",
+  "kpi.income": "Entradas",
+  "kpi.expense": "Gastos",
+  "kpi.balance": "Resultado",
 
 };
 

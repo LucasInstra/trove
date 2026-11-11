@@ -15,6 +15,7 @@
  */
 
 export const CARD_IDS = [
+  "kpis",
   "forecast",
   "bills",
   "cards",
@@ -42,6 +43,7 @@ export interface LayoutCard {
 }
 
 export const DEFAULT_LAYOUT: LayoutCard[] = [
+  { id: "kpis", span: 3, mode: "full" },
   { id: "forecast", span: 2, mode: "full" },
   { id: "bills", span: 1, mode: "full" },
   { id: "cards", span: 2, mode: "full" },

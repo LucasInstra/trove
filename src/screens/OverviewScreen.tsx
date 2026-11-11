@@ -7,6 +7,7 @@ import { Progress } from "../components/ui/progress";
 import { Icon, type IconName } from "../components/Icons";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
+import { KpisCard } from "../components/KpiCards";
 import type { InvoiceWindow } from "../domain/invoice";
 import {
   hasDetailsSection,
@@ -158,6 +159,7 @@ export function OverviewScreen({
 
   const cardName = (id: CardId) =>
     ({
+      kpis: t("kpi.title"),
       forecast: t("overview.forecast"),
       bills: t("planner.bills"),
       cards: t("planner.cards"),
@@ -170,6 +172,8 @@ export function OverviewScreen({
 
   const collapsedFigure = (id: CardId): ReactNode => {
     switch (id) {
+      case "kpis":
+        return formatCents(plan.forecastCents);
       case "forecast":
         return formatCents(plan.forecastCents);
       case "bills":
@@ -218,6 +222,7 @@ export function OverviewScreen({
     mode === "compact" ? "chevron-down" : mode === "mini" ? "arrow-down-to-line" : "chevron-up";
 
   const cells: Record<CardId, ReactNode> = {
+    kpis: <KpisCard plan={plan} series={series} month={month} />,
     forecast: (
       <article className="account-card">
         <div className="account-top">
@@ -399,6 +404,7 @@ export function OverviewScreen({
   // The compact form of a card keeps the information and drops the furniture: a
   // header line with the figure and one small visual for the card's own measure.
   const compactCells: Record<CardId, ReactNode> = {
+    kpis: <KpisCard plan={plan} series={series} month={month} compact />,
     forecast: (
       <article className="card card-compact">
         <div className="compact-head">
