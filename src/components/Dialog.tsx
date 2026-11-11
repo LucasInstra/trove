@@ -7,8 +7,8 @@ interface DialogProps {
 }
 
 /**
- * Small modal with the same dialog semantics as the keeper sheet: focus moves
- * in, Tab is trapped, Escape closes and focus goes back where it came from.
+ * Small modal dialog: focus moves in, Tab is trapped, Escape closes and
+ * focus goes back where it came from.
  */
 export function Dialog({ title, onClose, children }: DialogProps) {
   const sheetRef = useRef<HTMLDivElement>(null);

@@ -43,14 +43,6 @@ Updates are automatic: the app checks on launch and offers the install from Sett
 - **Import history**: every file that ever entered the ledger, with how many entries it added and how many were already there.
 - **English and Portuguese**, switched in Settings and remembered between launches.
 
-## The keeper
-
-<img src="docs/mascot.png" width="620" alt="the keeper in five moods">
-
-A piggy bank with a face guards the trove. It follows the pointer, blinks, looks around when nothing is happening and hops when you boop it. The mood follows the month: happy when you spend less than you earn, worried when the month closes negative, sleepy when there is nothing imported yet, celebrating when a statement lands.
-
-Click **Customize** in the sidebar to change the shape, the colour and the eyes, and to turn the snout, ears, curl tail and blush on or off. The look is stored locally.
-
 ## Privacy
 
 No financial data leaves the computer. There is no login, no telemetry and no request to a server of ours; the only network call is the update check against GitHub. The database lives in `%APPDATA%\com.lucas.trove\trove.db`, and Settings shows the folder.

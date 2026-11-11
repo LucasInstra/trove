@@ -5,12 +5,9 @@ import { Donut } from "../components/Donut";
 import { Icon3D } from "../components/Icon3D";
 import { Progress } from "../components/ui/progress";
 import { Icon, type IconName } from "../components/Icons";
-import { Mascot } from "../components/Mascot";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
 import type { InvoiceWindow } from "../domain/invoice";
-import type { KeeperLook } from "../lib/keeper";
-import { SHOW_HERO_KEEPER } from "../lib/features";
 import {
   hasDetailsSection,
   isCardAvailable,
@@ -75,7 +72,6 @@ interface OverviewProps {
   onLayoutReset: () => void;
   onLayoutDone: () => void;
   onEditIncome: () => void;
-  look: KeeperLook;
 }
 
 export function OverviewScreen({
@@ -107,7 +103,6 @@ export function OverviewScreen({
   onLayoutMode,
   onLayoutReset,
   onLayoutDone,
-  look,
 }: OverviewProps) {
   const { lang, t } = useLanguage();
   const [dragId, setDragId] = useState<CardId | null>(null);
@@ -254,11 +249,7 @@ export function OverviewScreen({
         </div>
 
         <div className="account-figure" aria-hidden="true">
-          {SHOW_HERO_KEEPER ? (
-            <Mascot look={look} size={112} animate={false} boopable={false} bare fps={30} />
-          ) : (
-            <Icon3D name="piggy" size={96} />
-          )}
+          <Icon3D name="piggy" size={96} />
         </div>
 
         <CompositionBar parts={plan.composition} format={formatCents} />

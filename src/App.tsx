@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeeperPanel } from "./components/KeeperPanel";
-import { Mascot } from "./components/Mascot";
 import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
@@ -39,15 +37,12 @@ import type {
   PlannerState,
   TransactionRow,
 } from "./lib/api";
-import { formatCents, monthLabel } from "./lib/format";
 import { useLanguage } from "./lib/language";
 import { useUpdater } from "./lib/updater";
 import { invoiceWindow } from "./domain/invoice";
 import { planMonth } from "./domain/projection";
 import { buildNotifications } from "./domain/notifications";
-import { loadLook, saveLook, type KeeperLook } from "./lib/keeper";
 import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
-import { SHOW_KEEPER } from "./lib/features";
 import {
   moveCardTo,
   parseLayout,
@@ -58,7 +53,6 @@ import {
   type CardMode,
   type LayoutCard,
 } from "./domain/layout";
-import type { Mood } from "./components/Mascot";
 import { BUILD_LABEL } from "./lib/build";
 
 type Route =
@@ -100,27 +94,6 @@ type DialogState =
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
-function describeMonth(
-  totals: MonthTotals | null,
-  month: string | null,
-  lang: "en" | "pt",
-  t: (key: string, vars?: Record<string, string | number>) => string,
-): { mood: Mood; line: string } {
-  if (!month) return { mood: "sleepy", line: t("keeper.waking") };
-  const label = monthLabel(month, lang);
-  if (!totals || totals.transactionCount === 0) {
-    return { mood: "sleepy", line: t("keeper.nothing", { month: label }) };
-  }
-  const net = totals.incomeCents - totals.expenseCents;
-  if (totals.expenseCents === 0 && totals.incomeCents > 0) {
-    return { mood: "happy", line: t("keeper.noSpending", { month: label }) };
-  }
-  if (net < 0) {
-    return { mood: "worried", line: t("keeper.over", { amount: formatCents(-net) }) };
-  }
-  return { mood: "happy", line: t("keeper.kept", { amount: formatCents(net) }) };
-}
-
 export function App() {
   const { lang, setLang, t } = useLanguage();
   const [route, setRoute] = useState<Route>("overview");
@@ -145,9 +118,6 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<DialogState>(null);
   const updater = useUpdater();
-  const keeper = useMemo(() => describeMonth(totals, month, lang, t), [totals, month, lang, t]);
-  const [look, setLook] = useState<KeeperLook>(() => loadLook());
-  const [panelOpen, setPanelOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
 
   useEffect(() => {
@@ -178,11 +148,6 @@ export function App() {
     if (!langHydrated.current) return;
     void api.setSetting("lang", lang).catch(() => {});
   }, [lang]);
-
-  const updateLook = useCallback((next: KeeperLook) => {
-    setLook(next);
-    saveLook(next);
-  }, []);
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
@@ -454,24 +419,6 @@ export function App() {
             </SidebarGroup>
           </nav>
 
-          {SHOW_KEEPER ? (
-            <div className="keeper">
-              <Mascot
-                look={look}
-                mood={keeper.mood}
-                size={58}
-                animate={!panelOpen}
-                hint={t("keeper.hint")}
-              />
-              <div className="keeper-copy">
-                <p className="keeper-line">{keeper.line}</p>
-                <button type="button" className="keeper-customize" onClick={() => setPanelOpen(true)}>
-                  {t("common.customize")}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
           <SidebarFooter>
             <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
 
@@ -596,7 +543,6 @@ export function App() {
                 void api.setSetting(`split_settled_${month}`, "1");
               }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
-              look={look}
             />
           ) : null}
 
@@ -683,7 +629,6 @@ export function App() {
 
           {route === "import" ? (
             <ImportScreen
-              look={look}
               onImported={() => {
                 if (month) void reload(search, month, accountFilter);
                 setRoute("overview");
@@ -721,10 +666,6 @@ export function App() {
           },
         ]}
       />
-
-      {SHOW_KEEPER && panelOpen ? (
-        <KeeperPanel look={look} onChange={updateLook} onClose={() => setPanelOpen(false)} />
-      ) : null}
 
       {dialog?.kind === "income" ? (
         <IncomeDialog

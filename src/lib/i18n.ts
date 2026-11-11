@@ -10,7 +10,6 @@ type Dictionary = Record<string, string>;
 const en: Dictionary = {
   "app.tagline": "local finance",
   "common.loading": "Loading...",
-  "common.customize": "Customize",
   "common.version": "version {value}",
 
   "nav.menu": "Menu",
@@ -230,13 +229,6 @@ const en: Dictionary = {
   "ledger.chooseFile": "Choose a file",
   "ledger.noCategory": "No category",
 
-  "keeper.waking": "Waking up...",
-  "keeper.nothing": "Nothing recorded for {month} yet.",
-  "keeper.noSpending": "No spending in {month}. Rare sight.",
-  "keeper.over": "You spent {amount} more than you made this month.",
-  "keeper.kept": "You kept {amount} this month.",
-  "keeper.hint": "Drag me or click for a boop",
-
   "update.downloading": "downloading {percent}%",
   "update.downloadingPlain": "downloading...",
   "update.restarting": "restarting",
@@ -288,53 +280,11 @@ const en: Dictionary = {
   "settings.language": "Language",
   "settings.languageDesc": "Choose the language of the interface.",
 
-  "panel.title": "Your keeper",
-  "panel.subtitle": "He guards the trove. Make him yours.",
-  "panel.body": "Body",
-  "panel.eyes": "Eyes",
-  "panel.size": "Size",
-  "panel.spacing": "Spacing",
-  "panel.tilt": "Tilt",
-  "panel.ink": "Ink",
-  "panel.details": "Details",
-  "panel.reset": "Reset look",
-  "panel.done": "Done",
-  "panel.snout": "Snout",
-  "panel.ears": "Ears",
-  "panel.tail": "Curly tail",
-  "panel.blush": "Blush",
-
-  "shape.round": "Round",
-  "shape.egg": "Egg",
-  "shape.oval": "Oval",
-  "shape.square": "Square",
-  "shape.blob": "Blob",
-  "shape.pill": "Pill",
-
-  "eye.dots": "Dots",
-  "eye.bars": "Bars",
-  "eye.arcs": "Arcs",
-  "eye.sleepy": "Sleepy",
-  "eye.sparkle": "Sparkle",
-  "eye.heart": "Heart",
-
-  "size.small": "S",
-  "size.medium": "M",
-  "size.large": "L",
-
-  "spacing.close": "Close",
-  "spacing.normal": "Normal",
-  "spacing.wide": "Wide",
-
-  "tilt.soft": "Soft",
-  "tilt.straight": "Straight",
-  "tilt.sharp": "Sharp",
 };
 
 const pt: Dictionary = {
   "app.tagline": "finanças locais",
   "common.loading": "Carregando...",
-  "common.customize": "Personalizar",
   "common.version": "versão {value}",
 
   "nav.menu": "Menu",
@@ -556,13 +506,6 @@ const pt: Dictionary = {
   "ledger.chooseFile": "Escolher arquivo",
   "ledger.noCategory": "Sem categoria",
 
-  "keeper.waking": "Acordando...",
-  "keeper.nothing": "Nada registrado em {month} ainda.",
-  "keeper.noSpending": "Nenhum gasto em {month}. Coisa rara.",
-  "keeper.over": "Você gastou {amount} a mais do que ganhou neste mês.",
-  "keeper.kept": "Você guardou {amount} neste mês.",
-  "keeper.hint": "Arraste ou clique para um carinho",
-
   "update.downloading": "baixando {percent}%",
   "update.downloadingPlain": "baixando...",
   "update.restarting": "reiniciando",
@@ -614,47 +557,6 @@ const pt: Dictionary = {
   "settings.language": "Idioma",
   "settings.languageDesc": "Escolha o idioma da interface.",
 
-  "panel.title": "Seu guardião",
-  "panel.subtitle": "Ele guarda o cofre. Deixe com a sua cara.",
-  "panel.body": "Corpo",
-  "panel.eyes": "Olhos",
-  "panel.size": "Tamanho",
-  "panel.spacing": "Espaçamento",
-  "panel.tilt": "Inclinação",
-  "panel.ink": "Tinta",
-  "panel.details": "Detalhes",
-  "panel.reset": "Redefinir",
-  "panel.done": "Pronto",
-  "panel.snout": "Focinho",
-  "panel.ears": "Orelhas",
-  "panel.tail": "Rabo",
-  "panel.blush": "Blush",
-
-  "shape.round": "Redondo",
-  "shape.egg": "Ovo",
-  "shape.oval": "Oval",
-  "shape.square": "Quadrado",
-  "shape.blob": "Mancha",
-  "shape.pill": "Pílula",
-
-  "eye.dots": "Pontos",
-  "eye.bars": "Barras",
-  "eye.arcs": "Arcos",
-  "eye.sleepy": "Sonolento",
-  "eye.sparkle": "Brilho",
-  "eye.heart": "Coração",
-
-  "size.small": "P",
-  "size.medium": "M",
-  "size.large": "G",
-
-  "spacing.close": "Perto",
-  "spacing.normal": "Normal",
-  "spacing.wide": "Longe",
-
-  "tilt.soft": "Suave",
-  "tilt.straight": "Reto",
-  "tilt.sharp": "Agudo",
 };
 
 const TABLES: Record<Lang, Dictionary> = { en, pt };

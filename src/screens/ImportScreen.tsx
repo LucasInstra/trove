@@ -2,18 +2,13 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
-import { Mascot } from "../components/Mascot";
-import { SHOW_KEEPER } from "../lib/features";
 import { api, type ImportReport, type ImportRow } from "../lib/api";
 import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
 import { useLanguage } from "../lib/language";
-import type { KeeperLook } from "../lib/keeper";
 
 export function ImportScreen({
-  look,
   onImported,
 }: {
-  look: KeeperLook;
   onImported: () => void;
 }) {
   const { lang, t } = useLanguage();
@@ -158,9 +153,6 @@ export function ImportScreen({
         <div className="card report">
           <div className="report-head">
             <div className="report-title">
-              {SHOW_KEEPER ? (
-                <Mascot look={look} mood="celebrate" size={56} hint={t("keeper.hint")} />
-              ) : null}
               <div>
                 <h2>{t("import.reportTitle", { count: inserted })}</h2>
                 <p className="muted">
