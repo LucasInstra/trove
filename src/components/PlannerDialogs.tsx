@@ -294,3 +294,40 @@ export function DepositDialog({ goal, onClose, onSave }: { goal: Goal; onClose: 
     </Dialog>
   );
 }
+
+export function BudgetDialog({ name, budget, onClose, onSave }: { name: string; budget: number | null; onClose: () => void; onSave: (budget: number | null) => void }) {
+  const { t } = useLanguage();
+  const [raw, setRaw] = useState(budget == null ? "" : (budget / 100).toFixed(2));
+
+  return (
+    <Dialog title={t("budget.title", { name })} onClose={onClose}>
+      <form
+        className="dialog-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (raw.trim() === "") {
+            onSave(null);
+            return;
+          }
+          const cents = parseCents(raw);
+          if (cents <= 0) return;
+          onSave(cents);
+        }}
+      >
+        <Field label={t("planner.amount")}>
+          <input
+            value={raw}
+            onChange={(event) => setRaw(event.target.value)}
+            inputMode="decimal"
+            placeholder={t("budget.none")}
+          />
+        </Field>
+        <p className="muted small">{t("budget.hint")}</p>
+        <div className="dialog-actions">
+          <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button type="submit" className="primary">{t("common.save")}</button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}

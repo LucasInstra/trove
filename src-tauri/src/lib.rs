@@ -31,6 +31,12 @@ fn save_manual_transaction(app: tauri::AppHandle, input: db::ManualInput) -> Res
 }
 
 #[tauri::command]
+fn set_category_budget(app: tauri::AppHandle, category_id: i64, budget_cents: Option<i64>) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::set_category_budget(&connection, category_id, budget_cents)
+}
+
+#[tauri::command]
 fn clear_month(app: tauri::AppHandle, month: String) -> Result<db::ClearReport, String> {
     let mut connection = connection(&app)?;
     db::clear_month(&mut connection, &month)
@@ -299,6 +305,7 @@ pub fn run() {
             import_ofx,
             save_manual_transaction,
             clear_month,
+            set_category_budget,
             category_month_series,
             list_accounts,
             list_categories,

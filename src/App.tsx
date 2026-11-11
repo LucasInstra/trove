@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
-import { BillDialog, CardDialog, DepositDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
+import { BillDialog, BudgetDialog, CardDialog, DepositDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
 import { ManualDialog } from "./components/ManualDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
@@ -98,6 +98,7 @@ type DialogState =
   | { kind: "goal"; goal: Goal | null }
   | { kind: "debt"; debt: Debt | null }
   | { kind: "deposit"; goal: Goal }
+  | { kind: "budget"; id: number; name: string; budget: number | null }
   | { kind: "manual" }
   | { kind: "ceiling" }
   | null;
@@ -396,6 +397,16 @@ export function App() {
     }
   };
 
+  const saveBudget = async (id: number, budget: number | null) => {
+    try {
+      await api.setCategoryBudget(id, budget);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
   const toggleDebt = async (id: number, settled: boolean) => {
     if (!month) return;
     await api.setDebtSettled(id, settled);
@@ -631,6 +642,7 @@ export function App() {
                 void api.setSetting(`split_settled_${month}`, "1");
               }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
+              onEditBudget={(category) => setDialog({ kind: "budget", ...category })}
               housingCategoryId={housingCategoryId}
             />
           ) : null}
@@ -800,6 +812,15 @@ export function App() {
           goal={dialog.goal}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveDeposit(input)}
+        />
+      ) : null}
+
+      {dialog?.kind === "budget" ? (
+        <BudgetDialog
+          name={dialog.name}
+          budget={dialog.budget}
+          onClose={() => setDialog(null)}
+          onSave={(value) => void saveBudget(dialog.id, value)}
         />
       ) : null}
 

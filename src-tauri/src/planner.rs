@@ -83,15 +83,6 @@ pub struct GoalTotal {
     pub payments: i64,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Deposit {
-    pub id: i64,
-    pub goal_id: i64,
-    pub amount_cents: i64,
-    pub deposited_on: String,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DepositInput {

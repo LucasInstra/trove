@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -264,6 +264,7 @@ pub struct CategoryTotal {
     pub name: String,
     pub color: String,
     pub total_cents: i64,
+    pub budget_cents: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -353,8 +354,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v5(&connection)?;
         write_version(&connection, 5)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 6 {
         migrate_to_v6(&connection)?;
+        write_version(&connection, 6)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v7(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -421,6 +426,11 @@ fn add_column(
     connection
         .execute_batch(&format!("alter table {table} add column {column} {definition}"))
         .map_err(|problem| problem.to_string())
+}
+
+/// v6 to v7: monthly spending targets per category. Null means no target.
+fn migrate_to_v7(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "categories", "budget_cents", "integer")
 }
 
 /// v5 to v6: hand-entered goal deposits. An aporte is a transfer into savings,
@@ -824,6 +834,27 @@ pub fn set_category(
     Ok(())
 }
 
+/// A monthly spending target for a category. Null removes the target.
+pub fn set_category_budget(
+    connection: &Connection,
+    category_id: i64,
+    budget_cents: Option<i64>,
+) -> Result<(), String> {
+    if budget_cents.is_some_and(|budget| budget <= 0) {
+        return Err("budget must be positive".to_string());
+    }
+    let affected = connection
+        .execute(
+            "update categories set budget_cents = ?1 where id = ?2",
+            params![budget_cents, category_id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("category {category_id} does not exist"));
+    }
+    Ok(())
+}
+
 /// Soft deletes a transaction and frees its dedupe key, so importing the same
 /// statement again brings the row back instead of being swallowed by the unique
 /// key. SQLite cannot drop the inline `unique (dedupe_key)` without rebuilding
@@ -1022,7 +1053,7 @@ pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<Categ
     let mut statement = connection
         .prepare(
             "select c.id, coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
-                    sum(-t.amount_cents) as total
+                    sum(-t.amount_cents) as total, max(c.budget_cents)
              from transactions t
              left join categories c on c.id = t.category_id
              where t.posted_on like ?1 and t.amount_cents < 0 and t.deleted_at is null
@@ -1038,6 +1069,7 @@ pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<Categ
                 name: row.get(1)?,
                 color: row.get(2)?,
                 total_cents: row.get(3)?,
+                budget_cents: row.get(4)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -1226,6 +1258,41 @@ mod tests {
 
         let empty_month = list_transactions(&connection, None, Some("2024-04"), None, 50).expect("should list");
         assert!(empty_month.is_empty());
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn category_budgets_ride_along_with_the_totals() {
+        let path = temporary_database("budgets");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        import_ofx(&mut connection, &file).expect("should import");
+
+        let categories = list_categories(&connection).expect("should list");
+        let food = categories.iter().find(|category| category.name == "Food").expect("seeded");
+        set_category_budget(&connection, food.id, Some(90_000)).expect("should set");
+        assert!(set_category_budget(&connection, food.id, Some(0)).is_err());
+        assert!(set_category_budget(&connection, 999_999, Some(10_000)).is_err());
+
+        let debit = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list")
+            .into_iter()
+            .find(|row| row.amount_cents < 0)
+            .expect("spending row");
+        set_category(&connection, debit.id, Some(food.id)).expect("should categorize");
+
+        let totals = category_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.len(), 1);
+        assert_eq!(totals[0].name, "Food");
+        assert_eq!(totals[0].budget_cents, Some(90_000));
+
+        set_category_budget(&connection, food.id, None).expect("should clear");
+        let totals = category_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals[0].budget_cents, None);
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);
@@ -1515,6 +1582,7 @@ mod tests {
         assert!(has_column(&again, "bills", "installments_total").expect("should inspect"));
         assert!(has_table(&again, "debts").expect("should inspect"));
         assert!(has_table(&again, "goal_deposits").expect("should inspect"));
+        assert!(has_column(&again, "categories", "budget_cents").expect("should inspect"));
 
         let _ = std::fs::remove_file(&path);
     }

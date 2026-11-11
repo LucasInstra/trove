@@ -2496,6 +2496,21 @@ select.tx-category {
   font-variant-numeric: tabular-nums;
 }
 
+.legend-value.over {
+  color: var(--negative);
+}
+
+.legend-edit {
+  display: contents;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .composition-value em {
   font-style: normal;
   color: var(--faint);

@@ -81,6 +81,7 @@ interface OverviewProps {
   onLayoutReset: () => void;
   onLayoutDone: () => void;
   onEditIncome: () => void;
+  onEditBudget: (category: { id: number; name: string; budget: number | null }) => void;
   housingCategoryId: number | null;
 }
 
@@ -101,6 +102,7 @@ export function OverviewScreen({
   onEditHousing,
   onHousingScope,
   onEditIncome,
+  onEditBudget,
   housingCategoryId,
   housingScope,
   people,
@@ -137,16 +139,20 @@ export function OverviewScreen({
     ranked.length > 5
       ? [
           ...topCategories.map((item) => ({
+            categoryId: item.categoryId,
             name: item.name,
             color: item.color,
             value: item.totalCents,
+            budgetCents: item.budgetCents,
           })),
-          { name: t("ledger.otherCategories"), color: "var(--faint)", value: restCents },
+          { categoryId: null, name: t("ledger.otherCategories"), color: "var(--faint)", value: restCents, budgetCents: null },
         ]
       : topCategories.map((item) => ({
+          categoryId: item.categoryId,
           name: item.name,
           color: item.color,
           value: item.totalCents,
+          budgetCents: item.budgetCents,
         }));
   const peak = Math.max(...series.slice(-6).map((point) => point.expenseCents), 1);
   const keptShare =
@@ -376,21 +382,49 @@ export function OverviewScreen({
             </div>
             <BreakdownBar items={donutSlices} active={donutHover} onActive={setDonutHover} />
             <ul className="legend">
-              {donutSlices.map((slice, index) => (
-                <li
-                  key={slice.name}
-                  className={donutHover === index ? "legend-row active" : "legend-row"}
-                  onPointerEnter={() => setDonutHover(index)}
-                  onPointerLeave={() => setDonutHover(null)}
-                >
-                  <span className="dot" style={{ background: slice.color }} />
-                  <span className="legend-name">{slice.name}</span>
-                  <span className="legend-value">{formatCents(slice.value)}</span>
-                  <span className="legend-share">
-                    {spending > 0 ? Math.round((slice.value / spending) * 100) : 0}%
-                  </span>
-                </li>
-              ))}
+              {donutSlices.map((slice, index) => {
+                const over = slice.budgetCents != null && slice.value > slice.budgetCents;
+                const row = (
+                  <>
+                    <span className="dot" style={{ background: slice.color }} />
+                    <span className="legend-name">{slice.name}</span>
+                    <span className={over ? "legend-value over" : "legend-value"}>
+                      {formatCents(slice.value)}
+                      {slice.budgetCents != null ? ` / ${formatCents(slice.budgetCents)}` : null}
+                    </span>
+                    <span className="legend-share">
+                      {spending > 0 ? Math.round((slice.value / spending) * 100) : 0}%
+                    </span>
+                  </>
+                );
+                return (
+                  <li
+                    key={slice.name}
+                    className={donutHover === index ? "legend-row active" : "legend-row"}
+                    onPointerEnter={() => setDonutHover(index)}
+                    onPointerLeave={() => setDonutHover(null)}
+                  >
+                    {slice.categoryId == null ? (
+                      row
+                    ) : (
+                      <button
+                        type="button"
+                        className="legend-edit"
+                        onClick={() =>
+                          onEditBudget({
+                            id: slice.categoryId as number,
+                            name: slice.name,
+                            budget: slice.budgetCents,
+                          })
+                        }
+                        aria-label={t("budget.title", { name: slice.name })}
+                      >
+                        {row}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

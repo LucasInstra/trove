@@ -64,6 +64,7 @@ export interface CategoryTotal {
   name: string;
   color: string;
   totalCents: number;
+  budgetCents: number | null;
 }
 
 export interface MonthPoint {
@@ -290,6 +291,8 @@ export const api = {
   imports: (limit = 12) => invoke<ImportRow[]>("list_imports", { limit }),
   setCategory: (transactionId: number, categoryId: number | null) =>
     invoke<void>("set_category", { transactionId, categoryId }),
+  setCategoryBudget: (categoryId: number, budgetCents: number | null) =>
+    invoke<void>("set_category_budget", { categoryId, budgetCents }),
   saveManual: (input: ManualInput) => invoke<number>("save_manual_transaction", { input }),
   clearMonth: (month: string) => invoke<ClearReport>("clear_month", { month }),
   categoryMonthSeries: (endMonth: string, count = 6) =>
