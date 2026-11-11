@@ -619,6 +619,7 @@ export function App() {
                 void api.setSetting(`split_settled_${month}`, "1");
               }}
               onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
+              housingCategoryId={housingCategoryId}
             />
           ) : null}
 

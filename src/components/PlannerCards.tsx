@@ -6,6 +6,7 @@ import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
 import { groupByDay } from "../domain/projection";
 import { computeSplit, selfPartOf } from "../domain/split";
+import { scopeOfBill } from "../domain/scope";
 import { api } from "../lib/api";
 import { currentMonth, formatCents, formatDate, monthName, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -18,15 +19,17 @@ import { UpcomingInvoices } from "./UpcomingInvoices";
 interface BillsProps {
   plan: MonthPlan;
   people: Person[];
+  housingCategoryId: number | null;
   onToggle: (billId: number, paid: boolean) => void;
   onAdd: () => void;
   onEdit: (bill: Bill) => void;
   compact?: boolean;
 }
 
-export function BillsCard({ plan, people, onToggle, onAdd, onEdit, compact = false }: BillsProps) {
+export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, onEdit, compact = false }: BillsProps) {
   const { t } = useLanguage();
   const [filter, setFilter] = useState<"all" | "overdue" | "ontime">("all");
+  const [scope, setScope] = useState<"all" | "personal" | "house">("all");
   const total = plan.plannedCents;
   const paidCount = plan.paidBillIds.length;
   const count = plan.dueBills.length;
@@ -35,9 +38,13 @@ export function BillsCard({ plan, people, onToggle, onAdd, onEdit, compact = fal
   const isOverdue = (bill: Bill) =>
     !plan.paidBillIds.includes(bill.id) && isCurrentMonth && bill.dueDay < today;
   const visibleBills =
-    filter === "all"
+    filter === "all" && scope === "all"
       ? plan.dueBills
-      : plan.dueBills.filter((bill) => (filter === "overdue" ? isOverdue(bill) : !isOverdue(bill)));
+      : plan.dueBills.filter(
+          (bill) =>
+            (filter === "all" || (filter === "overdue" ? isOverdue(bill) : !isOverdue(bill))) &&
+            (scope === "all" || scopeOfBill(bill, housingCategoryId) === scope),
+        );
   const visibleGroups = groupByDay(visibleBills);
   const activeDay = isCurrentMonth
     ? (visibleGroups.find((group) => group.day >= today)?.day ?? visibleGroups.at(-1)?.day)
@@ -85,25 +92,46 @@ export function BillsCard({ plan, people, onToggle, onAdd, onEdit, compact = fal
       </div>
 
       {count > 0 ? (
-        <div className="segmented" role="group" aria-label={t("planner.bills")}>
-          {(
-            [
-              { id: "all", key: "planner.billsAll" },
-              { id: "overdue", key: "planner.billsOverdue" },
-              { id: "ontime", key: "planner.billsOnTime" },
-            ] as const
-          ).map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={filter === option.id ? "active" : undefined}
-              aria-pressed={filter === option.id}
-              onClick={() => setFilter(option.id)}
-            >
-              {t(option.key)}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="segmented" role="group" aria-label={t("planner.bills")}>
+            {(
+              [
+                { id: "all", key: "planner.billsAll" },
+                { id: "overdue", key: "planner.billsOverdue" },
+                { id: "ontime", key: "planner.billsOnTime" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={filter === option.id ? "active" : undefined}
+                aria-pressed={filter === option.id}
+                onClick={() => setFilter(option.id)}
+              >
+                {t(option.key)}
+              </button>
+            ))}
+          </div>
+          <div className="segmented" role="group" aria-label={t("planner.scope")}>
+            {(
+              [
+                { id: "all", key: "planner.scopeAll" },
+                { id: "personal", key: "planner.scopePersonal" },
+                { id: "house", key: "planner.scopeHouse" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={scope === option.id ? "active" : undefined}
+                aria-pressed={scope === option.id}
+                onClick={() => setScope(option.id)}
+              >
+                {t(option.key)}
+              </button>
+            ))}
+          </div>
+        </>
       ) : null}
 
       {visibleGroups.length > 0 ? (
@@ -128,9 +156,7 @@ export function BillsCard({ plan, people, onToggle, onAdd, onEdit, compact = fal
           {t("planner.addBill")}
         </button>
       ) : visibleBills.length === 0 ? (
-        <p className="muted small">
-          {filter === "overdue" ? t("planner.billsNoneOverdue") : t("planner.billsNoneOnTime")}
-        </p>
+        <p className="muted small">{t("planner.billsNone")}</p>
       ) : (
         <ul className="bill-list">
           {visibleBills.map((bill) => {

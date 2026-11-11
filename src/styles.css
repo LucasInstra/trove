@@ -1846,6 +1846,10 @@ select.tx-category {
   color: var(--negative);
 }
 
+.bills-card .segmented + .segmented {
+  margin-top: 8px;
+}
+
 /* Debts: like bill rows, with a received mark instead of a checkbox. */
 .debt-list {
   list-style: none;

@@ -79,6 +79,7 @@ interface OverviewProps {
   onLayoutReset: () => void;
   onLayoutDone: () => void;
   onEditIncome: () => void;
+  housingCategoryId: number | null;
 }
 
 export function OverviewScreen({
@@ -98,6 +99,7 @@ export function OverviewScreen({
   onEditHousing,
   onHousingScope,
   onEditIncome,
+  housingCategoryId,
   housingScope,
   people,
   shares,
@@ -318,7 +320,7 @@ export function OverviewScreen({
         </div>
       </article>
     ),
-    bills: <BillsCard plan={plan} people={people} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
+    bills: <BillsCard plan={plan} people={people} housingCategoryId={housingCategoryId} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
     cards: (
       <CardsCard
         cards={cards}
@@ -483,7 +485,7 @@ export function OverviewScreen({
       </article>
     ),
     bills: (
-      <BillsCard plan={plan} people={people} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} compact />
+      <BillsCard plan={plan} people={people} housingCategoryId={housingCategoryId} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} compact />
     ),
     cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} compact />,
     housing: (
