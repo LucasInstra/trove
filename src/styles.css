@@ -1,3 +1,56 @@
+/* ---------- Wide screens ---------- */
+
+/* The dashboard was capped at three columns of 1240px, which on a 27 inch
+   monitor leaves half the window empty. The grid takes a fourth column from
+   1700 and the content grows with it; the spans the user stores (1 to 3) keep
+   their meaning, they just get wider. */
+/* Grid items with auto margins shrink to their content, so the screen has to
+   ask for the whole column or the extra width never reaches the cards. */
+.overview {
+  width: 100%;
+}
+
+/* Between the laptop and the four column break, the content grows before the
+   grid does, so a 1500px window is not two empty margins. */
+@media (min-width: 1360px) {
+  .overview,
+  .transactions {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1700px) {
+  .main {
+    padding: 32px 40px 52px;
+  }
+
+  .overview {
+    max-width: 1720px;
+  }
+
+  .planner-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .transactions {
+    max-width: 1720px;
+  }
+}
+
+/* A fifth column does not pay for itself: the stored spans add up to a multiple
+   of four, so on five columns every row ends ragged. Past this point the four
+   columns simply get wider. */
+@media (min-width: 2100px) {
+  .main {
+    padding: 36px 48px 56px;
+  }
+
+  .overview,
+  .transactions {
+    max-width: 2280px;
+  }
+}
+
 /* Everything below is the sheet written before Tailwind. It lives in a layer so
    the utilities of the new components win at equal specificity, without having
    to port every screen at once. */

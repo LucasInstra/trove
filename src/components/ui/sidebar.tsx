@@ -11,7 +11,7 @@ function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
   return (
     <aside
       className={cn(
-        "flex w-52 shrink-0 flex-col gap-6 border-r border-line bg-surface px-3 pt-5 pb-4",
+        "flex w-52 shrink-0 flex-col gap-6 border-r border-line bg-surface px-3 pt-5 pb-4 2xl:w-60",
         className,
       )}
       {...props}
