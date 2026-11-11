@@ -69,7 +69,7 @@ interface OverviewProps {
   layout: LayoutCard[];
   layoutEditing: boolean;
   onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
-  onLayoutResize: (id: CardId, delta: number) => void;
+  onLayoutSpan: (id: CardId, span: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
   onLayoutReset: () => void;
   onLayoutDone: () => void;
@@ -102,7 +102,7 @@ export function OverviewScreen({
   layout,
   layoutEditing,
   onLayoutMoveTo,
-  onLayoutResize,
+  onLayoutSpan,
   onLayoutMode,
   onLayoutReset,
   onLayoutDone,
@@ -667,22 +667,21 @@ export function OverviewScreen({
                 <span className="cell-tools-sep" aria-hidden="true" />
                 {chip ? null : (
                   <>
-                    <button
-                      type="button"
-                      aria-label={t("layout.narrow")}
-                      disabled={item.span <= 1}
-                      onClick={() => onLayoutResize(item.id, -1)}
-                    >
-                      <Icon name="minus" size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t("layout.widen")}
-                      disabled={item.span >= 3}
-                      onClick={() => onLayoutResize(item.id, 1)}
-                    >
-                      <Icon name="plus" size={14} />
-                    </button>
+                    <span className="cell-spans" role="group" aria-label={t("layout.width")}>
+                      {[1, 2, 3].map((span) => (
+                        <button
+                          key={span}
+                          type="button"
+                          className={item.span === span ? "cell-span active" : "cell-span"}
+                          aria-label={t("layout.widthOf", { span })}
+                          aria-pressed={item.span === span}
+                          title={t("layout.widthOf", { span })}
+                          onClick={() => onLayoutSpan(item.id, span)}
+                        >
+                          {span}
+                        </button>
+                      ))}
+                    </span>
                     <span className="cell-tools-sep" aria-hidden="true" />
                   </>
                 )}

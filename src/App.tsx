@@ -50,7 +50,7 @@ import { SHOW_KEEPER } from "./lib/features";
 import {
   moveCardTo,
   parseLayout,
-  resizeCard,
+  setSpan,
   serializeLayout,
   setMode,
   type CardId,
@@ -506,8 +506,8 @@ export function App() {
                 setLayout(next);
                 void api.setSetting("dashboard_layout", serializeLayout(next));
               }}
-              onLayoutResize={(id: CardId, delta: number) => {
-                const next = resizeCard(layout, id, delta);
+              onLayoutSpan={(id: CardId, span: number) => {
+                const next = setSpan(layout, id, span);
                 setLayout(next);
                 void api.setSetting("dashboard_layout", serializeLayout(next));
               }}

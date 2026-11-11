@@ -10,6 +10,7 @@ import {
   resizeCard,
   serializeLayout,
   setMode,
+  setSpan,
   type LayoutCard,
 } from "./layout";
 
@@ -222,6 +223,21 @@ describe("resizeCard", () => {
     expect(resizeCard(layout, "bills", 1)[1].span).toBe(2);
     expect(resizeCard(layout, "bills", -1)[1].span).toBe(1);
     expect(resizeCard(layout, "series", 1).find((entry) => entry.id === "series")?.span).toBe(3);
+  });
+});
+
+describe("setSpan", () => {
+  it("sets the width the control asked for", () => {
+    const layout = parseLayout(null);
+    expect(setSpan(layout, "bills", 3)[1].span).toBe(3);
+    expect(setSpan(layout, "forecast", 1)[0].span).toBe(1);
+  });
+
+  it("clamps to the columns the grid has", () => {
+    const layout = parseLayout(null);
+    expect(setSpan(layout, "bills", 9)[1].span).toBe(3);
+    expect(setSpan(layout, "bills", 0)[1].span).toBe(1);
+    expect(setSpan(layout, "bills", Number.NaN)[1].span).toBe(1);
   });
 });
 

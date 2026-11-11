@@ -141,6 +141,13 @@ export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): Lay
   );
 }
 
+/** Picks a width outright, which is what the numbered control in the toolbar does. */
+export function setSpan(layout: LayoutCard[], id: CardId, span: number): LayoutCard[] {
+  return layout.map((entry) =>
+    entry.id === id ? { ...entry, span: clampSpan(span, entry.span) } : entry,
+  );
+}
+
 /**
  * The steps a card takes when its size control is pressed. A card with a detail
  * block drops that block first, so the labelled button always names the next

@@ -3912,6 +3912,38 @@ button.primary:hover:not(:disabled) {
   opacity: 0.3;
 }
 
+/* Width is a number of columns, not a plus and a minus: three buttons show the
+   current one, which also keeps them apart from the control that changes how
+   much of the card is shown. */
+.cell-tools .cell-spans {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+}
+
+.cell-tools button.cell-span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cell-tools button.cell-span:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.cell-tools button.cell-span.active {
+  background: var(--surface);
+  color: var(--primary-strong);
+  box-shadow: 0 1px 2px var(--shadow-soft);
+}
+
 /* The size control says what it will do, because a lone chevron could mean
    anything. The rest of the pill stays iconic and explains itself on hover. */
 .cell-tools button.cell-mode {
