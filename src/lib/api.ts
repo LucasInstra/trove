@@ -132,6 +132,12 @@ export interface RecurrenceRow {
   amountCents: number;
 }
 
+export interface DailyPoint {
+  day: string;
+  incomeCents: number;
+  expenseCents: number;
+}
+
 export interface CategoryInput {
   id: number | null;
   name: string;
@@ -459,6 +465,7 @@ export const api = {
   saveBudgetLimit: (input: BudgetLimitInput) => invoke<void>("save_budget_limit", { input }),
   recurrenceRows: (endMonth: string, count = 12) =>
     invoke<RecurrenceRow[]>("recurrence_rows", { endMonth, count }),
+  dailyExpense: (month: string) => invoke<DailyPoint[]>("daily_expense", { month }),
   createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
   renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
   archiveAccount: (id: number) => invoke<void>("archive_account", { id }),

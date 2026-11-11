@@ -444,6 +444,10 @@ const en: Dictionary = {
   "budgets.globalName": "Whole month",
   "budgets.perDay": "{amount}/day",
 
+  "chart.dailyBurn": "Daily cumulative spending",
+  "chart.spent": "spent",
+  "chart.pace": "pace",
+
   "transfer.title": "Transfer between accounts",
   "transfer.new": "Transfer",
   "transfer.from": "From",
@@ -965,6 +969,10 @@ const pt: Dictionary = {
   "budgets.carried": "inclui {amount} de sobra",
   "budgets.globalName": "Mês inteiro",
   "budgets.perDay": "{amount}/dia",
+
+  "chart.dailyBurn": "Gasto acumulado dia a dia",
+  "chart.spent": "gasto",
+  "chart.pace": "ritmo",
 
   "transfer.title": "Transferir entre contas",
   "transfer.new": "Transferir",

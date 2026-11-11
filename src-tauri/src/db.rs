@@ -1875,6 +1875,57 @@ pub fn recurrence_rows(
         .map_err(|problem| problem.to_string())
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyPoint {
+    pub day: String,
+    pub income_cents: i64,
+    pub expense_cents: i64,
+}
+
+/// One row per calendar day of `month`, zeros filled in. Same honesty rules
+/// as the monthly totals: transfers stay out, refund legs net their own side.
+/// The chart domain accumulates these; nothing derived is stored.
+pub fn daily_expense(connection: &Connection, month: &str) -> Result<Vec<DailyPoint>, String> {
+    check_month(month)?;
+    let first = NaiveDate::parse_from_str(&format!("{month}-01"), "%Y-%m-%d")
+        .map_err(|problem| problem.to_string())?;
+    let days = first
+        .checked_add_months(Months::new(1))
+        .map(|next| (next - first).num_days())
+        .ok_or_else(|| "month out of range".to_string())?;
+    let prefix = format!("{month}%");
+    let mut statement = connection
+        .prepare(
+            "select posted_on,
+                    max(0, coalesce(sum(case when amount_cents > 0 and refund_of is null then amount_cents else 0 end), 0)
+                           - coalesce(sum(case when amount_cents < 0 and refund_of is not null then -amount_cents else 0 end), 0)),
+                    max(0, coalesce(sum(case when amount_cents < 0 and refund_of is null then -amount_cents else 0 end), 0)
+                           - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0))
+             from transactions
+             where posted_on like ?1 and transfer_group is null and deleted_at is null
+             group by posted_on",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let mut by_day = std::collections::HashMap::new();
+    let fetched = statement
+        .query_map(params![prefix], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
+        })
+        .map_err(|problem| problem.to_string())?;
+    for entry in fetched {
+        let (day, income, expense) = entry.map_err(|problem| problem.to_string())?;
+        by_day.insert(day, (income, expense));
+    }
+    Ok((1..=days)
+        .map(|day| {
+            let key = format!("{month}-{:02}", day);
+            let (income_cents, expense_cents) = by_day.get(&key).copied().unwrap_or((0, 0));
+            DailyPoint { day: key, income_cents, expense_cents }
+        })
+        .collect())
+}
+
 /// Imports a bank CSV into one account. Rows carry no FITID, so the dedupe
 /// falls back to the statement fingerprint — the same key an OFX without
 /// FITID would produce, which is what makes reimports and OFX/CSV overlaps
@@ -4630,6 +4681,60 @@ mod tests {
         assert_eq!(rows.len(), 3);
         assert!(rows.iter().all(|row| row.merchant == "NETFLIX.COM"));
         assert!(recurrence_rows(&connection, "março", 3).is_err());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn daily_expense_covers_every_day_and_matches_the_totals() {
+        let path = temporary_database("daily");
+        let mut connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let food = budget_category(&connection, "Comida");
+        spend(&connection, account, food, "2024-03-05", -3000);
+        spend(&connection, account, food, "2024-03-05", -1500);
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: account,
+                posted_on: "2024-03-10".to_string(),
+                amount_cents: 100000,
+                description: "Salário".to_string(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("should save the income");
+        // A same-month refund bends the 5th back down, like the totals do.
+        let original = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list")
+            .into_iter()
+            .find(|row| row.amount_cents == -3000)
+            .expect("expense")
+            .id;
+        save_refund(&connection, &RefundInput { original_id: original, posted_on: None, notes: None })
+            .expect("should refund");
+
+        let days = daily_expense(&connection, "2024-03").expect("should read");
+        assert_eq!(days.len(), 31, "March has 31 rows even when empty");
+        assert!(days.iter().all(|point| point.day.starts_with("2024-03-")));
+        let fifth = days.iter().find(|point| point.day == "2024-03-05").expect("5th");
+        assert_eq!(fifth.expense_cents, 1500, "3000 - 1500 refund nets on the day");
+        let tenth = days.iter().find(|point| point.day == "2024-03-10").expect("10th");
+        assert_eq!(tenth.income_cents, 100000);
+        let first = days.iter().find(|point| point.day == "2024-03-01").expect("1st");
+        assert_eq!((first.income_cents, first.expense_cents), (0, 0));
+
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(
+            days.iter().map(|point| point.expense_cents).sum::<i64>(),
+            totals.expense_cents
+        );
+        assert_eq!(
+            days.iter().map(|point| point.income_cents).sum::<i64>(),
+            totals.income_cents
+        );
+        assert!(daily_expense(&connection, "março").is_err());
 
         let _ = std::fs::remove_file(&path);
     }

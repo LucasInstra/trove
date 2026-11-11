@@ -47,6 +47,7 @@ import type {
   ManualInput,
   MonthPoint,
   MonthTotals,
+  DailyPoint,
   PlannerState,
   RecurrenceRow,
   RefundInput,
@@ -146,6 +147,7 @@ export function App() {
   const [matrix, setMatrix] = useState<CategoryMonth[]>([]);
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [recurrence, setRecurrence] = useState<RecurrenceRow[]>([]);
+  const [daily, setDaily] = useState<DailyPoint[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
@@ -209,7 +211,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextRules, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextDaily, nextRules, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -221,6 +223,7 @@ export function App() {
           api.plannerState(at),
           api.budgetStatus(at).catch(() => null),
           api.recurrenceRows(at, 12).catch(() => []),
+          api.dailyExpense(at).catch(() => []),
           api.listRules().catch(() => []),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
@@ -238,6 +241,7 @@ export function App() {
       setPlanner(nextPlanner);
       setBudgetStatus(nextBudgetStatus);
       setRecurrence(nextHistory);
+      setDaily(nextDaily);
       setRules(nextRules);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
@@ -882,6 +886,8 @@ export function App() {
           {route === "flow" ? (
             <FlowScreen
               series={series}
+              daily={daily}
+              paceCents={budgetStatus?.global?.effectiveCents ?? null}
               plan={plan}
               month={month ?? currentMonth()}
               onSelectMonth={setMonth}

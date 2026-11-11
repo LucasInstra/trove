@@ -1,11 +1,14 @@
 import { Icon } from "../components/Icons";
+import { DailyChart } from "../components/charts/DailyChart";
 import type { MonthPlan } from "../domain/projection";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
-import type { MonthPoint } from "../lib/api";
+import type { DailyPoint, MonthPoint } from "../lib/api";
 
 interface FlowProps {
   series: MonthPoint[];
+  daily: DailyPoint[];
+  paceCents: number | null;
   plan: MonthPlan;
   month: string;
   onSelectMonth: (month: string) => void;
@@ -31,7 +34,7 @@ function buildRows(series: MonthPoint[], plan: MonthPlan): FlowRow[] {
 }
 
 /** Twelve months of money in and out, with the running balance. */
-export function FlowScreen({ series, plan, month, onSelectMonth }: FlowProps) {
+export function FlowScreen({ series, daily, paceCents, plan, month, onSelectMonth }: FlowProps) {
   const { lang, t } = useLanguage();
   const peak = Math.max(...series.map((point) => Math.max(point.incomeCents, point.expenseCents)), 1);
   const rows = buildRows(series, plan);
@@ -79,6 +82,17 @@ export function FlowScreen({ series, plan, month, onSelectMonth }: FlowProps) {
           <span><i className="flow-swatch out" />{t("flow.out")}</span>
           <span><i className="flow-swatch planned" />{t("flow.planned")}</span>
         </div>
+      </article>
+
+      <article className="card flow-chart">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate"><Icon name="trend" size={15} /></span>
+            <h2>{t("chart.dailyBurn")}</h2>
+          </div>
+          <span className="muted">{monthLabel(month, lang)}</span>
+        </header>
+        <DailyChart daily={daily} effectiveCents={paceCents} />
       </article>
 
       <article className="card flow-table-card">

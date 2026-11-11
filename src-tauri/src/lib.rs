@@ -188,6 +188,12 @@ fn recurrence_rows(
 }
 
 #[tauri::command]
+fn daily_expense(app: tauri::AppHandle, month: String) -> Result<Vec<db::DailyPoint>, String> {
+    let connection = connection(&app)?;
+    db::daily_expense(&connection, &month)
+}
+
+#[tauri::command]
 fn save_category(app: tauri::AppHandle, input: db::CategoryInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::save_category(&connection, &input)
@@ -522,6 +528,7 @@ pub fn run() {
             budget_status,
             save_budget_limit,
             recurrence_rows,
+            daily_expense,
             create_manual_account,
             rename_account,
             archive_account,

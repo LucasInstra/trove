@@ -1,0 +1,60 @@
+/* Fase 3 charts: SVG lines drawn in real pixels, themed by CSS vars. */
+
+.chart-box {
+  width: 100%;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart-area {
+  fill: var(--chart-fill);
+  stroke: none;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--chart-line);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-pace {
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.chart-tick {
+  fill: var(--faint);
+  font-size: 10px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+}
+
+.chart-legend .chart-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.chart-swatch.spend {
+  background: var(--chart-line);
+}
+
+.chart-swatch.pace {
+  background: var(--faint);
+}
