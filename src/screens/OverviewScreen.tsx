@@ -9,6 +9,7 @@ import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
 import { KpisCard } from "../components/KpiCards";
 import { InstallmentsCard } from "../components/InstallmentsCard";
+import { DebtsCard } from "../components/DebtsCard";
 import type { InvoiceWindow } from "../domain/invoice";
 import {
   hasDetailsSection,
@@ -24,7 +25,7 @@ import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { formatCents, monthLabel, monthShort, shiftMonth } from "../lib/format";
 import { useLanguage } from "../lib/language";
-import type { Bill, CardMeta, CategoryMonth, CategoryTotal, MonthPoint, Person, Share } from "../lib/api";
+import type { Bill, CardMeta, CategoryMonth, CategoryTotal, Debt, MonthPoint, Person, Share } from "../lib/api";
 
 /**
  * Where the dragged card would land. The rectangles are taken when the drag
@@ -64,9 +65,12 @@ interface OverviewProps {
   onHousingScope: (scope: "primary" | "total") => void;
   people: Person[];
   shares: Share[];
+  debts: Debt[];
   splitSettled: boolean;
   onAssignShare: (billId: number, personId: number) => void;
   onSettle: () => void;
+  onAddDebt: () => void;
+  onToggleDebt: (id: number, settled: boolean) => void;
   layout: LayoutCard[];
   layoutEditing: boolean;
   onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
@@ -100,6 +104,9 @@ export function OverviewScreen({
   splitSettled,
   onAssignShare,
   onSettle,
+  debts,
+  onAddDebt,
+  onToggleDebt,
   layout,
   layoutEditing,
   onLayoutMoveTo,
@@ -196,6 +203,7 @@ export function OverviewScreen({
       donut: t("ledger.whereMoney"),
       series: t("ledger.lastSix"),
       installments: t("planner.installments"),
+      debts: t("debts.title"),
     })[id];
 
   const collapsedFigure = (id: CardId): ReactNode => {
@@ -230,6 +238,10 @@ export function OverviewScreen({
             .filter((bill) => (bill.installmentsTotal ?? 0) >= 1)
             .reduce((sum, bill) => sum + bill.amountCents, 0),
         );
+      case "debts":
+        return formatCents(
+          debts.filter((debt) => !debt.settledOn).reduce((sum, debt) => sum + debt.amountCents, 0),
+        );
     }
   };
 
@@ -258,6 +270,7 @@ export function OverviewScreen({
   const cells: Record<CardId, ReactNode> = {
     kpis: <KpisCard plan={plan} series={series} month={month} />,
     installments: <InstallmentsCard plan={plan} month={month} />,
+    debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} />,
     forecast: (
       <article className="account-card">
         <div className="account-top">
@@ -446,6 +459,7 @@ export function OverviewScreen({
   const compactCells: Record<CardId, ReactNode> = {
     kpis: <KpisCard plan={plan} series={series} month={month} compact />,
     installments: <InstallmentsCard plan={plan} month={month} compact />,
+    debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} compact />,
     forecast: (
       <article className="card card-compact">
         <div className="compact-head">

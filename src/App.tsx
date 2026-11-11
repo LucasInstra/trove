@@ -3,6 +3,7 @@ import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
 import { BillDialog, CardDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
+import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
 import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
@@ -29,6 +30,8 @@ import type {
   Category,
   CategoryMonth,
   CategoryTotal,
+  Debt,
+  DebtInput,
   Goal,
   GoalInput,
   Income,
@@ -90,6 +93,7 @@ type DialogState =
   | { kind: "bill"; bill: Bill | null }
   | { kind: "card"; card: CardMeta | null }
   | { kind: "goal"; goal: Goal | null }
+  | { kind: "debt"; debt: Debt | null }
   | { kind: "ceiling" }
   | null;
 
@@ -336,6 +340,28 @@ export function App() {
     if (month) await reload(search, month, accountFilter);
   };
 
+  const saveDebt = async (input: DebtInput) => {
+    try {
+      await api.saveDebt(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const removeDebt = async (id: number) => {
+    setDialog(null);
+    await api.deleteDebt(id);
+    if (month) await reload(search, month, accountFilter);
+  };
+
+  const toggleDebt = async (id: number, settled: boolean) => {
+    if (!month) return;
+    await api.setDebtSettled(id, settled);
+    await reload(search, month, accountFilter);
+  };
+
   const toggleBill = async (billId: number, paid: boolean) => {
     if (!month) return;
     await api.setBillPaid(billId, month, paid);
@@ -524,7 +550,10 @@ export function App() {
               }}
               people={planner.people}
               shares={planner.shares}
+              debts={planner.debts}
               splitSettled={splitSettled}
+              onAddDebt={() => setDialog({ kind: "debt", debt: null })}
+              onToggleDebt={(id, settled) => void toggleDebt(id, settled)}
               layout={layout}
               layoutEditing={layoutEditing}
               onLayoutMoveTo={(id: CardId, targetId: CardId) => {
@@ -718,6 +747,17 @@ export function App() {
           goal={dialog.goal}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveGoal(input)}
+        />
+      ) : null}
+
+      {dialog?.kind === "debt" ? (
+        <DebtDialog
+          debt={dialog.debt}
+          people={planner.people}
+          month={month ?? currentMonth()}
+          onClose={() => setDialog(null)}
+          onSave={(input) => void saveDebt(input)}
+          onDelete={(id) => void removeDebt(id)}
         />
       ) : null}
 
