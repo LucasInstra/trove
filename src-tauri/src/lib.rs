@@ -1,3 +1,4 @@
+mod csv;
 mod db;
 mod ofx;
 mod planner;

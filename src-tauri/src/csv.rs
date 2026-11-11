@@ -345,15 +345,15 @@ mod tests {
 
     #[test]
     fn rejects_bad_mappings() {
-        let mut mapping = mapping();
-        mapping.separator = ";;".to_string();
-        assert!(parse_csv(SHEET, &mapping).is_err());
-        let mut mapping = mapping();
-        mapping.debit_col = Some(1);
-        assert!(parse_csv(SHEET, &mapping).is_err());
-        let mut mapping = mapping();
-        mapping.date_format = "%Y%m%d".to_string();
-        assert!(parse_csv(SHEET, &mapping).is_err());
+        let mut bad = mapping();
+        bad.separator = ";;".to_string();
+        assert!(parse_csv(SHEET, &bad).is_err());
+        let mut bad = mapping();
+        bad.debit_col = Some(1);
+        assert!(parse_csv(SHEET, &bad).is_err());
+        let mut bad = mapping();
+        bad.date_format = "%Y%m%d".to_string();
+        assert!(parse_csv(SHEET, &bad).is_err());
     }
 
     #[test]
