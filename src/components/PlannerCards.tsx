@@ -105,12 +105,14 @@ interface CardsProps {
   month: string;
   onAdd: () => void;
   onEdit: (card: CardMeta) => void;
+  /** The compact form of the card: no upcoming invoices, only what is due now. */
+  lean?: boolean;
 }
 
 const CARD_GAP = 12;
 const CARD_FALLBACK = 280;
 
-export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
+export function CardsCard({ cards, month, onAdd, onEdit, lean = false }: CardsProps) {
   const { lang, t } = useLanguage();
   const [rows, setRows] = useState<Record<number, TransactionRow[]>>({});
   const [activeCard, setActiveCard] = useState(0);
@@ -315,12 +317,14 @@ export function CardsCard({ cards, month, onAdd, onEdit }: CardsProps) {
         })}
       </div>
 
-      <UpcomingInvoices
-        months={months}
-        values={values}
-        activeIndex={activeIndex}
-        onSelect={setMonthIndex}
-      />
+      {lean ? null : (
+        <UpcomingInvoices
+          months={months}
+          values={values}
+          activeIndex={activeIndex}
+          onSelect={setMonthIndex}
+        />
+      )}
 
       {invoiceOpen ? (
         <InvoiceDialog

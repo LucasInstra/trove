@@ -28,8 +28,11 @@ export const CARD_IDS = [
 export type CardId = (typeof CARD_IDS)[number];
 export type Span = 1 | 2 | 3;
 
-/** Off the dashboard, full card, one line summary, or the smallest line. */
-export const CARD_MODES = ["hidden", "full", "compact", "mini"] as const;
+/**
+ * Off the dashboard, full card, full card without its detail section, one line
+ * summary, or the smallest line.
+ */
+export const CARD_MODES = ["hidden", "full", "reduced", "compact", "mini"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
 export interface LayoutCard {
@@ -59,6 +62,11 @@ export function isCardAvailable(id: CardId, context: CardContext): boolean {
   if (id === "split") return context.people > 1;
   if (id === "housing") return context.housingCents > 0;
   return true;
+}
+
+/** Whether the card has a second block that can be hidden on its own. */
+export function hasDetailsSection(id: CardId): boolean {
+  return id === "cards";
 }
 
 const clampSpan = (value: unknown, fallback: Span): Span => {
@@ -133,9 +141,19 @@ export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): Lay
   );
 }
 
-/** full to compact, compact to mini, mini back to full. */
+/** full to compact, compact to mini, mini back to full. A lean card shrinks to a chip. */
 export function nextMode(mode: CardMode): CardMode {
-  return mode === "full" ? "compact" : mode === "compact" ? "mini" : mode === "mini" ? "full" : "full";
+  switch (mode) {
+    case "full":
+      return "compact";
+    case "compact":
+    case "reduced":
+      return "mini";
+    case "mini":
+      return "full";
+    default:
+      return "full";
+  }
 }
 
 export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {

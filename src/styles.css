@@ -4091,6 +4091,11 @@ button.primary:hover:not(:disabled) {
    handle: the grip in the pill only says so. */
 .planner-grid:has(.cell-tools) .grid-cell {
   cursor: grab;
+  touch-action: none;
+}
+
+.planner-grid:has(.cell-tools) {
+  user-select: none;
 }
 
 .grid-cell.is-dragging {
@@ -4104,11 +4109,9 @@ button.primary:hover:not(:disabled) {
   border-radius: 20px;
 }
 
-.cell-grip {
+.cell-tools button.cell-grip {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 26px;
   color: var(--muted);
   cursor: grab;
 }

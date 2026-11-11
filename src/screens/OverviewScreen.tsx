@@ -8,13 +8,27 @@ import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../comp
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
 import { SHOW_HERO_KEEPER } from "../lib/features";
-import { nextMode, isCardAvailable, type CardId, type CardMode, type LayoutCard } from "../domain/layout";
+import {
+  hasDetailsSection,
+  isCardAvailable,
+  nextMode,
+  type CardId,
+  type CardMode,
+  type LayoutCard,
+} from "../domain/layout";
 import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import type { Bill, CardMeta, CategoryTotal, MonthPoint, Person, Share } from "../lib/api";
+
+/** The card under the pointer, if it is not the one being dragged. */
+function cardUnder(x: number, y: number, dragged: CardId): CardId | null {
+  const node = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-card]");
+  const id = node?.dataset.card as CardId | undefined;
+  return id && id !== dragged ? id : null;
+}
 
 interface OverviewProps {
   plan: MonthPlan;
@@ -296,6 +310,11 @@ export function OverviewScreen({
     ),
   };
 
+  // Only the cards card has a block that can be hidden on its own.
+  const leanCells: Partial<Record<CardId, ReactNode>> = {
+    cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} lean />,
+  };
+
   // Cards have very different heights, so they declare how many row units they
   // take and the grid packs them without the holes a fixed row height leaves.
   const ROW_UNIT = 4;
@@ -304,6 +323,13 @@ export function OverviewScreen({
   const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
   const [dragId, setDragId] = useState<CardId | null>(null);
   const [dropId, setDropId] = useState<CardId | null>(null);
+  const drag = useRef<{
+    id: CardId;
+    pointerId: number;
+    x: number;
+    y: number;
+    active: boolean;
+  } | null>(null);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -384,9 +410,7 @@ export function OverviewScreen({
       <div
         className="planner-grid"
         ref={gridRef}
-        onDragLeave={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropId(null);
-        }}
+        onPointerLeave={() => setDropId(null)}
       >
         {visible.map((item, index) => {
           // A card that is minimised becomes a chip one column wide, so it can
@@ -409,27 +433,51 @@ export function OverviewScreen({
             key={item.id}
             className={cellClass}
             data-card={item.id}
-            draggable={layoutEditing}
-            onDragStart={(event) => {
-              setDragId(item.id);
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", item.id);
+            onPointerDown={(event) => {
+              // The webview hands system drags to Rust, so HTML5 drag events
+              // never reach the page: the cards are moved with pointer events.
+              if (!layoutEditing || event.button !== 0) return;
+              const grip = (event.target as HTMLElement).closest(".cell-grip");
+              const control = (event.target as HTMLElement).closest(
+                "button, a, input, select, textarea, [role='button']",
+              );
+              if (control && !grip) return;
+              drag.current = {
+                id: item.id,
+                pointerId: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                active: Boolean(grip),
+              };
+              if (grip) {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setDragId(item.id);
+              }
             }}
-            onDragEnd={() => {
+            onPointerMove={(event) => {
+              const state = drag.current;
+              if (!state || state.pointerId !== event.pointerId) return;
+              if (!state.active) {
+                if (Math.hypot(event.clientX - state.x, event.clientY - state.y) < 6) return;
+                state.active = true;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setDragId(state.id);
+              }
+              setDropId(cardUnder(event.clientX, event.clientY, state.id));
+            }}
+            onPointerUp={(event) => {
+              const state = drag.current;
+              drag.current = null;
+              if (!state || state.pointerId !== event.pointerId) return;
+              if (state.active) {
+                const landing = cardUnder(event.clientX, event.clientY, state.id);
+                if (landing) onLayoutMoveTo(state.id, landing);
+              }
               setDragId(null);
               setDropId(null);
             }}
-            onDragOver={(event) => {
-              if (!dragId || dragId === item.id) return;
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-            }}
-            onDragEnter={() => {
-              if (dragId && dragId !== item.id) setDropId(item.id);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (dragId && dragId !== item.id) onLayoutMoveTo(dragId, item.id);
+            onPointerCancel={() => {
+              drag.current = null;
               setDragId(null);
               setDropId(null);
             }}
@@ -452,36 +500,32 @@ export function OverviewScreen({
                   <Icon name="chevron-down" size={item.mode === "mini" ? 13 : 16} />
                 </span>
               </button>
+            ) : item.mode === "reduced" && leanCells[item.id] ? (
+              leanCells[item.id]
             ) : (
               cells[item.id]
             )}
             {layoutEditing ? (
               <div className="cell-tools" role="group" aria-label={t("layout.tools", { name: cardName(item.id) })}>
-                <span className="cell-grip" title={t("layout.drag")} aria-hidden="true">
-                  <Icon name="grip" size={15} />
-                </span>
-                <span className="cell-tools-sep" aria-hidden="true" />
                 <button
                   type="button"
-                  aria-label={t("layout.moveUp")}
-                  disabled={index === 0}
-                  onClick={() => {
+                  className="cell-grip"
+                  aria-label={t("layout.drag", { name: cardName(item.id) })}
+                  title={t("layout.dragHint")}
+                  onKeyDown={(event) => {
                     const above = visible[index - 1];
-                    if (above) onLayoutMoveTo(item.id, above.id);
-                  }}
-                >
-                  <Icon name="chevron-up" size={14} />
-                </button>
-                <button
-                  type="button"
-                  aria-label={t("layout.moveDown")}
-                  disabled={index === visible.length - 1}
-                  onClick={() => {
                     const below = visible[index + 1];
-                    if (below) onLayoutMoveTo(item.id, below.id);
+                    if (event.key === "ArrowUp" && above) {
+                      event.preventDefault();
+                      onLayoutMoveTo(item.id, above.id);
+                    }
+                    if (event.key === "ArrowDown" && below) {
+                      event.preventDefault();
+                      onLayoutMoveTo(item.id, below.id);
+                    }
                   }}
                 >
-                  <Icon name="chevron-down" size={14} />
+                  <Icon name="grip" size={15} />
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
                 {small ? null : (
@@ -505,6 +549,27 @@ export function OverviewScreen({
                     <span className="cell-tools-sep" aria-hidden="true" />
                   </>
                 )}
+                {hasDetailsSection(item.id) && !small ? (
+                  <>
+                    <button
+                      type="button"
+                      className="cell-details"
+                      aria-pressed={item.mode === "reduced"}
+                      aria-label={
+                        item.mode === "reduced" ? t("layout.showDetails") : t("layout.hideDetails")
+                      }
+                      title={
+                        item.mode === "reduced" ? t("layout.showDetails") : t("layout.hideDetails")
+                      }
+                      onClick={() =>
+                        onLayoutMode(item.id, item.mode === "reduced" ? "full" : "reduced")
+                      }
+                    >
+                      <Icon name="file-text" size={14} />
+                    </button>
+                    <span className="cell-tools-sep" aria-hidden="true" />
+                  </>
+                ) : null}
                 <button
                   type="button"
                   className="cell-mode"
