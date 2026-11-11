@@ -10,12 +10,13 @@ const PAD = 8;
  * Where the last months are heading: the running net (in minus out)
  * accumulated across the window. Bars show each month; this line shows the
  * trajectory, so a slow bleed reads as a slope, not as twelve calm bars.
+ * `startCents` lifts the whole line, which is how forecasts reuse it.
  */
-export function BalanceLine({ net }: { net: number[] }) {
+export function BalanceLine({ net, startCents = 0 }: { net: number[]; startCents?: number }) {
   const { t } = useLanguage();
   const [ref, width] = useChartWidth<HTMLDivElement>();
-  const running = cumulative(net);
-  const last = running[running.length - 1] ?? 0;
+  const running = cumulative(net).map((value) => value + startCents);
+  const last = (running[running.length - 1] ?? startCents);
   const dots = pointsOf(running, width, HEIGHT, PAD);
   const [dotX, dotY] = dots[dots.length - 1] ?? [width - PAD, HEIGHT - PAD];
 

@@ -1,9 +1,13 @@
 import { Icon } from "../components/Icons";
 import { DailyChart } from "../components/charts/DailyChart";
+import { BalanceLine } from "../components/charts/BalanceLine";
+import { averageOf, projectCash } from "../domain/forecast";
+import { trailing } from "../domain/chart";
 import type { MonthPlan } from "../domain/projection";
 import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import type { DailyPoint, MonthPoint } from "../lib/api";
+import { useState } from "react";
 
 interface FlowProps {
   series: MonthPoint[];
@@ -36,8 +40,17 @@ function buildRows(series: MonthPoint[], plan: MonthPlan): FlowRow[] {
 /** Twelve months of money in and out, with the running balance. */
 export function FlowScreen({ series, daily, paceCents, plan, month, onSelectMonth }: FlowProps) {
   const { lang, t } = useLanguage();
+  const [horizon, setHorizon] = useState<3 | 6 | 12>(6);
   const peak = Math.max(...series.map((point) => Math.max(point.incomeCents, point.expenseCents)), 1);
   const rows = buildRows(series, plan);
+  const windowed = trailing(series, 6);
+  const forecast = projectCash(
+    month,
+    rows.find((row) => row.month === month)?.running ?? 0,
+    averageOf(windowed.map((point) => point.incomeCents)),
+    averageOf(windowed.map((point) => point.expenseCents)),
+    horizon,
+  );
 
   return (
     <section className="screen flow-screen">
@@ -93,6 +106,45 @@ export function FlowScreen({ series, daily, paceCents, plan, month, onSelectMont
           <span className="muted">{monthLabel(month, lang)}</span>
         </header>
         <DailyChart daily={daily} effectiveCents={paceCents} />
+      </article>
+
+      <article className="card flow-chart">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate"><Icon name="hourglass" size={15} /></span>
+            <h2>{t("forecast.title")}</h2>
+          </div>
+          <div className="segmented" role="group" aria-label={t("forecast.title")}>
+            {([3, 6, 12] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={horizon === option ? "active" : undefined}
+                aria-pressed={horizon === option}
+                onClick={() => setHorizon(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </header>
+        {forecast.length > 0 ? (
+          <BalanceLine
+            net={forecast.map((point, index, all) =>
+              index === 0
+                ? point.balanceCents - (rows.find((row) => row.month === month)?.running ?? 0)
+                : point.balanceCents - all[index - 1].balanceCents,
+            )}
+            startCents={rows.find((row) => row.month === month)?.running ?? 0}
+          />
+        ) : null}
+        <p className="muted small">
+          {t("forecast.note", {
+            end: forecast.length > 0 ? monthLabel(forecast[forecast.length - 1].month, lang) : "",
+            balance:
+              forecast.length > 0 ? formatCents(forecast[forecast.length - 1].balanceCents) : "",
+          })}
+        </p>
       </article>
 
       <article className="card flow-table-card">

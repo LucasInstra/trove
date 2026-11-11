@@ -14,7 +14,7 @@ export function cumulative(values: number[]): number[] {
 }
 
 /** The last `count` values, in order. Short input comes back whole. */
-export function trailing(values: number[], count: number): number[] {
+export function trailing<T>(values: T[], count: number): T[] {
   return values.slice(Math.max(0, values.length - Math.max(0, count)));
 }
 

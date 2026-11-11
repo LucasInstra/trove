@@ -449,6 +449,9 @@ const en: Dictionary = {
   "chart.spent": "spent",
   "chart.pace": "pace",
 
+  "forecast.title": "Cash forecast",
+  "forecast.note": "{balance} by {end}, repeating the trailing 6-month average.",
+
   "transfer.title": "Transfer between accounts",
   "transfer.new": "Transfer",
   "transfer.from": "From",
@@ -975,6 +978,9 @@ const pt: Dictionary = {
   "chart.balanceLine": "Saldo acumulado",
   "chart.spent": "gasto",
   "chart.pace": "ritmo",
+
+  "forecast.title": "Previsão de caixa",
+  "forecast.note": "{balance} até {end}, repetindo a média dos últimos 6 meses.",
 
   "transfer.title": "Transferir entre contas",
   "transfer.new": "Transferir",
