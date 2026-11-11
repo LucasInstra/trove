@@ -20,7 +20,7 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { CardsScreen, HouseScreen, IncomeScreen, ReserveScreen } from "./screens/PlannerScreens";
+import { CardsScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -70,6 +70,7 @@ type Route =
   | "reserve"
   | "house"
   | "income"
+  | "patrimony"
   | "import"
   | "settings";
 
@@ -84,6 +85,10 @@ const PLANNING: Array<{ route: Route; icon: IconName }> = [
   { route: "reserve", icon: "target" },
   { route: "house", icon: "home" },
   { route: "income", icon: "trend" },
+];
+
+const STRATEGY: Array<{ route: Route; icon: IconName }> = [
+  { route: "patrimony", icon: "bank" },
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
@@ -497,6 +502,18 @@ export function App() {
                 </SidebarItem>
               ))}
             </SidebarGroup>
+            <SidebarGroup label={t("nav.strategyGroup")}>
+              {STRATEGY.map((item) => (
+                <SidebarItem
+                  key={item.route}
+                  active={route === item.route}
+                  onClick={() => setRoute(item.route)}
+                >
+                  <Icon name={item.icon} size={17} />
+                  {t(`nav.${item.route}`)}
+                </SidebarItem>
+              ))}
+            </SidebarGroup>
             <SidebarGroup label={t("nav.settingsGroup")}>
               {ADJUST.map((item) => (
                 <SidebarItem
@@ -692,6 +709,14 @@ export function App() {
             />
           ) : null}
 
+          {route === "patrimony" ? (
+            <PatrimonyScreen
+              plan={plan}
+              series={series}
+              month={month ?? currentMonth()}
+            />
+          ) : null}
+
           {route === "house" ? (
             <HouseScreen
               plan={plan}
@@ -755,6 +780,13 @@ export function App() {
             onSelect: () => setRoute(item.route),
           })),
           ...PLANNING.map((item) => ({
+            key: item.route,
+            label: t(`nav.${item.route}`),
+            icon: <Icon name={item.icon} size={19} />,
+            active: route === item.route,
+            onSelect: () => setRoute(item.route),
+          })),
+          ...STRATEGY.map((item) => ({
             key: item.route,
             label: t(`nav.${item.route}`),
             icon: <Icon name={item.icon} size={19} />,

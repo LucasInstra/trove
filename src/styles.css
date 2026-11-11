@@ -2511,6 +2511,12 @@ select.tx-category {
   cursor: pointer;
 }
 
+.wealth-curve {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 .composition-value em {
   font-style: normal;
   color: var(--faint);

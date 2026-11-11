@@ -6,10 +6,11 @@ import {
   summarizeCards,
   summarizeGoals,
 } from "../domain/planner";
+import { netWorthCurve } from "../domain/patrimony";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
-import type { Bill, CardMeta, Category, Goal, Income, Person, Share } from "../lib/api";
-import { formatCents, monthName } from "../lib/format";
+import type { Bill, CardMeta, Category, Goal, Income, MonthPoint, Person, Share } from "../lib/api";
+import { formatCents, monthLabel, monthName, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 function ScreenHeader({
@@ -487,6 +488,123 @@ export function IncomeScreen({
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+export function PatrimonyScreen({
+  plan,
+  series,
+  month,
+}: {
+  plan: MonthPlan;
+  series: MonthPoint[];
+  month: string;
+}) {
+  const { lang, t } = useLanguage();
+  const summary = summarizeGoals(plan.goals);
+  const curve = netWorthCurve(series.slice(-12));
+  const accumulated = curve.at(-1)?.runningCents ?? 0;
+
+  const width = 600;
+  const height = 220;
+  const pad = { left: 8, right: 8, top: 12, bottom: 22 };
+  const values = curve.map((point) => point.runningCents);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const span = max - min || 1;
+  const x = (index: number) =>
+    curve.length < 2
+      ? width / 2
+      : pad.left + (index * (width - pad.left - pad.right)) / (curve.length - 1);
+  const y = (value: number) =>
+    pad.top + (1 - (value - min) / span) * (height - pad.top - pad.bottom);
+  const line = curve.map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.runningCents)}`).join(" ");
+  const area = `${line} L${x(curve.length - 1)},${height - pad.bottom} L${x(0)},${height - pad.bottom} Z`;
+
+  return (
+    <section className="screen planner-screen">
+      <ScreenHeader
+        eyebrow={t("nav.strategyGroup")}
+        title={t("nav.patrimony")}
+        description={t("patrimony.description")}
+      />
+      <div className="planner-metrics">
+        <article className="card metric-card metric-card-primary">
+          <span className="metric-label">{t("planner.savedSoFar")}</span>
+          <strong className="metric-value">{formatCents(summary.savedCents)}</strong>
+          <span className="metric-note">
+            {t("planner.acrossGoals", { count: plan.goals.length })}
+          </span>
+        </article>
+        <article className="card metric-card">
+          <span className="metric-label">{t("planner.monthlyContribution")}</span>
+          <strong className="metric-value">{formatCents(summary.monthlyCents)}</strong>
+          <span className="metric-note">{t("flow.running")}</span>
+        </article>
+        <article className="card metric-card metric-card-secondary">
+          <span className="metric-label">{t("patrimony.accumulated")}</span>
+          <strong className="metric-value">{formatCents(accumulated)}</strong>
+          <span className="metric-note">{monthLabel(month, lang)}</span>
+        </article>
+      </div>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="bank" size={15} />
+            </span>
+            <h2>{t("patrimony.curve")}</h2>
+          </div>
+        </header>
+        {curve.length === 0 ? (
+          <p className="card-empty">{t("ledger.noSpending")}</p>
+        ) : (
+          <>
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              className="wealth-curve"
+              role="img"
+              aria-label={t("patrimony.curve")}
+            >
+              <path d={area} fill="var(--primary)" fillOpacity={0.12} />
+              <path
+                d={line}
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth={2.5}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+              {min < 0 && max > 0 ? (
+                <line
+                  x1={pad.left}
+                  x2={width - pad.right}
+                  y1={y(0)}
+                  y2={y(0)}
+                  stroke="var(--line-strong)"
+                  strokeDasharray="4 4"
+                  strokeWidth={1}
+                />
+              ) : null}
+              {curve.map((point, index) => (
+                <circle key={point.month} cx={x(index)} cy={y(point.runningCents)} r={3.5} fill="var(--primary)">
+                  <title>{`${monthLabel(point.month, lang)}: ${formatCents(point.runningCents)}`}</title>
+                </circle>
+              ))}
+              <text x={pad.left} y={height - 6} fontSize={11} fill="var(--muted)">
+                {monthShort(curve[0].month, lang)}
+              </text>
+              <text x={width - pad.right} y={height - 6} fontSize={11} fill="var(--muted)" textAnchor="end">
+                {monthShort(curve[curve.length - 1].month, lang)}
+              </text>
+            </svg>
+            <p className="muted small">{t("patrimony.note")}</p>
+          </>
+        )}
+      </article>
     </section>
   );
 }

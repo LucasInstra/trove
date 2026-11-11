@@ -33,6 +33,7 @@ export type IconName =
   | "layout"
   | "chevron-up"
   | "grip"
+  | "bank"
   | "minus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -183,6 +184,14 @@ const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   "chevron-up": <path d="m7 14.5 5-5 5 5" />,
+  // Placeholder bank until the final glyphs arrive: pediment, columns, steps.
+  bank: (
+    <>
+      <path d="m3 9.5 9-5.5 9 5.5" />
+      <path d="M5.5 9.5V18M9.75 9.5V18M14.25 9.5V18M18.5 9.5V18" />
+      <path d="M3 18.5h18M3 21h18" />
+    </>
+  ),
   minus: <path d="M4.5 12h15" />,
   // The one glyph that fills instead of stroking: a handle is a row of dots, and
   // six hollow rings at 14px read as noise. The colour is still currentColor.

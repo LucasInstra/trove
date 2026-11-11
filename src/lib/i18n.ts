@@ -195,8 +195,15 @@ const en: Dictionary = {
   "nav.reserve": "Reserve",
   "nav.house": "Home",
   "nav.income": "Income",
+  "nav.patrimony": "Net worth",
+  "nav.strategyGroup": "Strategy",
   "nav.import": "Import",
   "nav.settings": "Settings",
+
+  "patrimony.description": "Reserves and the statement running total, month by month.",
+  "patrimony.curve": "Accumulated balance",
+  "patrimony.accumulated": "Accumulated",
+  "patrimony.note": "Period estimate: what entered minus what left, plus goal reserves.",
 
   "planner.section": "Planning",
   "planner.cardsDescription": "Statements, available credit and limits for this month.",
@@ -527,8 +534,15 @@ const pt: Dictionary = {
   "nav.reserve": "Reserva",
   "nav.house": "Casa",
   "nav.income": "Renda",
+  "nav.patrimony": "Patrimônio",
+  "nav.strategyGroup": "Visão estratégica",
   "nav.import": "Importar",
   "nav.settings": "Ajustes",
+
+  "patrimony.description": "Reservas e o acumulado do extrato, mês a mês.",
+  "patrimony.curve": "Saldo acumulado",
+  "patrimony.accumulated": "Acumulado",
+  "patrimony.note": "Estimativa do período: o que entrou menos o que saiu, mais as reservas em metas.",
 
   "planner.section": "Planejamento",
   "planner.cardsDescription": "Faturas, crédito disponível e limites deste mês.",
