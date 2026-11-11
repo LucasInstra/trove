@@ -40,6 +40,7 @@ interface OverviewProps {
   layout: LayoutCard[];
   layoutEditing: boolean;
   onLayoutMove: (id: CardId, delta: number) => void;
+  onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
   onLayoutResize: (id: CardId, delta: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
   onLayoutReset: () => void;
@@ -73,6 +74,7 @@ export function OverviewScreen({
   layout,
   layoutEditing,
   onLayoutMove,
+  onLayoutMoveTo,
   onLayoutResize,
   onLayoutMode,
   onLayoutReset,
@@ -292,6 +294,8 @@ export function OverviewScreen({
   const ROW_GAP = 14;
   const gridRef = useRef<HTMLDivElement>(null);
   const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
+  const [dragId, setDragId] = useState<CardId | null>(null);
+  const [dropId, setDropId] = useState<CardId | null>(null);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -351,7 +355,13 @@ export function OverviewScreen({
         </div>
       ) : null}
 
-      <div className="planner-grid" ref={gridRef}>
+      <div
+        className="planner-grid"
+        ref={gridRef}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropId(null);
+        }}
+      >
         {layout.map((item, index) => {
           // A card that is minimised becomes a chip one column wide, so it can
           // fill the single column holes the tall cards leave behind. Opening it
@@ -359,11 +369,44 @@ export function OverviewScreen({
           const small = item.mode !== "full";
           const span = small ? 1 : item.span;
           const target = nextMode(item.mode);
+          const cellClass = [
+            "grid-cell",
+            `span-${span}`,
+            item.id === "bills" ? "natural" : "",
+            dragId === item.id ? "is-dragging" : "",
+            dropId === item.id ? "is-drop-target" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
           return (
           <div
             key={item.id}
-            className={`grid-cell span-${span}${item.id === "bills" ? " natural" : ""}`}
+            className={cellClass}
             data-card={item.id}
+            draggable={layoutEditing}
+            onDragStart={(event) => {
+              setDragId(item.id);
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", item.id);
+            }}
+            onDragEnd={() => {
+              setDragId(null);
+              setDropId(null);
+            }}
+            onDragOver={(event) => {
+              if (!dragId || dragId === item.id) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onDragEnter={() => {
+              if (dragId && dragId !== item.id) setDropId(item.id);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (dragId && dragId !== item.id) onLayoutMoveTo(dragId, item.id);
+              setDragId(null);
+              setDropId(null);
+            }}
             style={{
               gridColumn: `span ${span}`,
               gridRowEnd: `span ${rowSpans[item.id] ?? 1}`,
@@ -388,6 +431,10 @@ export function OverviewScreen({
             )}
             {layoutEditing ? (
               <div className="cell-tools" role="group" aria-label={t("layout.tools", { name: cardName(item.id) })}>
+                <span className="cell-grip" title={t("layout.drag")} aria-hidden="true">
+                  <Icon name="grip" size={15} />
+                </span>
+                <span className="cell-tools-sep" aria-hidden="true" />
                 <button
                   type="button"
                   aria-label={t("layout.moveUp")}

@@ -32,6 +32,7 @@ export type IconName =
   | "arrow-down-to-line"
   | "layout"
   | "chevron-up"
+  | "grip"
   | "minus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -183,6 +184,16 @@ const ICONS: Record<IconName, ReactNode> = {
   ),
   "chevron-up": <path d="m7 14.5 5-5 5 5" />,
   minus: <path d="M4.5 12h15" />,
+  grip: (
+    <g fill="currentColor" stroke="none">
+      <circle cx="9.5" cy="7" r="1.35" />
+      <circle cx="14.5" cy="7" r="1.35" />
+      <circle cx="9.5" cy="12" r="1.35" />
+      <circle cx="14.5" cy="12" r="1.35" />
+      <circle cx="9.5" cy="17" r="1.35" />
+      <circle cx="14.5" cy="17" r="1.35" />
+    </g>
+  ),
   scale: (
     <>
       <path d="M12 3.5v16M4 6.5h16M8 20.5h8" />

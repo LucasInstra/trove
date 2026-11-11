@@ -109,6 +109,18 @@ export function moveCard(layout: LayoutCard[], id: CardId, delta: number): Layou
   return next;
 }
 
+/** Drops `id` where `targetId` sits, pushing the rest down. */
+export function moveCardTo(layout: LayoutCard[], id: CardId, targetId: CardId): LayoutCard[] {
+  if (id === targetId) return layout;
+  const from = layout.findIndex((entry) => entry.id === id);
+  const to = layout.findIndex((entry) => entry.id === targetId);
+  if (from < 0 || to < 0) return layout;
+  const next = [...layout];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
 export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): LayoutCard[] {
   return layout.map((entry) =>
     entry.id === id ? { ...entry, span: clampSpan(entry.span + delta, entry.span) } : entry,

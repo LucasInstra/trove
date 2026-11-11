@@ -4047,6 +4047,37 @@ button.primary:hover:not(:disabled) {
   border-radius: 20px;
 }
 
+/* Dragging is the main way to arrange the grid, so the cell itself is the
+   handle: the grip in the pill only says so. */
+.planner-grid:has(.cell-tools) .grid-cell {
+  cursor: grab;
+}
+
+.grid-cell.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.grid-cell.is-drop-target {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 20px;
+}
+
+.cell-grip {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 26px;
+  color: var(--muted);
+  cursor: grab;
+}
+
+.cell-tools button:active:not(:disabled),
+.cell-grip:active {
+  cursor: grabbing;
+}
+
 
 /* The toolbar is a child of the cell but not a card: keep it hugging its own
    content instead of stretching like the card does. */
@@ -4064,7 +4095,6 @@ button.primary:hover:not(:disabled) {
   gap: 12px;
   width: 100%;
   min-width: 0;
-  height: 60px;
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -4075,6 +4105,12 @@ button.primary:hover:not(:disabled) {
   cursor: pointer;
   box-shadow: 0 1px 2px var(--shadow-soft);
   transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+/* The cell stretches its children to auto height, so the chip has to ask for
+   its own height from the same specificity. */
+.grid-cell > .collapsed-card {
+  height: 60px;
 }
 
 .collapsed-card:hover {

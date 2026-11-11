@@ -3,6 +3,7 @@ import {
   CARD_IDS,
   DEFAULT_LAYOUT,
   moveCard,
+  moveCardTo,
   nextMode,
   parseLayout,
   resizeCard,
@@ -117,6 +118,43 @@ describe("moveCard", () => {
 
   it("does nothing for an unknown card", () => {
     expect(moveCard(layout, "donut" as LayoutCard["id"], 1)).toBe(layout);
+  });
+});
+
+describe("moveCardTo", () => {
+  const layout: LayoutCard[] = [
+    { id: "forecast", span: 2, mode: "full" },
+    { id: "bills", span: 1, mode: "full" },
+    { id: "cards", span: 1, mode: "full" },
+    { id: "housing", span: 1, mode: "full" },
+  ];
+
+  it("drops the card where the target sits", () => {
+    expect(moveCardTo(layout, "housing", "bills").map((entry) => entry.id)).toEqual([
+      "forecast",
+      "housing",
+      "bills",
+      "cards",
+    ]);
+    expect(moveCardTo(layout, "forecast", "cards").map((entry) => entry.id)).toEqual([
+      "bills",
+      "cards",
+      "forecast",
+      "housing",
+    ]);
+  });
+
+  it("ignores a drop on itself or on a card that is not there", () => {
+    expect(moveCardTo(layout, "bills", "bills")).toBe(layout);
+    expect(moveCardTo(layout, "bills", "donut" as LayoutCard["id"])).toBe(layout);
+    expect(moveCardTo(layout, "donut" as LayoutCard["id"], "bills")).toBe(layout);
+  });
+
+  it("keeps every card", () => {
+    const next = moveCardTo(DEFAULT_LAYOUT, "series", "forecast");
+    expect(next).toHaveLength(DEFAULT_LAYOUT.length);
+    expect(new Set(next.map((entry) => entry.id)).size).toBe(DEFAULT_LAYOUT.length);
+    expect(next[0].id).toBe("series");
   });
 });
 

@@ -41,6 +41,7 @@ import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
 import { SHOW_KEEPER } from "./lib/features";
 import {
   moveCard,
+  moveCardTo,
   parseLayout,
   resizeCard,
   serializeLayout,
@@ -489,6 +490,11 @@ export function App() {
               layoutEditing={layoutEditing}
               onLayoutMove={(id: CardId, delta: number) => {
                 const next = moveCard(layout, id, delta);
+                setLayout(next);
+                void api.setSetting("dashboard_layout", serializeLayout(next));
+              }}
+              onLayoutMoveTo={(id: CardId, targetId: CardId) => {
+                const next = moveCardTo(layout, id, targetId);
                 setLayout(next);
                 void api.setSetting("dashboard_layout", serializeLayout(next));
               }}
