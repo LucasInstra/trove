@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 9;
+pub const SCHEMA_VERSION: i64 = 10;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -310,6 +310,7 @@ pub struct ImportReport {
     pub account_label: String,
     pub inserted: i64,
     pub duplicates: i64,
+    pub skipped: i64,
     pub ledger_balance_cents: Option<i64>,
     pub ledger_balance_on: Option<String>,
 }
@@ -372,8 +373,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v8(&connection)?;
         write_version(&connection, 8)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 9 {
         migrate_to_v9(&connection)?;
+        write_version(&connection, 9)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v10(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -465,6 +470,35 @@ fn add_column(
 /// v6 to v7: monthly spending targets per category. Null means no target.
 fn migrate_to_v7(connection: &Connection) -> Result<(), String> {
     add_column(connection, "categories", "budget_cents", "integer")
+}
+
+/// v9 to v10: saved CSV mapping profiles, one per bank layout.
+const NEW_TABLES_V10: &str = r#"
+create table if not exists csv_profiles (
+    id            integer primary key,
+    uid           text    not null unique,
+    name          text    not null unique,
+    separator     text    not null default ';',
+    encoding      text    not null default 'auto',
+    has_header    integer not null default 1,
+    date_col      integer not null default 0,
+    date_format   text    not null default '%d/%m/%Y',
+    description_col integer not null default 1,
+    amount_col    integer,
+    debit_col     integer,
+    credit_col    integer,
+    decimal_sep   text    not null default ',',
+    created_at    text    not null,
+    updated_at    text    not null,
+    deleted_at    text
+);
+"#;
+
+/// v9 to v10: named CSV mapping profiles so each bank file keeps its layout.
+fn migrate_to_v10(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V10)
+        .map_err(|problem| problem.to_string())
 }
 
 /// v8 to v9: repairs databases stamped 8 without the v8 columns, which can
@@ -787,6 +821,7 @@ pub fn import_ofx(connection: &mut Connection, path: &Path) -> Result<ImportRepo
         account_label: statement.account.acct_id.clone(),
         inserted,
         duplicates,
+        skipped: 0,
         ledger_balance_cents: statement.ledger_balance_cents,
         ledger_balance_on: statement.ledger_balance_on,
     })
@@ -1053,6 +1088,273 @@ pub fn delete_category(connection: &Connection, id: i64) -> Result<(), String> {
         return Err(format!("category {id} does not exist"));
     }
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvProfile {
+    pub id: i64,
+    pub name: String,
+    pub separator: String,
+    pub encoding: String,
+    pub has_header: bool,
+    pub date_col: i64,
+    pub date_format: String,
+    pub description_col: i64,
+    pub amount_col: Option<i64>,
+    pub debit_col: Option<i64>,
+    pub credit_col: Option<i64>,
+    pub decimal_sep: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CsvProfileInput {
+    pub id: Option<i64>,
+    pub name: String,
+    pub separator: String,
+    pub encoding: String,
+    pub has_header: bool,
+    pub date_col: i64,
+    pub date_format: String,
+    pub description_col: i64,
+    pub amount_col: Option<i64>,
+    pub debit_col: Option<i64>,
+    pub credit_col: Option<i64>,
+    pub decimal_sep: String,
+}
+
+impl CsvProfile {
+    pub fn mapping(&self) -> crate::csv::CsvMapping {
+        crate::csv::CsvMapping {
+            separator: self.separator.clone(),
+            encoding: self.encoding.clone(),
+            has_header: self.has_header,
+            date_col: self.date_col.max(0) as usize,
+            date_format: self.date_format.clone(),
+            description_col: self.description_col.max(0) as usize,
+            amount_col: self.amount_col.map(|column| column.max(0) as usize),
+            debit_col: self.debit_col.map(|column| column.max(0) as usize),
+            credit_col: self.credit_col.map(|column| column.max(0) as usize),
+            decimal_sep: self.decimal_sep.clone(),
+        }
+    }
+}
+
+fn csv_mapping_of(input: &CsvProfileInput) -> crate::csv::CsvMapping {
+    crate::csv::CsvMapping {
+        separator: input.separator.clone(),
+        encoding: input.encoding.clone(),
+        has_header: input.has_header,
+        date_col: input.date_col.max(0) as usize,
+        date_format: input.date_format.clone(),
+        description_col: input.description_col.max(0) as usize,
+        amount_col: input.amount_col.map(|column| column.max(0) as usize),
+        debit_col: input.debit_col.map(|column| column.max(0) as usize),
+        credit_col: input.credit_col.map(|column| column.max(0) as usize),
+        decimal_sep: input.decimal_sep.clone(),
+    }
+}
+
+pub fn save_csv_profile(connection: &Connection, input: &CsvProfileInput) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("profile name must not be empty".to_string());
+    }
+    crate::csv::validate_mapping(&csv_mapping_of(input))?;
+    let stamp = Utc::now().to_rfc3339();
+    let result = match input.id {
+        Some(id) => connection.execute(
+            "update csv_profiles
+             set name = ?1, separator = ?2, encoding = ?3, has_header = ?4, date_col = ?5,
+                 date_format = ?6, description_col = ?7, amount_col = ?8, debit_col = ?9,
+                 credit_col = ?10, decimal_sep = ?11, updated_at = ?12
+             where id = ?13 and deleted_at is null",
+            params![
+                name,
+                input.separator,
+                input.encoding,
+                input.has_header as i64,
+                input.date_col,
+                input.date_format,
+                input.description_col,
+                input.amount_col,
+                input.debit_col,
+                input.credit_col,
+                input.decimal_sep,
+                stamp,
+                id
+            ],
+        ),
+        None => connection.execute(
+            "insert into csv_profiles
+             (uid, name, separator, encoding, has_header, date_col, date_format,
+              description_col, amount_col, debit_col, credit_col, decimal_sep, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)",
+            params![
+                name,
+                input.separator,
+                input.encoding,
+                input.has_header as i64,
+                input.date_col,
+                input.date_format,
+                input.description_col,
+                input.amount_col,
+                input.debit_col,
+                input.credit_col,
+                input.decimal_sep,
+                stamp
+            ],
+        ),
+    }
+    .map_err(|problem| {
+        if problem.to_string().contains("UNIQUE constraint failed") {
+            "a profile with this name already exists".to_string()
+        } else {
+            problem.to_string()
+        }
+    })?;
+    if result == 0 {
+        return Err("csv profile does not exist".to_string());
+    }
+    Ok(input.id.unwrap_or_else(|| connection.last_insert_rowid()))
+}
+
+pub fn delete_csv_profile(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = Utc::now().to_rfc3339();
+    let affected = connection
+        .execute(
+            "update csv_profiles set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("csv profile {id} does not exist"));
+    }
+    Ok(())
+}
+
+pub fn list_csv_profiles(connection: &Connection) -> Result<Vec<CsvProfile>, String> {
+    let mut statement = connection
+        .prepare(
+            "select id, name, separator, encoding, has_header, date_col, date_format,
+                    description_col, amount_col, debit_col, credit_col, decimal_sep
+             from csv_profiles
+             where deleted_at is null
+             order by name",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(CsvProfile {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                separator: row.get(2)?,
+                encoding: row.get(3)?,
+                has_header: row.get::<_, i64>(4)? != 0,
+                date_col: row.get(5)?,
+                date_format: row.get(6)?,
+                description_col: row.get(7)?,
+                amount_col: row.get(8)?,
+                debit_col: row.get(9)?,
+                credit_col: row.get(10)?,
+                decimal_sep: row.get(11)?,
+            })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+/// Imports a bank CSV into one account. Rows carry no FITID, so the dedupe
+/// falls back to the statement fingerprint — the same key an OFX without
+/// FITID would produce, which is what makes reimports and OFX/CSV overlaps
+/// land on `duplicates` instead of doubling the ledger.
+pub fn import_csv(
+    connection: &mut Connection,
+    path: &Path,
+    account_id: i64,
+    mapping: &crate::csv::CsvMapping,
+) -> Result<ImportReport, String> {
+    let bytes = std::fs::read(path).map_err(|problem| problem.to_string())?;
+    let text = crate::csv::decode_bytes(&bytes, &mapping.encoding)?;
+    let (rows, issues) = crate::csv::parse_csv(&text, mapping)?;
+    let skipped = issues.len() as i64;
+
+    let (bank_id, acct_id, account_name): (String, String, String) = connection
+        .query_row(
+            "select bank_id, acct_id, name from accounts where id = ?1 and deleted_at is null",
+            params![account_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?
+        .ok_or_else(|| format!("account {account_id} does not exist"))?;
+    let account_key = format!("{bank_id}-{acct_id}");
+
+    let transaction = connection
+        .transaction()
+        .map_err(|problem| problem.to_string())?;
+    let imported_at = Utc::now().to_rfc3339();
+    let source = path.to_string_lossy().to_string();
+    let mut inserted = 0i64;
+    let mut duplicates = 0i64;
+    for row in &rows {
+        let dedupe_key = crate::ofx::dedupe_key(
+            &account_key,
+            "",
+            &row.posted_on,
+            row.amount_cents,
+            &row.description,
+        );
+        let trntype = if row.amount_cents < 0 { "DEBIT" } else { "CREDIT" };
+        let affected = transaction
+            .execute(
+                "insert or ignore into transactions
+                 (account_id, posted_on, amount_cents, description, merchant, memo, trntype,
+                  dedupe_key, source, origin, created_at, uid, updated_at)
+                 values (?1, ?2, ?3, ?4, ?5, '', ?6, ?7, ?8, 'csv', ?9,
+                         lower(hex(randomblob(16))), ?9)",
+                params![
+                    account_id,
+                    row.posted_on,
+                    row.amount_cents,
+                    row.description,
+                    crate::ofx::merchant_of(&row.description),
+                    trntype,
+                    dedupe_key,
+                    source,
+                    imported_at
+                ],
+            )
+            .map_err(|problem| problem.to_string())?;
+        if affected == 1 {
+            inserted += 1;
+        } else {
+            duplicates += 1;
+        }
+    }
+
+    transaction
+        .execute(
+            "insert into imports (path, account_id, imported_at, inserted, duplicates, uid, updated_at)
+             values (?1, ?2, ?3, ?4, ?5, lower(hex(randomblob(16))), ?3)",
+            params![source, account_id, imported_at, inserted, duplicates],
+        )
+        .map_err(|problem| problem.to_string())?;
+
+    transaction.commit().map_err(|problem| problem.to_string())?;
+
+    Ok(ImportReport {
+        account_id,
+        account_name,
+        account_label: acct_id,
+        inserted,
+        duplicates,
+        skipped,
+        ledger_balance_cents: None,
+        ledger_balance_on: None,
+    })
 }
 
 pub fn list_categories(connection: &Connection) -> Result<Vec<Category>, String> {
@@ -2490,6 +2792,157 @@ mod tests {
         );
 
         let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    fn csv_mapping() -> crate::csv::CsvMapping {
+        crate::csv::CsvMapping {
+            separator: ";".to_string(),
+            encoding: "auto".to_string(),
+            has_header: true,
+            date_col: 0,
+            date_format: "%d/%m/%Y".to_string(),
+            description_col: 1,
+            amount_col: Some(2),
+            debit_col: None,
+            credit_col: None,
+            decimal_sep: ",".to_string(),
+        }
+    }
+
+    const SHEET: &str = "Data;Descricao;Valor\n05/03/2024;IFD*IFOOD SAO PAULO;-23,90\n10/03/2024;SALARIO;1500,00\n";
+
+    #[test]
+    fn csv_reimport_inserts_nothing_the_second_time() {
+        let path = temporary_database("csv-dedupe");
+        let file = path.with_extension("csv");
+        std::fs::write(&file, SHEET).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let mapping = csv_mapping();
+
+        let first = import_csv(&mut connection, &file, account, &mapping).expect("first import");
+        assert_eq!(first.inserted, 2);
+        assert_eq!(first.duplicates, 0);
+        assert_eq!(first.skipped, 0);
+
+        let second = import_csv(&mut connection, &file, account, &mapping).expect("second import");
+        assert_eq!(second.inserted, 0);
+        assert_eq!(second.duplicates, 2);
+
+        let rows = list_transactions(&connection, None, None, Some(account), 50).expect("should list");
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| row.origin == "csv"));
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn csv_shares_the_fingerprint_with_ofx_without_fitid() {
+        let path = temporary_database("csv-ofx");
+        let ofx_file = path.with_extension("ofx");
+        let csv_file = path.with_extension("csv");
+        // Same two lines, once as OFX without FITID and once as CSV: the
+        // fingerprint (date + amount + description) is identical.
+        let ofx = "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>BRL
+<BANKACCTFROM><BANKID>341<ACCTID>99999-1<ACCTTYPE>CHECKING</BANKACCTFROM>
+<BANKTRANLIST>
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20240305<TRNAMT>-23.90<NAME>IFD*IFOOD SAO PAULO</STMTTRN>
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20240310<TRNAMT>1500.00<NAME>SALARIO</STMTTRN>
+</BANKTRANLIST>
+</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>";
+        std::fs::write(&ofx_file, ofx).expect("should write ofx");
+        std::fs::write(&csv_file, SHEET).expect("should write csv");
+
+        let mut connection = open(&path).expect("should open");
+        let ofx_report = import_ofx(&mut connection, &ofx_file).expect("ofx first");
+        assert_eq!(ofx_report.inserted, 2);
+
+        // The CSV lands in the same bank account the OFX created.
+        let csv_report =
+            import_csv(&mut connection, &csv_file, ofx_report.account_id, &csv_mapping())
+                .expect("csv second");
+        assert_eq!(csv_report.inserted, 0);
+        assert_eq!(csv_report.duplicates, 2);
+
+        let _ = std::fs::remove_file(&ofx_file);
+        let _ = std::fs::remove_file(&csv_file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn csv_import_rejects_unknown_accounts_and_bad_cells() {
+        let path = temporary_database("csv-errors");
+        let file = path.with_extension("csv");
+        std::fs::write(&file, SHEET).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let mapping = csv_mapping();
+        assert!(import_csv(&mut connection, &file, 999_999, &mapping).is_err());
+
+        let bad = "Data;Descricao;Valor\nontem;X;1,00\n05/03/2024;Y;abc\n05/03/2024;Z;0,00\n";
+        std::fs::write(&file, bad).expect("should write bad rows");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let report = import_csv(&mut connection, &file, account, &mapping).expect("should skip");
+        assert_eq!(report.inserted, 0);
+        assert_eq!(report.skipped, 3);
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn csv_profiles_round_trip_and_reject_bad_mappings() {
+        let path = temporary_database("csv-profiles");
+        let connection = open(&path).expect("should open");
+        assert!(list_csv_profiles(&connection).expect("should list").is_empty());
+
+        let input = CsvProfileInput {
+            id: None,
+            name: "Nubank".to_string(),
+            separator: ";".to_string(),
+            encoding: "auto".to_string(),
+            has_header: true,
+            date_col: 0,
+            date_format: "%d/%m/%Y".to_string(),
+            description_col: 1,
+            amount_col: Some(2),
+            debit_col: None,
+            credit_col: None,
+            decimal_sep: ",".to_string(),
+        };
+        let id = save_csv_profile(&connection, &input).expect("should save");
+        let profiles = list_csv_profiles(&connection).expect("should list");
+        assert_eq!(profiles.len(), 1);
+        assert_eq!(profiles[0].mapping().description_col, 1);
+
+        // Same name twice is refused.
+        assert!(save_csv_profile(&connection, &input).is_err());
+        // A mapping with both amount and debit columns is refused.
+        let bad = CsvProfileInput {
+            debit_col: Some(1),
+            ..CsvProfileInput {
+                id: None,
+                name: "Ruim".to_string(),
+                separator: ";".to_string(),
+                encoding: "auto".to_string(),
+                has_header: true,
+                date_col: 0,
+                date_format: "%d/%m/%Y".to_string(),
+                description_col: 1,
+                amount_col: Some(2),
+                debit_col: None,
+                credit_col: None,
+                decimal_sep: ",".to_string(),
+            }
+        };
+        assert!(save_csv_profile(&connection, &bad).is_err());
+
+        delete_csv_profile(&connection, id).expect("should delete");
+        assert!(list_csv_profiles(&connection).expect("should list").is_empty());
+
         let _ = std::fs::remove_file(&path);
     }
 }

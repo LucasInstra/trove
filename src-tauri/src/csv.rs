@@ -53,7 +53,7 @@ fn separator_of(mapping: &CsvMapping) -> Result<char, String> {
     }
 }
 
-fn validate_mapping(mapping: &CsvMapping) -> Result<(), String> {
+pub fn validate_mapping(mapping: &CsvMapping) -> Result<(), String> {
     separator_of(mapping)?;
     match mapping.encoding.as_str() {
         "auto" | "utf-8" | "latin1" | "windows-1252" => {}
@@ -92,7 +92,7 @@ fn windows_1252(byte: u8) -> char {
     }
 }
 
-fn decode_bytes(bytes: &[u8], encoding: &str) -> Result<String, String> {
+pub fn decode_bytes(bytes: &[u8], encoding: &str) -> Result<String, String> {
     let forced = match encoding {
         "utf-8" => Some(false),
         "latin1" | "windows-1252" => Some(true),

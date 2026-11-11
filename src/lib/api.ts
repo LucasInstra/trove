@@ -99,8 +99,49 @@ export interface ImportReport {  accountId: number;
   accountLabel: string;
   inserted: number;
   duplicates: number;
+  skipped: number;
   ledgerBalanceCents: number | null;
   ledgerBalanceOn: string | null;
+}
+
+export interface CsvMapping {
+  separator: string;
+  encoding: string;
+  hasHeader: boolean;
+  dateCol: number;
+  dateFormat: string;
+  descriptionCol: number;
+  amountCol: number | null;
+  debitCol: number | null;
+  creditCol: number | null;
+  decimalSep: string;
+}
+
+export interface CsvRow {
+  lineNo: number;
+  postedOn: string;
+  description: string;
+  amountCents: number;
+}
+
+export interface CsvIssue {
+  lineNo: number;
+  message: string;
+}
+
+export interface CsvPreview {
+  rows: CsvRow[];
+  issues: CsvIssue[];
+}
+
+export interface CsvProfile extends CsvMapping {
+  id: number;
+  name: string;
+}
+
+export interface CsvProfileInput extends CsvMapping {
+  id?: number | null;
+  name: string;
 }
 
 export interface ImportRow {
@@ -296,6 +337,14 @@ export const EMPTY_PLANNER: PlannerState = {
 
 export const api = {
   importOfx: (path: string) => invoke<ImportReport>("import_ofx", { path }),
+  previewCsv: (path: string, mapping: CsvMapping) =>
+    invoke<CsvPreview>("preview_csv", { path, mapping }),
+  importCsv: (path: string, accountId: number, mapping: CsvMapping) =>
+    invoke<ImportReport>("import_csv", { path, accountId, mapping }),
+  csvProfiles: () => invoke<CsvProfile[]>("list_csv_profiles"),
+  saveCsvProfile: (input: CsvProfileInput) =>
+    invoke<number>("save_csv_profile", { input }),
+  deleteCsvProfile: (id: number) => invoke<void>("delete_csv_profile", { id }),
   accounts: () => invoke<Account[]>("list_accounts"),
   categories: () => invoke<Category[]>("list_categories"),
   transactions: (search?: string, month?: string, accountId?: number | null, limit = 500) =>

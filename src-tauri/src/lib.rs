@@ -25,6 +25,50 @@ fn import_ofx(app: tauri::AppHandle, path: String) -> Result<db::ImportReport, S
     db::import_ofx(&mut connection, Path::new(&path))
 }
 
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CsvPreview {
+    rows: Vec<csv::CsvRow>,
+    issues: Vec<csv::CsvIssue>,
+}
+
+#[tauri::command]
+fn preview_csv(path: String, mapping: csv::CsvMapping) -> Result<CsvPreview, String> {
+    let bytes = std::fs::read(Path::new(&path)).map_err(|problem| problem.to_string())?;
+    let text = csv::decode_bytes(&bytes, &mapping.encoding)?;
+    let (rows, issues) = csv::parse_csv(&text, &mapping)?;
+    Ok(CsvPreview { rows, issues })
+}
+
+#[tauri::command]
+fn import_csv(
+    app: tauri::AppHandle,
+    path: String,
+    account_id: i64,
+    mapping: csv::CsvMapping,
+) -> Result<db::ImportReport, String> {
+    let mut connection = connection(&app)?;
+    db::import_csv(&mut connection, Path::new(&path), account_id, &mapping)
+}
+
+#[tauri::command]
+fn list_csv_profiles(app: tauri::AppHandle) -> Result<Vec<db::CsvProfile>, String> {
+    let connection = connection(&app)?;
+    db::list_csv_profiles(&connection)
+}
+
+#[tauri::command]
+fn save_csv_profile(app: tauri::AppHandle, input: db::CsvProfileInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_csv_profile(&connection, &input)
+}
+
+#[tauri::command]
+fn delete_csv_profile(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_csv_profile(&connection, id)
+}
+
 #[tauri::command]
 fn create_manual_account(app: tauri::AppHandle, name: String) -> Result<i64, String> {
     let connection = connection(&app)?;
@@ -352,6 +396,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             import_ofx,
+            preview_csv,
+            import_csv,
+            list_csv_profiles,
+            save_csv_profile,
+            delete_csv_profile,
             save_manual_transaction,
             update_manual_transaction,
             delete_manual_transaction,
