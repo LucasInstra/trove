@@ -7,6 +7,11 @@
  * is clamped to the three columns the grid has and an unknown mode falls back to
  * a full card. A layout saved before the third state existed only knew whether a
  * card was collapsed, and that still reads as a compact card.
+ *
+ * A card whose mode is `hidden` is off the dashboard, which is how the cards
+ * that only make sense for some households stay optional. `isCardAvailable`
+ * answers whether the data supports a card at all: the house split needs a
+ * second person and the housing card needs rent to measure.
  */
 
 export const CARD_IDS = [
@@ -23,8 +28,8 @@ export const CARD_IDS = [
 export type CardId = (typeof CARD_IDS)[number];
 export type Span = 1 | 2 | 3;
 
-/** Full card, one line summary, or the smallest line. */
-export const CARD_MODES = ["full", "compact", "mini"] as const;
+/** Off the dashboard, full card, one line summary, or the smallest line. */
+export const CARD_MODES = ["hidden", "full", "compact", "mini"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
 export interface LayoutCard {
@@ -43,6 +48,18 @@ export const DEFAULT_LAYOUT: LayoutCard[] = [
   { id: "donut", span: 1, mode: "full" },
   { id: "series", span: 2, mode: "full" },
 ];
+
+/** What the plan says about the household, for the cards that depend on it. */
+export interface CardContext {
+  people: number;
+  housingCents: number;
+}
+
+export function isCardAvailable(id: CardId, context: CardContext): boolean {
+  if (id === "split") return context.people > 1;
+  if (id === "housing") return context.housingCents > 0;
+  return true;
+}
 
 const clampSpan = (value: unknown, fallback: Span): Span => {
   const numeric = typeof value === "number" ? Math.round(value) : Number(value);
@@ -98,17 +115,6 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
   return layout;
 }
 
-export function moveCard(layout: LayoutCard[], id: CardId, delta: number): LayoutCard[] {
-  const index = layout.findIndex((entry) => entry.id === id);
-  if (index < 0) return layout;
-  const target = Math.min(layout.length - 1, Math.max(0, index + delta));
-  if (target === index) return layout;
-  const next = [...layout];
-  const [moved] = next.splice(index, 1);
-  next.splice(target, 0, moved);
-  return next;
-}
-
 /** Drops `id` where `targetId` sits, pushing the rest down. */
 export function moveCardTo(layout: LayoutCard[], id: CardId, targetId: CardId): LayoutCard[] {
   if (id === targetId) return layout;
@@ -129,7 +135,7 @@ export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): Lay
 
 /** full to compact, compact to mini, mini back to full. */
 export function nextMode(mode: CardMode): CardMode {
-  return mode === "full" ? "compact" : mode === "compact" ? "mini" : "full";
+  return mode === "full" ? "compact" : mode === "compact" ? "mini" : mode === "mini" ? "full" : "full";
 }
 
 export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {

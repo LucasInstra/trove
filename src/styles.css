@@ -3979,20 +3979,55 @@ button.primary:hover:not(:disabled) {
 }
 
 .layout-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 10px;
   padding: 10px 14px;
   border: 1px dashed var(--line-strong);
   border-radius: 14px;
   background: var(--surface);
 }
 
+.layout-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .layout-actions {
   display: flex;
   gap: 8px;
+}
+
+/* The cards the user took off the dashboard wait here, one chip each, and come
+   back with a click. A card the plan does not support never reaches the shelf. */
+.layout-shelf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.shelf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.shelf-chip:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary-strong);
 }
 
 .grid-cell .cell-tools {
@@ -4031,6 +4066,11 @@ button.primary:hover:not(:disabled) {
 
 .cell-tools button:disabled {
   opacity: 0.3;
+}
+
+.cell-tools button.cell-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--negative) 12%, transparent);
+  color: var(--negative);
 }
 
 .cell-tools-sep {

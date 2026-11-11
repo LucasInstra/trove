@@ -8,7 +8,7 @@ import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../comp
 import type { InvoiceWindow } from "../domain/invoice";
 import type { KeeperLook } from "../lib/keeper";
 import { SHOW_HERO_KEEPER } from "../lib/features";
-import { nextMode, type CardId, type CardMode, type LayoutCard } from "../domain/layout";
+import { nextMode, isCardAvailable, type CardId, type CardMode, type LayoutCard } from "../domain/layout";
 import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
@@ -39,7 +39,6 @@ interface OverviewProps {
   onSettle: () => void;
   layout: LayoutCard[];
   layoutEditing: boolean;
-  onLayoutMove: (id: CardId, delta: number) => void;
   onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
   onLayoutResize: (id: CardId, delta: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
@@ -73,7 +72,6 @@ export function OverviewScreen({
   onSettle,
   layout,
   layoutEditing,
-  onLayoutMove,
   onLayoutMoveTo,
   onLayoutResize,
   onLayoutMode,
@@ -86,6 +84,16 @@ export function OverviewScreen({
   const peak = Math.max(...series.slice(-6).map((point) => point.expenseCents), 1);
   const keptShare =
     plan.incomeCents > 0 ? Math.round((plan.forecastCents / plan.incomeCents) * 100) : 0;
+
+  // Cards that the plan does not support stay out of the grid, and a card the
+  // user took off the dashboard waits in the shelf until it is added back.
+  const cardContext = { people: people.length, housingCents: plan.housingCents };
+  const visible = layout.filter(
+    (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
+  );
+  const shelved = layout.filter(
+    (item) => item.mode === "hidden" && isCardAvailable(item.id, cardContext),
+  );
 
   const cardName = (id: CardId) =>
     ({
@@ -343,15 +351,33 @@ export function OverviewScreen({
     <section className="screen overview">
       {layoutEditing ? (
         <div className="layout-bar">
-          <span className="muted small">{t("layout.hint")}</span>
-          <div className="layout-actions">
-            <button type="button" className="ghost small-button" onClick={onLayoutReset}>
-              {t("layout.reset")}
-            </button>
-            <button type="button" className="primary small-button" onClick={onLayoutDone}>
-              {t("layout.done")}
-            </button>
+          <div className="layout-bar-row">
+            <span className="muted small">{t("layout.hint")}</span>
+            <div className="layout-actions">
+              <button type="button" className="ghost small-button" onClick={onLayoutReset}>
+                {t("layout.reset")}
+              </button>
+              <button type="button" className="primary small-button" onClick={onLayoutDone}>
+                {t("layout.done")}
+              </button>
+            </div>
           </div>
+          {shelved.length > 0 ? (
+            <div className="layout-shelf">
+              <span className="muted small">{t("layout.available")}</span>
+              {shelved.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="shelf-chip"
+                  onClick={() => onLayoutMode(item.id, "full")}
+                >
+                  <Icon name="plus" size={13} />
+                  {cardName(item.id)}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -362,7 +388,7 @@ export function OverviewScreen({
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropId(null);
         }}
       >
-        {layout.map((item, index) => {
+        {visible.map((item, index) => {
           // A card that is minimised becomes a chip one column wide, so it can
           // fill the single column holes the tall cards leave behind. Opening it
           // again brings back the width the user chose.
@@ -439,15 +465,21 @@ export function OverviewScreen({
                   type="button"
                   aria-label={t("layout.moveUp")}
                   disabled={index === 0}
-                  onClick={() => onLayoutMove(item.id, -1)}
+                  onClick={() => {
+                    const above = visible[index - 1];
+                    if (above) onLayoutMoveTo(item.id, above.id);
+                  }}
                 >
                   <Icon name="chevron-up" size={14} />
                 </button>
                 <button
                   type="button"
                   aria-label={t("layout.moveDown")}
-                  disabled={index === layout.length - 1}
-                  onClick={() => onLayoutMove(item.id, 1)}
+                  disabled={index === visible.length - 1}
+                  onClick={() => {
+                    const below = visible[index + 1];
+                    if (below) onLayoutMoveTo(item.id, below.id);
+                  }}
                 >
                   <Icon name="chevron-down" size={14} />
                 </button>
@@ -475,11 +507,22 @@ export function OverviewScreen({
                 )}
                 <button
                   type="button"
+                  className="cell-mode"
                   aria-label={modeLabel(target)}
                   title={modeLabel(target)}
                   onClick={() => onLayoutMode(item.id, target)}
                 >
                   <Icon name={modeIcon(target)} size={14} />
+                </button>
+                <span className="cell-tools-sep" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="cell-remove"
+                  aria-label={t("layout.remove")}
+                  title={t("layout.remove")}
+                  onClick={() => onLayoutMode(item.id, "hidden")}
+                >
+                  <Icon name="x" size={13} />
                 </button>
               </div>
             ) : null}

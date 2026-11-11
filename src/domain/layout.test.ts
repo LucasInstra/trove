@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CARD_IDS,
   DEFAULT_LAYOUT,
-  moveCard,
+  isCardAvailable,
   moveCardTo,
   nextMode,
   parseLayout,
@@ -87,40 +87,6 @@ describe("parseLayout", () => {
   });
 });
 
-describe("moveCard", () => {
-  const layout: LayoutCard[] = [
-    { id: "forecast", span: 2, mode: "full" },
-    { id: "bills", span: 1, mode: "full" },
-    { id: "cards", span: 1, mode: "full" },
-  ];
-
-  it("swaps with the neighbour", () => {
-    expect(moveCard(layout, "cards", -1).map((entry) => entry.id)).toEqual([
-      "forecast",
-      "cards",
-      "bills",
-    ]);
-    expect(moveCard(layout, "forecast", 1).map((entry) => entry.id)).toEqual([
-      "bills",
-      "forecast",
-      "cards",
-    ]);
-  });
-
-  it("stays put at the edges", () => {
-    expect(moveCard(layout, "forecast", -1)).toBe(layout);
-    expect(moveCard(layout, "cards", 1).map((entry) => entry.id)).toEqual([
-      "forecast",
-      "bills",
-      "cards",
-    ]);
-  });
-
-  it("does nothing for an unknown card", () => {
-    expect(moveCard(layout, "donut" as LayoutCard["id"], 1)).toBe(layout);
-  });
-});
-
 describe("moveCardTo", () => {
   const layout: LayoutCard[] = [
     { id: "forecast", span: 2, mode: "full" },
@@ -166,6 +132,44 @@ describe("nextMode", () => {
   });
 });
 
+describe("isCardAvailable", () => {
+  it("asks for a second person before offering the house split", () => {
+    expect(isCardAvailable("split", { people: 1, housingCents: 0 })).toBe(false);
+    expect(isCardAvailable("split", { people: 2, housingCents: 0 })).toBe(true);
+  });
+
+  it("asks for rent before offering the housing card", () => {
+    expect(isCardAvailable("housing", { people: 1, housingCents: 0 })).toBe(false);
+    expect(isCardAvailable("housing", { people: 1, housingCents: 185_000 })).toBe(true);
+  });
+
+  it("always offers the cards that do not depend on the household", () => {
+    const idle = { people: 1, housingCents: 0 };
+    for (const id of ["forecast", "bills", "cards", "goals", "donut", "series"] as const) {
+      expect(isCardAvailable(id, idle)).toBe(true);
+    }
+  });
+});
+
+describe("hidden cards", () => {
+  it("parses a card that was taken off the dashboard", () => {
+    const layout = parseLayout(JSON.stringify([{ id: "split", span: 1, mode: "hidden" }]));
+    expect(layout.find((entry) => entry.id === "split")?.mode).toBe("hidden");
+  });
+
+  it("puts a card back as a full card", () => {
+    const layout = parseLayout(JSON.stringify([{ id: "split", span: 2, mode: "hidden" }]));
+    const back = setMode(layout, "split", "full");
+    expect(back.find((entry) => entry.id === "split")?.mode).toBe("full");
+    expect(back.find((entry) => entry.id === "split")?.span).toBe(2);
+  });
+
+  it("round trips a shelf of hidden cards", () => {
+    const layout = setMode(setMode(parseLayout(null), "split", "hidden"), "housing", "mini");
+    expect(parseLayout(serializeLayout(layout))).toEqual(layout);
+  });
+});
+
 describe("setMode", () => {
   it("changes only the selected card without mutating the layout", () => {
     const layout = parseLayout(null);
@@ -203,7 +207,7 @@ describe("resizeCard", () => {
 describe("serializeLayout", () => {
   it("round trips through parse", () => {
     const layout = setMode(
-      resizeCard(moveCard(DEFAULT_LAYOUT, "cards", -1), "cards", 1),
+      resizeCard(moveCardTo(DEFAULT_LAYOUT, "cards", "forecast"), "cards", 1),
       "cards",
       "mini",
     );
