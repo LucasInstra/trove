@@ -1463,6 +1463,97 @@ pub fn set_category(
     Ok(())
 }
 
+/// Dumps the filtered ledger to a `;`-separated file the import understands:
+/// date (DD/MM/YYYY), description and amount (comma decimal) come first, so
+/// reimporting with columns 0/1/2 is a no-op through the fingerprint dedupe.
+/// Account, category, origin and notes ride along as context, never as keys.
+pub fn export_csv(
+    connection: &Connection,
+    path: &Path,
+    search: Option<&str>,
+    month: Option<&str>,
+    account_id: Option<i64>,
+) -> Result<i64, String> {
+    let pattern = search
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("%{}%", value));
+    let month_pattern = month
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("{value}%"));
+
+    let mut statement = connection
+        .prepare(
+            "select t.posted_on, t.description, t.amount_cents, a.name,
+                    coalesce(c.name, ''), t.origin, coalesce(t.notes, '')
+             from transactions t
+             join accounts a on a.id = t.account_id
+             left join categories c on c.id = t.category_id
+             where (?1 is null
+                    or t.description like ?1 collate nocase
+                    or t.merchant like ?1 collate nocase
+                    or c.name like ?1 collate nocase)
+               and (?2 is null or t.posted_on like ?2)
+               and (?3 is null or t.account_id = ?3)
+               and t.deleted_at is null
+               and a.deleted_at is null
+             order by t.posted_on asc, t.id asc",
+        )
+        .map_err(|problem| problem.to_string())?;
+
+    let rows = statement
+        .query_map(params![pattern, month_pattern, account_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })
+        .map_err(|problem| problem.to_string())?;
+
+    let cell = |value: &str| {
+        if value.contains([';', '"', '\n', '\r']) {
+            format!("\"{}\"", value.replace('"', "\"\""))
+        } else {
+            value.to_string()
+        }
+    };
+    let br_date = |iso: &str| match iso.split('-').collect::<Vec<_>>().as_slice() {
+        [year, month, day] => format!("{day}/{month}/{year}"),
+        _ => iso.to_string(),
+    };
+    let br_amount = |cents: i64| {
+        let sign = if cents < 0 { "-" } else { "" };
+        let abs = cents.abs();
+        format!("{sign}{},{:02}", abs / 100, abs % 100)
+    };
+
+    let mut text = String::from("data;descricao;valor;conta;categoria;origem;notas\n");
+    let mut count = 0i64;
+    for row in rows {
+        let (posted_on, description, amount_cents, account, category, origin, notes) =
+            row.map_err(|problem| problem.to_string())?;
+        text.push_str(&format!(
+            "{};{};{};{};{};{};{}\n",
+            cell(&br_date(&posted_on)),
+            cell(&description),
+            cell(&br_amount(amount_cents)),
+            cell(&account),
+            cell(&category),
+            cell(&origin),
+            cell(&notes),
+        ));
+        count += 1;
+    }
+    std::fs::write(path, text).map_err(|problem| problem.to_string())?;
+    Ok(count)
+}
+
 /// A monthly spending target for a category. Null removes the target.
 pub fn set_category_budget(
     connection: &Connection,
@@ -2943,6 +3034,40 @@ mod tests {
         delete_csv_profile(&connection, id).expect("should delete");
         assert!(list_csv_profiles(&connection).expect("should list").is_empty());
 
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn export_writes_what_the_import_reads() {
+        let path = temporary_database("csv-export");
+        let file = path.with_extension("csv");
+        let out = path.with_extension("out.csv");
+        std::fs::write(&file, SHEET).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let mapping = csv_mapping();
+        let imported = import_csv(&mut connection, &file, account, &mapping).expect("should import");
+        assert_eq!(imported.inserted, 2);
+
+        let count =
+            export_csv(&connection, &out, None, Some("2024-03"), Some(account)).expect("should export");
+        assert_eq!(count, 2);
+        let text = std::fs::read_to_string(&out).expect("should read back");
+        let mut lines = text.lines();
+        assert_eq!(lines.next(), Some("data;descricao;valor;conta;categoria;origem;notas"));
+        let first = lines.next().expect("should have a first row");
+        assert!(first.starts_with("05/03/2024;"), "dates leave as DD/MM/YYYY: {first}");
+        assert!(first.contains("-23,90"), "amounts leave as comma decimals: {first}");
+
+        // The export reimports cleanly through columns 0/1/2: the fingerprint
+        // sees the same rows and reports only duplicates.
+        let again = import_csv(&mut connection, &out, account, &mapping).expect("should reimport");
+        assert_eq!(again.inserted, 0);
+        assert_eq!(again.duplicates, 2);
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&out);
         let _ = std::fs::remove_file(&path);
     }
 }

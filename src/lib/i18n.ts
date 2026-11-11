@@ -364,6 +364,8 @@ const en: Dictionary = {
   "ledger.clearTitle": "Clear {month}?",
   "ledger.clearDesc": "Manual entries go away and bills go back to unpaid. Imported statements stay.",
   "ledger.clearConfirm": "Clear",
+  "ledger.exportCsv": "Export CSV",
+  "ledger.exported": "{count} rows exported",
   "ledger.deleteTitle": "Delete this entry?",
   "ledger.deleteDesc": "The entry leaves the ledger. This cannot be undone.",
 
@@ -818,6 +820,8 @@ const pt: Dictionary = {
   "ledger.clearTitle": "Limpar {month}?",
   "ledger.clearDesc": "Os lançamentos manuais somem e as contas voltam a em aberto. O extrato importado fica.",
   "ledger.clearConfirm": "Limpar",
+  "ledger.exportCsv": "Exportar CSV",
+  "ledger.exported": "{count} linhas exportadas",
   "ledger.deleteTitle": "Excluir este lançamento?",
   "ledger.deleteDesc": "O lançamento sai do extrato. Isso não pode ser desfeito.",
 

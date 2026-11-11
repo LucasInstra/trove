@@ -70,6 +70,24 @@ fn delete_csv_profile(app: tauri::AppHandle, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn export_csv(
+    app: tauri::AppHandle,
+    path: String,
+    search: Option<String>,
+    month: Option<String>,
+    account_id: Option<i64>,
+) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::export_csv(
+        &connection,
+        Path::new(&path),
+        search.as_deref(),
+        month.as_deref(),
+        account_id,
+    )
+}
+
+#[tauri::command]
 fn create_manual_account(app: tauri::AppHandle, name: String) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::create_manual_account(&connection, &name)
@@ -401,6 +419,7 @@ pub fn run() {
             list_csv_profiles,
             save_csv_profile,
             delete_csv_profile,
+            export_csv,
             save_manual_transaction,
             update_manual_transaction,
             delete_manual_transaction,

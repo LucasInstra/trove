@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
+import { save } from "@tauri-apps/plugin-dialog";
 import { Icon } from "./Icons";
 import { Dialog } from "./Dialog";
 import { dayLabel, formatCents, formatSignedCents, monthLabel } from "../lib/format";
+import { api } from "../lib/api";
 import { useLanguage } from "../lib/language";
 import type { Account, Category, TransactionRow } from "../lib/api";
 
@@ -49,12 +51,35 @@ export function TransactionsPanel({
   const searchRef = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [exported, setExported] = useState("");
+  const [exportError, setExportError] = useState("");
+
+  const onExport = async () => {
+    setExported("");
+    setExportError("");
+    const dest = await save({
+      defaultPath: `trove-${month}.csv`,
+      filters: [{ name: "CSV", extensions: ["csv"] }],
+    });
+    if (!dest) return;
+    try {
+      const count = await api.exportCsv(dest, search, month, accountFilter);
+      setExported(t("ledger.exported", { count }));
+    } catch (problem) {
+      setExportError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
 
   return (
     <div className="ledger">
       <div className="ledger-head">
         <h2>{t("ledger.transactions")}</h2>
         <span className="muted count">{t("ledger.entries", { count: rows.length })}</span>
+        {rows.length > 0 ? (
+          <button type="button" className="ghost" onClick={() => void onExport()}>
+            {t("ledger.exportCsv")}
+          </button>
+        ) : null}
         {rows.length > 0 ? (
           <button type="button" className="ghost danger" onClick={() => setConfirming(true)}>
             {t("ledger.clearMonth")}
@@ -184,6 +209,13 @@ export function TransactionsPanel({
               </div>
             </section>
           ))}
+        </div>
+      ) : null}
+
+      {exported ? <p className="muted small ledger-foot">{exported}</p> : null}
+      {exportError ? (
+        <div className="alert" role="alert">
+          {exportError}
         </div>
       ) : null}
 
