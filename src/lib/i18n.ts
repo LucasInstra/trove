@@ -197,8 +197,9 @@ const en: Dictionary = {
   "planner.previousMonth": "Previous month",
   "planner.nextMonth": "Next month",
   "composition.housing": "Housing",
-  "composition.bills": "Other bills",
-  "composition.spent": "Spent",
+  "composition.personal": "Personal",
+  "composition.reserved": "Reserved",
+  "composition.receivable": "Owed to me",
   "composition.free": "Left over",
 
   "greeting.morning": "Good morning",
@@ -497,8 +498,9 @@ const pt: Dictionary = {
   "planner.previousMonth": "Mês anterior",
   "planner.nextMonth": "Próximo mês",
   "composition.housing": "Moradia",
-  "composition.bills": "Outras contas",
-  "composition.spent": "Gastos",
+  "composition.personal": "Pessoal",
+  "composition.reserved": "Reservado",
+  "composition.receivable": "A receber",
   "composition.free": "Disponível",
 
   "greeting.morning": "Bom dia",

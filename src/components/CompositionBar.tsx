@@ -2,13 +2,20 @@ import type { Composition } from "../domain/projection";
 import { useLanguage } from "../lib/language";
 
 const LABELS: Record<Composition["key"], string> = {
+  personal: "composition.personal",
   housing: "composition.housing",
-  bills: "composition.bills",
-  spent: "composition.spent",
+  reserved: "composition.reserved",
+  receivable: "composition.receivable",
   free: "composition.free",
 };
 
-const READS_CENTS = new Set<Composition["key"]>(["housing", "bills", "spent"]);
+const SIGNS: Record<Composition["key"], string> = {
+  personal: "−",
+  housing: "−",
+  reserved: "−",
+  receivable: "+",
+  free: "",
+};
 
 interface Props {
   parts: Composition[];
@@ -39,7 +46,7 @@ export function CompositionBar({ parts, format }: Props) {
               {t(LABELS[part.key])}
             </span>
             <span className="composition-value">
-              {READS_CENTS.has(part.key) ? "−" : ""}
+              {SIGNS[part.key]}
               {format(part.amountCents)}
               <em>{Math.round(part.sharePct)}%</em>
             </span>

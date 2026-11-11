@@ -1692,9 +1692,11 @@ select.tx-category {
   min-width: 3px;
 }
 
-.composition-part.bills { background: rgba(247, 244, 238, 0.34); }
-.composition-part.spent { background: var(--primary); }
-.composition-part.free { background: var(--positive); }
+.composition-part.personal { background: var(--primary); }
+.composition-part.housing { background: var(--bills-segment); }
+.composition-part.reserved { background: var(--faint); }
+.composition-part.receivable { background: var(--positive); }
+.composition-part.free { background: #6fd0a3; }
 
 .composition-legend {
   list-style: none;
@@ -1724,9 +1726,11 @@ select.tx-category {
   font-variant-numeric: tabular-nums;
 }
 
-.composition-dot.bills { background: rgba(247, 244, 238, 0.7); }
+.composition-dot.personal { background: var(--primary); }
+.composition-dot.housing { background: var(--bills-segment); }
+.composition-dot.reserved { background: var(--faint); }
+.composition-dot.receivable { background: var(--positive); }
 .composition-dot.free { background: #6fd0a3; }
-.composition-dot.spent { background: var(--primary-soft); }
 
 /* Bills */
 
@@ -2369,10 +2373,11 @@ select.tx-category {
   border-radius: 0;
 }
 
-.composition-part.housing { background: var(--primary); }
-.composition-part.bills { background: var(--bills-segment); }
-.composition-part.spent { background: var(--primary); }
-.composition-part.free { background: var(--positive); }
+.composition-part.personal { background: var(--primary); }
+.composition-part.housing { background: var(--bills-segment); }
+.composition-part.reserved { background: var(--faint); }
+.composition-part.receivable { background: var(--positive); }
+.composition-part.free { background: #6fd0a3; }
 
 .composition-legend {
   display: flex;
@@ -2408,10 +2413,11 @@ select.tx-category {
   margin-left: 6px;
 }
 
-.composition-dot.housing { background: var(--primary); }
-.composition-dot.bills { background: var(--bills-segment); }
-.composition-dot.spent { background: var(--primary); }
-.composition-dot.free { background: var(--positive); }
+.composition-dot.personal { background: var(--primary); }
+.composition-dot.housing { background: var(--bills-segment); }
+.composition-dot.reserved { background: var(--faint); }
+.composition-dot.receivable { background: var(--positive); }
+.composition-dot.free { background: #6fd0a3; }
 
 /* Bills: the day chips read like the reference. */
 .day-pill {
@@ -3311,11 +3317,11 @@ select.tx-category {
 
 /* ---------- Forecast card: colours and legend ---------- */
 
-.composition-part.spent {
+.composition-part.personal {
   background: var(--primary);
 }
 
-.composition-dot.spent {
+.composition-dot.personal {
   background: var(--primary);
 }
 

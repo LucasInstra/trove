@@ -246,6 +246,7 @@ export function App() {
         totals,
         housingCategoryId,
         ceilingPct,
+        debts: planner.debts,
       }),
     [month, planner, totals, housingCategoryId, ceilingPct],
   );

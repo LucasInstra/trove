@@ -1,8 +1,8 @@
-import type { Bill, BillPayment, Goal, GoalTotal, Income, MonthTotals } from "../lib/api";
+import type { Bill, BillPayment, Debt, Goal, GoalTotal, Income, MonthTotals } from "../lib/api";
 import { monthOffset } from "./installment";
 
 export interface Composition {
-  key: "housing" | "bills" | "spent" | "free";
+  key: "personal" | "housing" | "reserved" | "receivable" | "free";
   amountCents: number;
   sharePct: number;
 }
@@ -53,6 +53,8 @@ export interface PlanInput {
   totals: MonthTotals | null;
   housingCategoryId: number | null;
   ceilingPct: number;
+  /** Debts of the month; absent in old tests, treated as none. */
+  debts?: Debt[];
 }
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
@@ -97,41 +99,47 @@ export function groupByDay(bills: Bill[]): DayGroup[] {
 }
 
 /**
- * The bar always starts from the income and ends at what is left. When the month
- * is already overspent the committed part fills the whole track and the overflow
- * is reported separately, so the bar never claims more than 100%.
+ * The bar starts from everything available and ends at what is left. Money
+ * other people owe me rides along as its own band but never funds the free
+ * part: only income minus what is committed counts as free. When the month is
+ * already overspent the free band drops out and the committed bands fill the
+ * whole track, so the bar never claims more than the base it measures.
  */
-export function buildComposition(
-  incomeCents: number,
-  committedCents: number,
-  forecastCents: number,
-  hasPlan: boolean,
-  housingCents = 0,
-): Composition[] {
-  if (incomeCents <= 0 && committedCents <= 0) return [];
-  const base = Math.max(incomeCents, committedCents, 1);
+export function buildComposition(input: {
+  incomeCents: number;
+  personalCents: number;
+  houseCents: number;
+  reservedCents: number;
+  receivableCents: number;
+}): Composition[] {
+  const { incomeCents } = input;
+  const committedCents = input.personalCents + input.houseCents + input.reservedCents;
+  const freeCents = incomeCents - committedCents;
+  if (incomeCents <= 0 && committedCents <= 0 && input.receivableCents <= 0) return [];
+  const base = Math.max(incomeCents, committedCents, input.receivableCents, 1);
   const share = (value: number) => Math.round((value / base) * 1000) / 10;
 
-  if (forecastCents < 0) {
-    const parts: Composition[] = [];
-    if (housingCents > 0) {
-      parts.push({ key: "housing", amountCents: housingCents, sharePct: share(housingCents) });
-    }
-    parts.push({ key: hasPlan ? "bills" : "spent", amountCents: committedCents - housingCents, sharePct: share(committedCents - housingCents) });
-    return parts;
-  }
-
   const parts: Composition[] = [];
-  if (hasPlan && housingCents > 0) {
-    parts.push({ key: "housing", amountCents: housingCents, sharePct: share(housingCents) });
+  if (input.personalCents > 0) {
+    parts.push({ key: "personal", amountCents: input.personalCents, sharePct: share(input.personalCents) });
   }
-  parts.push({
-    key: hasPlan ? "bills" : "spent",
-    amountCents: hasPlan ? committedCents - housingCents : committedCents,
-    sharePct: share(hasPlan ? committedCents - housingCents : committedCents),
-  });
-  parts.push({ key: "free", amountCents: forecastCents, sharePct: share(forecastCents) });
-  return parts.filter((part) => part.amountCents > 0);
+  if (input.houseCents > 0) {
+    parts.push({ key: "housing", amountCents: input.houseCents, sharePct: share(input.houseCents) });
+  }
+  if (input.reservedCents > 0) {
+    parts.push({ key: "reserved", amountCents: input.reservedCents, sharePct: share(input.reservedCents) });
+  }
+  if (freeCents > 0) {
+    parts.push({ key: "free", amountCents: freeCents, sharePct: share(freeCents) });
+  }
+  if (input.receivableCents > 0) {
+    parts.push({
+      key: "receivable",
+      amountCents: input.receivableCents,
+      sharePct: share(input.receivableCents),
+    });
+  }
+  return parts;
 }
 
 export function planMonth(input: PlanInput): MonthPlan {
@@ -188,6 +196,16 @@ export function planMonth(input: PlanInput): MonthPlan {
     return { goal, paidCents: paid, sharePct };
   });
 
+  // The house gets its own band, so the personal band is everything committed
+  // minus the house. Reserve goals earmark a monthly slice, and money others
+  // still owe me rides along without funding the free part.
+  const reservedCents = sum(
+    input.goals.filter((goal) => goal.kind === "reserve").map((goal) => goal.monthlyCents),
+  );
+  const receivableCents = sum(
+    (input.debts ?? []).filter((debt) => !debt.settledOn).map((debt) => debt.amountCents),
+  );
+
   return {
     month,
     incomeCents,
@@ -204,7 +222,13 @@ export function planMonth(input: PlanInput): MonthPlan {
       .filter((bill) => !paidBillIds.includes(bill.id))
       .map((bill) => bill.id),
     dayGroups: groupByDay(dueBills),
-    composition: buildComposition(incomeCents, committedCents, forecastCents, hasPlan, housingCents),
+    composition: buildComposition({
+      incomeCents,
+      personalCents: Math.max(0, committedCents - housingCents),
+      houseCents: housingCents,
+      reservedCents,
+      receivableCents,
+    }),
     housingCents,
     housingBills,
     housingRatioPct,

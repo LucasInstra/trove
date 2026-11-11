@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Bill, BillPayment, Income } from "../lib/api";
+import type { Bill, BillPayment, Debt, Goal, Income } from "../lib/api";
 import { buildComposition, isDueIn, planMonth, primaryOf } from "./projection";
 
 const income = (amountCents: number): Income => ({
@@ -36,6 +36,27 @@ const payment = (billId: number, amountCents: number): BillPayment => ({
   month: "2026-12",
   paidOn: "2026-12-02",
   amountCents,
+});
+
+const debt = (amountCents: number, settledOn: string | null = null): Debt => ({
+  id: 1,
+  personId: 2,
+  personName: "Pai",
+  label: "Cobasi",
+  amountCents,
+  month: "2026-12",
+  settledOn,
+});
+
+const reserveGoal = (monthlyCents: number): Goal => ({
+  id: 1,
+  name: "Reserva",
+  kind: "reserve",
+  targetCents: 1_000_000,
+  monthlyCents,
+  startsOn: "2026-01-01",
+  accountId: null,
+  color: "#1f6b4f",
 });
 
 const base = {
@@ -91,7 +112,28 @@ describe("planMonth", () => {
     expect(plan.hasPlan).toBe(false);
     expect(plan.incomeCents).toBe(500_000);
     expect(plan.forecastCents).toBe(180_000);
-    expect(plan.composition[0].key).toBe("spent");
+    expect(plan.composition[0].key).toBe("personal");
+    expect(plan.composition.reduce((total, part) => total + part.sharePct, 0)).toBeCloseTo(100, 1);
+  });
+
+  it("earmarks reserves and rides receivables along in the plan", () => {
+    const plan = planMonth({
+      ...base,
+      incomes: [income(5_200_000)],
+      bills: [bill(1, 1_722_70, 5), bill(2, 1_411_29, 20)],
+      payments: [],
+      totals: null,
+      goals: [reserveGoal(221_10)],
+      goalTotals: [],
+      debts: [debt(68_00), debt(10_00, "2026-12-02")],
+    });
+
+    const keys = plan.composition.map((part) => part.key);
+    expect(keys).toEqual(["personal", "reserved", "free", "receivable"]);
+    const free = plan.composition.find((part) => part.key === "free")!;
+    expect(free.amountCents).toBe(5_200_000 - 1_722_70 - 1_411_29 - 221_10);
+    const receivable = plan.composition.find((part) => part.key === "receivable")!;
+    expect(receivable.amountCents).toBe(68_00);
   });
 
   it("counts what was paid and lists what is pending", () => {
@@ -159,8 +201,7 @@ describe("planMonth", () => {
   });
 });
 
-describe("isDueIn", () => {
-  it("keeps a one-off bill in its own month", () => {
+describe("isDueIn", () => {  it("keeps a one-off bill in its own month", () => {
     const once = bill(1, 1000, 5, { frequency: "once", startsOn: "2026-07-01" });
     expect(isDueIn(once, "2026-07")).toBe(true);
     expect(isDueIn(once, "2026-08")).toBe(false);
@@ -187,7 +228,48 @@ describe("isDueIn", () => {
 
 describe("buildComposition", () => {
   it("stays empty without money on either side", () => {
-    expect(buildComposition(0, 0, 0, false)).toEqual([]);
+    expect(
+      buildComposition({ incomeCents: 0, personalCents: 0, houseCents: 0, reservedCents: 0, receivableCents: 0 }),
+    ).toEqual([]);
+  });
+
+  it("splits income into personal, house, reserved and free", () => {
+    const parts = buildComposition({
+      incomeCents: 5_200_00,
+      personalCents: 1_722_70,
+      houseCents: 1_411_29,
+      reservedCents: 221_10,
+      receivableCents: 0,
+    });
+    expect(parts.map((part) => part.key)).toEqual(["personal", "housing", "reserved", "free"]);
+    expect(parts.reduce((sum, part) => sum + part.sharePct, 0)).toBeCloseTo(100, 1);
+    const free = parts.find((part) => part.key === "free")!;
+    expect(free.amountCents).toBe(5_200_00 - 1_722_70 - 1_411_29 - 221_10);
+  });
+
+  it("rides receivables along without funding the free part", () => {
+    const parts = buildComposition({
+      incomeCents: 5_200_00,
+      personalCents: 1_722_70,
+      houseCents: 1_411_29,
+      reservedCents: 221_10,
+      receivableCents: 68_00,
+    });
+    expect(parts.map((part) => part.key)).toEqual(["personal", "housing", "reserved", "free", "receivable"]);
+    const free = parts.find((part) => part.key === "free")!;
+    expect(free.amountCents).toBe(1_844_91);
+  });
+
+  it("drops the free band when overspent", () => {
+    const parts = buildComposition({
+      incomeCents: 2_800_00,
+      personalCents: 3_000_00,
+      houseCents: 0,
+      reservedCents: 0,
+      receivableCents: 0,
+    });
+    expect(parts).toHaveLength(1);
+    expect(parts[0]).toEqual({ key: "personal", amountCents: 3_000_00, sharePct: 100 });
   });
 });
 
