@@ -452,6 +452,21 @@ const en: Dictionary = {
   "forecast.title": "Cash forecast",
   "forecast.note": "{balance} by {end}, repeating the trailing 6-month average.",
 
+  "tags.title": "Tags",
+  "tags.filter": "Filter by tag",
+  "tags.all": "All tags",
+  "tags.new": "New tag",
+
+  "bulk.title": "Bulk edit",
+  "bulk.selected": "{count} selected",
+  "bulk.select": "Select {desc}",
+  "bulk.pickCategory": "Category...",
+  "bulk.applyCategory": "Set category",
+  "bulk.pickTag": "Tag...",
+  "bulk.attach": "Attach",
+  "bulk.detach": "Detach",
+  "bulk.createAttach": "Create and attach",
+
   "report.title": "Month report",
   "report.copy": "Copy",
   "report.copied": "Copied",
@@ -990,6 +1005,21 @@ const pt: Dictionary = {
 
   "forecast.title": "Previsão de caixa",
   "forecast.note": "{balance} até {end}, repetindo a média dos últimos 6 meses.",
+
+  "tags.title": "Etiquetas",
+  "tags.filter": "Filtrar por etiqueta",
+  "tags.all": "Todas as etiquetas",
+  "tags.new": "Nova etiqueta",
+
+  "bulk.title": "Edição em massa",
+  "bulk.selected": "{count} selecionados",
+  "bulk.select": "Selecionar {desc}",
+  "bulk.pickCategory": "Categoria...",
+  "bulk.applyCategory": "Definir categoria",
+  "bulk.pickTag": "Etiqueta...",
+  "bulk.attach": "Anexar",
+  "bulk.detach": "Remover",
+  "bulk.createAttach": "Criar e anexar",
 
   "report.title": "Relatório do mês",
   "report.copy": "Copiar",

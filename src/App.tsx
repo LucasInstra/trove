@@ -53,6 +53,7 @@ import type {
   RefundInput,
   Rule,
   RuleInput,
+  Tag,
   TransactionRow,
   TransferInput,
 } from "./lib/api";
@@ -148,6 +149,8 @@ export function App() {
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [recurrence, setRecurrence] = useState<RecurrenceRow[]>([]);
   const [daily, setDaily] = useState<DailyPoint[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagFilter, setTagFilter] = useState<number | null>(null);
   const [rules, setRules] = useState<Rule[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
@@ -209,11 +212,12 @@ export function App() {
     };
   }, [route]);
 
-  const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
+  const reload = useCallback(
+    async (term: string, at: string, accountId: number | null, tagId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextDaily, nextRules, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextDaily, nextRules, nextTags, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
-          api.transactions(term, at, accountId),
+          api.transactions(term, at, accountId, 500, tagId),
           api.accounts(),
           api.categories(),
           api.monthTotals(at),
@@ -225,6 +229,7 @@ export function App() {
           api.recurrenceRows(at, 12).catch(() => []),
           api.dailyExpense(at).catch(() => []),
           api.listRules().catch(() => []),
+          api.tags().catch(() => []),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
@@ -243,6 +248,7 @@ export function App() {
       setRecurrence(nextHistory);
       setDaily(nextDaily);
       setRules(nextRules);
+      setTags(nextTags);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
       setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
@@ -274,8 +280,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (month) void reload(search, month, accountFilter);
-  }, [month, search, accountFilter, reload]);
+    if (month) void reload(search, month, accountFilter, tagFilter);
+  }, [month, search, accountFilter, tagFilter, reload]);
 
   // Card usage depends on the invoice window, which is calendar math, so it is
   // fetched per card after the planner state arrives.
@@ -360,7 +366,7 @@ export function App() {
   const onCategory = async (transactionId: number, categoryId: number | null) => {
     try {
       await api.setCategory(transactionId, categoryId);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -370,7 +376,7 @@ export function App() {
     if (!month) return;
     try {
       await api.clearMonth(month);
-      await reload(search, month, accountFilter);
+      await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -380,7 +386,7 @@ export function App() {
     try {
       await api.saveIncome(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -390,7 +396,7 @@ export function App() {
     try {
       await api.saveBill(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -399,14 +405,14 @@ export function App() {
   const removeBill = async (id: number) => {
     setDialog(null);
     await api.deleteBill(id);
-    if (month) await reload(search, month, accountFilter);
+    if (month) await reload(search, month, accountFilter, tagFilter);
   };
 
   const saveDebt = async (input: DebtInput) => {
     try {
       await api.saveDebt(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -415,14 +421,14 @@ export function App() {
   const removeDebt = async (id: number) => {
     setDialog(null);
     await api.deleteDebt(id);
-    if (month) await reload(search, month, accountFilter);
+    if (month) await reload(search, month, accountFilter, tagFilter);
   };
 
   const saveManual = async (input: ManualInput) => {
     try {
       await api.saveManual(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -432,7 +438,7 @@ export function App() {
     try {
       await api.updateManual(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -442,7 +448,7 @@ export function App() {
     try {
       await api.deleteManual(id);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -452,7 +458,7 @@ export function App() {
     try {
       await api.saveTransfer(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -462,7 +468,7 @@ export function App() {
     try {
       const input: RefundInput = { originalId };
       await api.saveRefund(input);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -471,7 +477,7 @@ export function App() {
   const saveRule = async (input: RuleInput) => {
     try {
       await api.saveRule(input);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -480,7 +486,7 @@ export function App() {
   const deleteRule = async (id: number) => {
     try {
       await api.deleteRule(id);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -488,14 +494,53 @@ export function App() {
 
   const applyRules = async (): Promise<number> => {
     const count = await api.applyRules();
-    if (month) await reload(search, month, accountFilter);
+    if (month) await reload(search, month, accountFilter, tagFilter);
     return count;
+  };
+
+  const saveTag = async (name: string): Promise<number | null> => {
+    try {
+      const id = await api.saveTag(name);
+      if (month) await reload(search, month, accountFilter, tagFilter);
+      return id;
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+      return null;
+    }
+  };
+
+  const deleteTag = async (id: number) => {
+    try {
+      await api.deleteTag(id);
+      if (tagFilter === id) setTagFilter(null);
+      if (month) await reload(search, month, accountFilter, tagFilter === id ? null : tagFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const bulkSetCategory = async (ids: number[], categoryId: number | null) => {
+    try {
+      await api.bulkSetCategory(ids, categoryId);
+      if (month) await reload(search, month, accountFilter, tagFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const bulkTag = async (ids: number[], tagId: number, assign: boolean) => {
+    try {
+      await api.bulkTag(ids, tagId, assign);
+      if (month) await reload(search, month, accountFilter, tagFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const createManualAccount = async (name: string) => {
     try {
       await api.createManualAccount(name);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -504,7 +549,7 @@ export function App() {
   const renameManualAccount = async (id: number, name: string) => {
     try {
       await api.renameAccount(id, name);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -513,7 +558,7 @@ export function App() {
   const archiveAccount = async (id: number) => {
     try {
       await api.archiveAccount(id);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -523,7 +568,7 @@ export function App() {
     try {
       await api.saveDeposit(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -546,7 +591,7 @@ export function App() {
       };
       await api.saveBudgetLimit(input);
       setDialog(null);
-      await reload(search, month, accountFilter);
+      await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -567,7 +612,7 @@ export function App() {
     if (!month) return;
     try {
       await api.saveBudgetLimit({ month, categoryId: null, limitCents: limit, carryover });
-      await reload(search, month, accountFilter);
+      await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -577,7 +622,7 @@ export function App() {
     try {
       await api.saveCategory(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -586,7 +631,7 @@ export function App() {
   const deleteCategory = async (id: number) => {
     try {
       await api.deleteCategory(id);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -595,7 +640,7 @@ export function App() {
   const archiveCategory = async (id: number, archived: boolean) => {
     try {
       await api.archiveCategory(id, archived);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -605,7 +650,7 @@ export function App() {
     if (!month) return;
     try {
       await api.setDebtSettled(id, settled);
-      await reload(search, month, accountFilter);
+      await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -615,7 +660,7 @@ export function App() {
     if (!month) return;
     try {
       await api.setBillPaid(billId, month, paid);
-      await reload(search, month, accountFilter);
+      await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -625,7 +670,7 @@ export function App() {
     try {
       await api.saveCard(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -635,7 +680,7 @@ export function App() {
     try {
       await api.saveGoal(input);
       setDialog(null);
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -651,7 +696,7 @@ export function App() {
     setHousingCategoryId(categoryId);
     try {
       await api.setSetting("housing_category", categoryId === null ? "none" : String(categoryId));
-      if (month) await reload(search, month, accountFilter);
+      if (month) await reload(search, month, accountFilter, tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -781,7 +826,7 @@ export function App() {
               notifications={notifications}
               onReadAll={() => {
                 void api.markNotificationsRead(notifications.map((item) => item.key)).then(() => {
-                  if (month) void reload(search, month, accountFilter);
+                  if (month) void reload(search, month, accountFilter, tagFilter);
                 });
               }}
               onImport={() => setRoute("import")}
@@ -847,7 +892,7 @@ export function App() {
               onLayoutDone={() => setLayoutEditing(false)}
               onAssignShare={(billId, personId) => {
                 void api.setShare({ billId, personId }).then(() => {
-                  if (month) void reload(search, month, accountFilter);
+                  if (month) void reload(search, month, accountFilter, tagFilter);
                 });
               }}
               onSettle={() => {
@@ -865,6 +910,7 @@ export function App() {
             <TransactionsScreen
               rows={rows}
               categories={categories}
+              tags={tags}
               search={search}
               loading={loading}
               onSearch={setSearch}
@@ -875,11 +921,17 @@ export function App() {
               onDeleteEntry={(id) => void deleteManual(id)}
               onRefund={(id) => void saveRefund(id)}
               onNewTransfer={() => setDialog({ kind: "transfer" })}
+              onBulkCategory={(ids, categoryId) => void bulkSetCategory(ids, categoryId)}
+              onBulkTag={(ids, tagId, assign) => void bulkTag(ids, tagId, assign)}
+              onNewTag={(name) => saveTag(name)}
+              onDeleteTag={(id) => void deleteTag(id)}
               month={month ?? currentMonth()}
               groups={groups}
               accounts={accounts}
               accountFilter={accountFilter}
               onAccountFilter={setAccountFilter}
+              tagFilter={tagFilter}
+              onTagFilter={setTagFilter}
             />
           ) : null}
 
@@ -976,7 +1028,7 @@ export function App() {
               onEditBill={(bill) => setDialog({ kind: "bill", bill })}
               onAssign={(billId, personId) => {
                 void api.setShare({ billId, personId }).then(() => {
-                  if (month) void reload(search, month, accountFilter);
+                  if (month) void reload(search, month, accountFilter, tagFilter);
                 });
               }}
               onSettle={() => {
@@ -999,7 +1051,7 @@ export function App() {
           {route === "import" ? (
             <ImportScreen
               onImported={() => {
-                if (month) void reload(search, month, accountFilter);
+                if (month) void reload(search, month, accountFilter, tagFilter);
                 setRoute("overview");
               }}
             />

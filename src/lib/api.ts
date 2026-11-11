@@ -20,6 +20,11 @@ export interface Category {
   archivedAt: string | null;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+}
+
 export interface TransactionRow {
   id: number;
   accountId: number;
@@ -38,6 +43,7 @@ export interface TransactionRow {
   transferGroup: string | null;
   refundOf: number | null;
   hasRefund: boolean;
+  tags: Tag[];
 }
 
 export interface CategoryMonth {
@@ -435,13 +441,27 @@ export const api = {
     }),
   accounts: () => invoke<Account[]>("list_accounts"),
   categories: () => invoke<Category[]>("list_categories"),
-  transactions: (search?: string, month?: string, accountId?: number | null, limit = 500) =>
+  transactions: (
+    search?: string,
+    month?: string,
+    accountId?: number | null,
+    limit = 500,
+    tagId?: number | null,
+  ) =>
     invoke<TransactionRow[]>("list_transactions", {
       search: search ?? null,
       month: month ?? null,
       accountId: accountId ?? null,
       limit,
+      tagId: tagId ?? null,
     }),
+  tags: () => invoke<Tag[]>("list_tags"),
+  saveTag: (name: string) => invoke<number>("save_tag", { name }),
+  deleteTag: (id: number) => invoke<void>("delete_tag", { id }),
+  bulkSetCategory: (ids: number[], categoryId: number | null) =>
+    invoke<number>("bulk_set_category", { ids, categoryId }),
+  bulkTag: (ids: number[], tagId: number, assign: boolean) =>
+    invoke<number>("bulk_tag", { ids, tagId, assign }),
   categoryTotals: (month: string) => invoke<CategoryTotal[]>("category_totals", { month }),
   monthSeries: (month: string, count = 6) =>
     invoke<MonthPoint[]>("month_series", { month, count }),

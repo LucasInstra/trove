@@ -1,9 +1,10 @@
 import { TransactionsPanel } from "../components/TransactionsPanel";
-import type { Account, Category, TransactionRow } from "../lib/api";
+import type { Account, Category, Tag, TransactionRow } from "../lib/api";
 
 interface TransactionsScreenProps {
   rows: TransactionRow[];
   categories: Category[];
+  tags: Tag[];
   search: string;
   loading: boolean;
   onSearch: (value: string) => void;
@@ -14,11 +15,17 @@ interface TransactionsScreenProps {
   onDeleteEntry: (id: number) => void;
   onRefund: (id: number) => void;
   onNewTransfer: () => void;
+  onBulkCategory: (ids: number[], categoryId: number | null) => void;
+  onBulkTag: (ids: number[], tagId: number, assign: boolean) => void;
+  onNewTag: (name: string) => Promise<number | null>;
+  onDeleteTag: (id: number) => void;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
   accountFilter: number | null;
   onAccountFilter: (accountId: number | null) => void;
+  tagFilter: number | null;
+  onTagFilter: (tagId: number | null) => void;
 }
 
 /**

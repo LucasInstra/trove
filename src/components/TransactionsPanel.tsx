@@ -5,11 +5,12 @@ import { Dialog } from "./Dialog";
 import { dayLabel, formatCents, formatSignedCents, monthLabel } from "../lib/format";
 import { api } from "../lib/api";
 import { useLanguage } from "../lib/language";
-import type { Account, Category, TransactionRow } from "../lib/api";
+import type { Account, Category, Tag, TransactionRow } from "../lib/api";
 
 interface Props {
   rows: TransactionRow[];
   categories: Category[];
+  tags: Tag[];
   search: string;
   loading: boolean;
   onSearch: (value: string) => void;
@@ -20,11 +21,17 @@ interface Props {
   onDeleteEntry: (id: number) => void;
   onRefund: (id: number) => void;
   onNewTransfer: () => void;
+  onBulkCategory: (ids: number[], categoryId: number | null) => void;
+  onBulkTag: (ids: number[], tagId: number, assign: boolean) => void;
+  onNewTag: (name: string) => Promise<number | null>;
+  onDeleteTag: (id: number) => void;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
   accountFilter: number | null;
   onAccountFilter: (accountId: number | null) => void;
+  tagFilter: number | null;
+  onTagFilter: (tagId: number | null) => void;
 }
 
 function initial(row: TransactionRow): string {
@@ -35,6 +42,7 @@ function initial(row: TransactionRow): string {
 export function TransactionsPanel({
   rows,
   categories,
+  tags,
   search,
   loading,
   onSearch,
@@ -45,18 +53,30 @@ export function TransactionsPanel({
   onDeleteEntry,
   onRefund,
   onNewTransfer,
+  onBulkCategory,
+  onBulkTag,
+  onNewTag,
+  onDeleteTag,
   month,
   groups,
   accounts,
   accountFilter,
   onAccountFilter,
+  tagFilter,
+  onTagFilter,
 }: Props) {
   const { lang, t } = useLanguage();
   const searchRef = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [confirmRefundId, setConfirmRefundId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkTag, setBulkTag] = useState("");
+  const [newTag, setNewTag] = useState("");
   const confirmDeleteRow = rows.find((row) => row.id === confirmDeleteId) ?? null;
+  const visibleIds = new Set(rows.map((row) => row.id));
+  const keptSelection = selected.filter((id) => visibleIds.has(id));
   const [exported, setExported] = useState("");
   const [exportError, setExportError] = useState("");
 
@@ -126,7 +146,134 @@ export function TransactionsPanel({
             ))}
           </select>
         </label>
+        <label className="account-filter">
+          <span className="visually-hidden">{t("tags.filter")}</span>
+          <select
+            value={tagFilter ?? ""}
+            onChange={(event) =>
+              onTagFilter(event.target.value === "" ? null : Number(event.target.value))
+            }
+          >
+            <option value="">{t("tags.all")}</option>
+            {tags.map((tag) => (
+              <option key={tag.id} value={tag.id}>
+                #{tag.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+
+      {keptSelection.length > 0 ? (
+        <div className="card bulk-bar" role="toolbar" aria-label={t("bulk.title")}>
+          <span className="muted small">
+            {t("bulk.selected", { count: keptSelection.length })}
+          </span>
+          <select
+            value={bulkCategory}
+            onChange={(event) => setBulkCategory(event.target.value)}
+            aria-label={t("planner.category")}
+          >
+            <option value="">{t("bulk.pickCategory")}</option>
+            <option value="none">{t("ledger.noCategory")}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="outline-button small-button"
+            disabled={bulkCategory === ""}
+            onClick={() => {
+              onBulkCategory(
+                keptSelection,
+                bulkCategory === "none" ? null : Number(bulkCategory),
+              );
+              setBulkCategory("");
+              setSelected([]);
+            }}
+          >
+            {t("bulk.applyCategory")}
+          </button>
+          <select
+            value={bulkTag}
+            onChange={(event) => setBulkTag(event.target.value)}
+            aria-label={t("tags.title")}
+          >
+            <option value="">{t("bulk.pickTag")}</option>
+            {tags.map((tag) => (
+              <option key={tag.id} value={tag.id}>
+                #{tag.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="outline-button small-button"
+            disabled={bulkTag === ""}
+            onClick={() => {
+              onBulkTag(keptSelection, Number(bulkTag), true);
+              setBulkTag("");
+              setSelected([]);
+            }}
+          >
+            {t("bulk.attach")}
+          </button>
+          <button
+            type="button"
+            className="outline-button small-button"
+            disabled={bulkTag === ""}
+            onClick={() => {
+              onBulkTag(keptSelection, Number(bulkTag), false);
+              setBulkTag("");
+              setSelected([]);
+            }}
+          >
+            {t("bulk.detach")}
+          </button>
+          {bulkTag !== "" ? (
+            <button
+              type="button"
+              className="icon-button danger"
+              title={t("common.delete")}
+              aria-label={`${t("common.delete")}: #${tags.find((tag) => tag.id === Number(bulkTag))?.name ?? ""}`}
+              onClick={() => {
+                onDeleteTag(Number(bulkTag));
+                setBulkTag("");
+                setSelected([]);
+              }}
+            >
+              <Icon name="trash" size={15} />
+            </button>
+          ) : null}
+          <input
+            value={newTag}
+            onChange={(event) => setNewTag(event.target.value)}
+            maxLength={40}
+            placeholder={t("tags.new")}
+            aria-label={t("tags.new")}
+          />
+          <button
+            type="button"
+            className="outline-button small-button"
+            disabled={newTag.trim() === ""}
+            onClick={() =>
+              void onNewTag(newTag.trim()).then((id) => {
+                if (id !== null) onBulkTag(keptSelection, id, true);
+                setNewTag("");
+                setSelected([]);
+              })
+            }
+          >
+            {t("bulk.createAttach")}
+          </button>
+          <button type="button" className="ghost" onClick={() => setSelected([])}>
+            {t("common.cancel")}
+          </button>
+        </div>
+      ) : null}
 
       {loading ? <p className="muted">{t("common.loading")}</p> : null}
 
@@ -151,8 +298,22 @@ export function TransactionsPanel({
               <div className="tx-group">
                 {group.rows.map((row) => {
                   const color = row.categoryColor ?? "#8b8798";
+                  const checked = selected.includes(row.id);
                   return (
-                    <div className="tx-row" key={row.id}>
+                    <div className={checked ? "tx-row selected" : "tx-row"} key={row.id}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setSelected((current) =>
+                            checked
+                              ? current.filter((id) => id !== row.id)
+                              : [...current, row.id],
+                          )
+                        }
+                        aria-label={t("bulk.select", { desc: row.description })}
+                        className="tx-select"
+                      />
                       <span
                         className="tx-icon"
                         style={{ background: `${color}1f`, color }}
@@ -171,6 +332,15 @@ export function TransactionsPanel({
                         <span className="tx-sub">
                           {row.categoryName ?? t("ledger.noCategory")} · {row.accountName}
                         </span>
+                        {row.tags.length > 0 ? (
+                          <span className="tx-tags">
+                            {row.tags.map((tag) => (
+                              <em key={tag.id} className="pill-soft">
+                                #{tag.name}
+                              </em>
+                            ))}
+                          </span>
+                        ) : null}
                         {row.notes ? <span className="tx-note">{row.notes}</span> : null}
                       </div>
                       <select

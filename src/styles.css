@@ -1000,7 +1000,7 @@ button.primary:hover:not(:disabled) {
 
 .tx-row {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 148px 108px auto;
+  grid-template-columns: 22px 38px minmax(0, 1fr) 148px 108px auto;
   align-items: center;
   gap: 13px;
   padding: 13px 16px;
@@ -1013,6 +1013,35 @@ button.primary:hover:not(:disabled) {
 
 .tx-row:hover {
   background: var(--surface-soft);
+}
+
+.tx-row.selected {
+  background: var(--primary-soft);
+}
+
+.tx-select {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.tx-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+}
+
+.bulk-bar input {
+  max-width: 160px;
 }
 
 .tx-icon {

@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 13;
+pub const SCHEMA_VERSION: i64 = 14;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -255,6 +255,7 @@ pub struct TransactionRow {
     pub transfer_group: Option<String>,
     pub refund_of: Option<i64>,
     pub has_refund: bool,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Serialize)]
@@ -393,8 +394,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v12(&connection)?;
         write_version(&connection, 12)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 13 {
         migrate_to_v13(&connection)?;
+        write_version(&connection, 13)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v14(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -509,6 +514,31 @@ create table if not exists csv_profiles (
     deleted_at    text
 );
 "#;
+
+/// v13 to v14: free-form tags plus the join to transactions. Tags are user
+/// metadata like categories — they stick to any row, imported or manual —
+/// and power the ledger filter and the bulk editor.
+const NEW_TABLES_V14: &str = r#"
+create table if not exists tags (
+    id            integer primary key,
+    uid           text    not null unique,
+    name          text    not null unique,
+    created_at    text    not null,
+    updated_at    text    not null
+);
+create table if not exists transaction_tags (
+    transaction_id integer not null,
+    tag_id        integer not null,
+    unique (transaction_id, tag_id)
+);
+"#;
+
+/// v13 to v14: tags and their assignments.
+fn migrate_to_v14(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(NEW_TABLES_V14)
+        .map_err(|problem| problem.to_string())
+}
 
 /// v12 to v13: monthly budget rows. A row overrides the category's base cap
 /// for one month (`category_id` null is the whole-month cap); `carryover`
@@ -2047,12 +2077,156 @@ pub fn list_categories(connection: &Connection) -> Result<Vec<Category>, String>
         .map_err(|problem| problem.to_string())
 }
 
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Tag {
+    pub id: i64,
+    pub name: String,
+}
+
+pub fn list_tags(connection: &Connection) -> Result<Vec<Tag>, String> {
+    let mut statement = connection
+        .prepare("select id, name from tags order by name")
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| Ok(Tag { id: row.get(0)?, name: row.get(1)? }))
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
+pub fn save_tag(connection: &Connection, name: &str) -> Result<i64, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("tag name must not be empty".to_string());
+    }
+    if name.chars().count() > 40 {
+        return Err("tag name is too long".to_string());
+    }
+    let stamp = Utc::now().to_rfc3339();
+    connection
+        .execute(
+            "insert into tags (uid, name, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?2)",
+            params![name, stamp],
+        )
+        .map_err(|problem| {
+            if problem.to_string().contains("UNIQUE constraint failed") {
+                "a tag with this name already exists".to_string()
+            } else {
+                problem.to_string()
+            }
+        })?;
+    Ok(connection.last_insert_rowid())
+}
+
+pub fn delete_tag(connection: &Connection, id: i64) -> Result<(), String> {
+    let affected = connection
+        .execute("delete from tags where id = ?1", params![id])
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("tag {id} does not exist"));
+    }
+    connection
+        .execute("delete from transaction_tags where tag_id = ?1", params![id])
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
+fn placeholders(count: usize) -> String {
+    (0..count).map(|_| "?").collect::<Vec<_>>().join(", ")
+}
+
+/// Recategorizes many rows at once. Transfer legs are never touched: their
+/// null category is load-bearing for the totals, not a gap to fill.
+pub fn bulk_set_category(
+    connection: &Connection,
+    ids: &[i64],
+    category_id: Option<i64>,
+) -> Result<i64, String> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    if let Some(category) = category_id {
+        let found: Option<i64> = connection
+            .query_row(
+                "select id from categories where id = ?1 and deleted_at is null",
+                params![category],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?;
+        if found.is_none() {
+            return Err(format!("category {category} does not exist"));
+        }
+    }
+    let query = format!(
+        "update transactions set category_id = ?1
+         where id in ({}) and transfer_group is null and deleted_at is null",
+        placeholders(ids.len())
+    );
+    let mut statement = connection
+        .prepare(&query)
+        .map_err(|problem| problem.to_string())?;
+    let mut values: Vec<&dyn rusqlite::ToSql> = vec![&category_id];
+    for id in ids {
+        values.push(id);
+    }
+    let affected = statement
+        .execute(values.as_slice())
+        .map_err(|problem| problem.to_string())?;
+    Ok(affected as i64)
+}
+
+/// Attaches or detaches one tag on many rows. Tags are metadata, so imported
+/// rows take them like manual ones; deleted rows are silently skipped.
+pub fn bulk_tag(connection: &Connection, ids: &[i64], tag_id: i64, assign: bool) -> Result<i64, String> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let found: Option<i64> = connection
+        .query_row("select id from tags where id = ?1", params![tag_id], |row| row.get(0))
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if found.is_none() {
+        return Err(format!("tag {tag_id} does not exist"));
+    }
+    let mut affected = 0i64;
+    if assign {
+        for id in ids {
+            affected += connection
+                .execute(
+                    "insert or ignore into transaction_tags (transaction_id, tag_id)
+                     select ?1, ?2 where exists
+                       (select 1 from transactions where id = ?1 and deleted_at is null)",
+                    params![id, tag_id],
+                )
+                .map_err(|problem| problem.to_string())? as i64;
+        }
+    } else {
+        let query = format!(
+            "delete from transaction_tags where tag_id = ?1 and transaction_id in ({})",
+            placeholders(ids.len())
+        );
+        let mut statement = connection
+            .prepare(&query)
+            .map_err(|problem| problem.to_string())?;
+        let mut values: Vec<&dyn rusqlite::ToSql> = vec![&tag_id];
+        for id in ids {
+            values.push(id);
+        }
+        affected = statement.execute(values.as_slice()).map_err(|problem| problem.to_string())? as i64;
+    }
+    Ok(affected)
+}
+
 pub fn list_transactions(
     connection: &Connection,
     search: Option<&str>,
     month: Option<&str>,
     account_id: Option<i64>,
     limit: i64,
+    tag_id: Option<i64>,
 ) -> Result<Vec<TransactionRow>, String> {
     let pattern = search
         .map(|value| value.trim())
@@ -2075,9 +2249,15 @@ pub fn list_transactions(
              where (?1 is null
                     or t.description like ?1 collate nocase
                     or t.merchant like ?1 collate nocase
-                    or c.name like ?1 collate nocase)
+                    or c.name like ?1 collate nocase
+                    or exists (select 1 from transaction_tags tt
+                               join tags tg on tg.id = tt.tag_id
+                               where tt.transaction_id = t.id and tg.name like ?1 collate nocase))
                and (?2 is null or t.posted_on like ?2)
                and (?3 is null or t.account_id = ?3)
+               and (?5 is null
+                    or exists (select 1 from transaction_tags tt
+                               where tt.transaction_id = t.id and tt.tag_id = ?5))
                and t.deleted_at is null
                and a.deleted_at is null
              order by t.posted_on desc, t.id desc
@@ -2086,7 +2266,7 @@ pub fn list_transactions(
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![pattern, month_pattern, account_id, limit], |row| {
+        .query_map(params![pattern, month_pattern, account_id, limit, tag_id], |row| {
             let origin: String = row.get(11)?;
             Ok(TransactionRow {
                 id: row.get(0)?,
@@ -2106,12 +2286,43 @@ pub fn list_transactions(
                 transfer_group: row.get(13)?,
                 refund_of: row.get(14)?,
                 has_refund: row.get(15)?,
+                tags: Vec::new(),
             })
         })
         .map_err(|problem| problem.to_string())?;
 
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|problem| problem.to_string())
+    let mut rows = rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())?;
+    if !rows.is_empty() {
+        let ids: Vec<i64> = rows.iter().map(|row| row.id).collect();
+        let query = format!(
+            "select tt.transaction_id, g.id, g.name from transaction_tags tt
+             join tags g on g.id = tt.tag_id
+             where tt.transaction_id in ({}) order by g.name",
+            placeholders(ids.len())
+        );
+        let mut statement = connection
+            .prepare(&query)
+            .map_err(|problem| problem.to_string())?;
+        let mut values: Vec<&dyn rusqlite::ToSql> = Vec::new();
+        for id in &ids {
+            values.push(id);
+        }
+        let mapped = statement
+            .query_map(values.as_slice(), |row| {
+                Ok((row.get::<_, i64>(0)?, Tag { id: row.get(1)?, name: row.get(2)? }))
+            })
+            .map_err(|problem| problem.to_string())?;
+        let mut by_row: std::collections::HashMap<i64, Vec<Tag>> = std::collections::HashMap::new();
+        for entry in mapped {
+            let (transaction_id, tag) = entry.map_err(|problem| problem.to_string())?;
+            by_row.entry(transaction_id).or_default().push(tag);
+        }
+        for row in &mut rows {
+            row.tags = by_row.remove(&row.id).unwrap_or_default();
+        }
+    }
+    Ok(rows)
 }
 
 pub fn set_category(
@@ -3056,7 +3267,7 @@ mod tests {
         assert_eq!(second.inserted, 0);
         assert_eq!(second.duplicates, 2);
 
-        let rows = list_transactions(&connection, None, None, None, 50).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 50, None).expect("should list");
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].merchant, "SALARIO");
 
@@ -3090,7 +3301,7 @@ mod tests {
         assert_eq!(series[2].expense_cents, 2390);
         assert_eq!(series[0].expense_cents, 0);
 
-        let empty_month = list_transactions(&connection, None, Some("2024-04"), None, 50).expect("should list");
+        let empty_month = list_transactions(&connection, None, Some("2024-04"), None, 50, None).expect("should list");
         assert!(empty_month.is_empty());
 
         let _ = std::fs::remove_file(&file);
@@ -3112,7 +3323,7 @@ mod tests {
         assert!(set_category_budget(&connection, food.id, Some(0)).is_err());
         assert!(set_category_budget(&connection, 999_999, Some(10_000)).is_err());
 
-        let debit = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let debit = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list")
             .into_iter()
             .find(|row| row.amount_cents < 0)
@@ -3226,7 +3437,7 @@ mod tests {
         assert_eq!(second.inserted, 0);
         assert_eq!(second.duplicates, 2);
 
-        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list");
         assert_eq!(rows.len(), 3);
         let manual_row = rows.iter().find(|row| row.id == id).expect("manual row");
@@ -3313,7 +3524,7 @@ mod tests {
             },
         )
         .expect("should update");
-        let edited = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let edited = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list")
             .into_iter()
             .find(|row| row.id == id)
@@ -3336,7 +3547,7 @@ mod tests {
         .is_err());
 
         // Imported rows are read-only history.
-        let imported = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let imported = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list")
             .into_iter()
             .find(|row| !row.manual)
@@ -3357,7 +3568,7 @@ mod tests {
         assert!(delete_manual_transaction(&connection, imported.id).is_err());
 
         delete_manual_transaction(&connection, id).expect("should delete");
-        assert!(list_transactions(&connection, None, Some("2024-03"), None, 50)
+        assert!(list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("list")
             .iter()
             .all(|row| row.id != id));
@@ -3552,11 +3763,11 @@ mod tests {
         assert!(clear_month(&mut connection, "").is_err());
 
         // Imports stay, April is untouched.
-        let march = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let march = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list");
         assert_eq!(march.len(), 2);
         assert!(march.iter().all(|row| !row.manual));
-        let april = list_transactions(&connection, None, Some("2024-04"), None, 50)
+        let april = list_transactions(&connection, None, Some("2024-04"), None, 50, None)
             .expect("should list");
         assert_eq!(april.len(), 1);
         assert!(crate::planner::list_payments(&connection, "2024-03")
@@ -3596,11 +3807,11 @@ mod tests {
 
         let mut connection = open(&path).expect("should open");
         import_ofx(&mut connection, &file).expect("should import");
-        let rows = list_transactions(&connection, None, None, None, 10).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 10, None).expect("should list");
         let categories = list_categories(&connection).expect("should list");
 
         set_category(&connection, rows[0].id, Some(categories[0].id)).expect("should categorize");
-        let after = list_transactions(&connection, Some(categories[0].name.as_str()), None, None, 10)
+        let after = list_transactions(&connection, Some(categories[0].name.as_str()), None, None, 10, None)
             .expect("should filter");
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].category_id, Some(categories[0].id));
@@ -3810,7 +4021,7 @@ mod tests {
         assert_eq!(a.inserted, 2);
         assert_eq!(b.inserted, 2, "the same line in another account is not a duplicate");
         assert_eq!(
-            list_transactions(&connection, None, None, None, 50)
+            list_transactions(&connection, None, None, None, 50, None)
                 .expect("should list")
                 .len(),
             4
@@ -3834,7 +4045,7 @@ mod tests {
 
         let mut connection = open(&path).expect("should open");
         import_ofx(&mut connection, &file).expect("should import");
-        let rows = list_transactions(&connection, None, None, None, 10).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 10, None).expect("should list");
         assert_eq!(rows.len(), 2);
 
         let expense = rows
@@ -3843,7 +4054,7 @@ mod tests {
             .expect("should have an expense");
         soft_delete_transaction(&connection, expense.id).expect("should delete");
 
-        let alive = list_transactions(&connection, None, None, None, 10).expect("should list");
+        let alive = list_transactions(&connection, None, None, None, 10, None).expect("should list");
         assert_eq!(alive.len(), 1, "a tombstone must not be listed");
         let totals = month_totals(&connection, "2024-03").expect("should total");
         assert_eq!(totals.expense_cents, 0, "a tombstone must not count");
@@ -3855,7 +4066,7 @@ mod tests {
         assert_eq!(third.inserted, 1);
         assert_eq!(third.duplicates, 1);
         assert_eq!(
-            list_transactions(&connection, None, None, None, 10)
+            list_transactions(&connection, None, None, None, 10, None)
                 .expect("should list")
                 .len(),
             2
@@ -3901,7 +4112,7 @@ mod tests {
         assert_eq!(second.inserted, 0);
         assert_eq!(second.duplicates, 2);
 
-        let rows = list_transactions(&connection, None, None, Some(account), 50).expect("should list");
+        let rows = list_transactions(&connection, None, None, Some(account), 50, None).expect("should list");
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|row| row.origin == "csv"));
 
@@ -4065,7 +4276,7 @@ mod tests {
         validate_backup_source(&snapshot).expect("should validate");
         let restored = open(&snapshot).expect("should reopen the backup");
         assert_eq!(
-            list_transactions(&restored, None, None, None, 50)
+            list_transactions(&restored, None, None, None, 50, None)
                 .expect("should list")
                 .len(),
             2
@@ -4116,7 +4327,7 @@ mod tests {
         .expect("should transfer");
         assert!(group.starts_with("transfer:"));
 
-        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list");
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|row| row.transfer_group.as_deref() == Some(group.as_str())));
@@ -4138,7 +4349,7 @@ mod tests {
         // One leg out, the pair goes: money cannot appear from nowhere.
         delete_transfer(&connection, rows[0].id).expect("should delete the group");
         assert!(
-            list_transactions(&connection, None, Some("2024-03"), None, 50)
+            list_transactions(&connection, None, Some("2024-03"), None, 50, None)
                 .expect("should list")
                 .is_empty()
         );
@@ -4171,7 +4382,7 @@ mod tests {
             assert!(save_transfer(&mut connection, &bad).is_err());
         }
 
-        let leg = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let leg = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list")[0]
             .id;
         // Legs are derived: no solo edits, and plain entries are not groups.
@@ -4204,7 +4415,7 @@ mod tests {
         // Deleting through the manual path still removes the whole group.
         delete_manual_transaction(&connection, leg).expect("should delete the group");
         assert_eq!(
-            list_transactions(&connection, None, Some("2024-03"), None, 50)
+            list_transactions(&connection, None, Some("2024-03"), None, 50, None)
                 .expect("should list")
                 .len(),
             1,
@@ -4251,7 +4462,7 @@ mod tests {
             &RefundInput { original_id: original, posted_on: None, notes: None },
         )
         .expect("should refund");
-        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list");
         let leg = rows.iter().find(|row| row.id == refund).expect("should list the refund");
         assert_eq!(leg.amount_cents, 5000);
@@ -4344,7 +4555,7 @@ mod tests {
         let report = import_ofx(&mut connection, &file).expect("should import");
         assert_eq!(report.inserted, 2);
         assert_eq!(report.categorized, 2);
-        let rows = list_transactions(&connection, None, None, None, 50).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 50, None).expect("should list");
         let food_row = rows.iter().find(|row| row.amount_cents < 0).expect("expense");
         let pay_row = rows.iter().find(|row| row.amount_cents > 0).expect("income");
         assert_eq!(food_row.category_id, Some(food));
@@ -4355,7 +4566,7 @@ mod tests {
         set_category(&connection, pay_row.id, Some(food)).expect("should pin");
         let rerun = apply_rules(&mut connection).expect("should rerun");
         assert_eq!(rerun, 1, "only the uncategorized row moves");
-        let rows = list_transactions(&connection, None, None, None, 50).expect("should list");
+        let rows = list_transactions(&connection, None, None, None, 50, None).expect("should list");
         assert_eq!(
             rows.iter().find(|row| row.id == pay_row.id).expect("pinned").category_id,
             Some(food)
@@ -4436,7 +4647,7 @@ mod tests {
         )
         .expect("should save the expense");
         assert_eq!(apply_rules(&mut connection).expect("should run"), 1);
-        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].category_id, Some(second), "the lower priority takes the row");
@@ -4481,7 +4692,7 @@ mod tests {
         )
         .expect("should transfer");
         assert_eq!(apply_rules(&mut connection).expect("should run"), 0);
-        let legs = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let legs = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list");
         assert_eq!(legs.len(), 2);
         assert!(legs.iter().all(|row| row.category_id.is_none()));
@@ -4706,7 +4917,7 @@ mod tests {
         )
         .expect("should save the income");
         // A same-month refund bends the 5th back down, like the totals do.
-        let original = list_transactions(&connection, None, Some("2024-03"), None, 50)
+        let original = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
             .expect("should list")
             .into_iter()
             .find(|row| row.amount_cents == -3000)
@@ -4735,6 +4946,103 @@ mod tests {
             totals.income_cents
         );
         assert!(daily_expense(&connection, "março").is_err());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn tags_stick_to_any_row_and_filter_the_ledger() {
+        let path = temporary_database("tags");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        import_ofx(&mut connection, &file).expect("should import");
+        assert!(list_tags(&connection).expect("should list").is_empty());
+
+        assert!(save_tag(&connection, "   ").is_err());
+        let long = "x".repeat(41);
+        assert!(save_tag(&connection, &long).is_err());
+        let trip = save_tag(&connection, "viagem").expect("should save");
+        assert!(save_tag(&connection, "viagem").is_err());
+        assert!(delete_tag(&connection, 999_999).is_err());
+
+        // Imported rows take tags like manual ones do.
+        let rows = list_transactions(&connection, None, None, None, 50, None).expect("should list");
+        assert!(rows.iter().all(|row| row.tags.is_empty()));
+        let ids: Vec<i64> = rows.iter().map(|row| row.id).collect();
+        assert_eq!(bulk_tag(&connection, &ids, trip, true).expect("should attach"), 2);
+        // Attaching twice is idempotent, and unknown tags or rows are refused.
+        assert_eq!(bulk_tag(&connection, &ids, trip, true).expect("should reattach"), 0);
+        assert!(bulk_tag(&connection, &ids, 999_999, true).is_err());
+        let rows = list_transactions(&connection, None, None, None, 50, None).expect("should list");
+        assert!(rows.iter().all(|row| row.tags.len() == 1 && row.tags[0].name == "viagem"));
+
+        // The tag narrows the ledger both as a filter and as a search term.
+        assert_eq!(list_transactions(&connection, None, None, None, 50, Some(trip)).expect("should filter").len(), 2);
+        assert_eq!(list_transactions(&connection, None, None, None, 50, Some(999_999)).expect("should miss").len(), 0);
+        assert_eq!(list_transactions(&connection, Some("viagem"), None, None, 50, None).expect("should search").len(), 2);
+
+        assert_eq!(bulk_tag(&connection, &ids[..1], trip, false).expect("should detach"), 1);
+        assert_eq!(list_transactions(&connection, None, None, None, 50, Some(trip)).expect("should filter").len(), 1);
+        delete_tag(&connection, trip).expect("should delete");
+        assert!(list_tags(&connection).expect("should list").is_empty());
+        assert!(list_transactions(&connection, None, None, None, 50, None).expect("should list").iter().all(|row| row.tags.is_empty()));
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn bulk_category_skips_transfer_legs_and_validates() {
+        let path = temporary_database("bulk");
+        let mut connection = open(&path).expect("should open");
+        let from = create_manual_account(&connection, "A").expect("should create A");
+        let to = create_manual_account(&connection, "B").expect("should create B");
+        let food = budget_category(&connection, "Comida");
+        save_transfer(
+            &mut connection,
+            &TransferInput {
+                from_account_id: from,
+                to_account_id: to,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: 1000,
+                description: "Caixa".to_string(),
+                notes: String::new(),
+            },
+        )
+        .expect("should transfer");
+        let plain = save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: from,
+                posted_on: "2024-03-06".to_string(),
+                amount_cents: -100,
+                description: "Café".to_string(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("should save");
+
+        assert_eq!(bulk_set_category(&connection, &[], Some(food)).expect("empty"), 0);
+        assert!(bulk_set_category(&connection, &[plain], Some(999_999)).is_err());
+        let legs: Vec<i64> = list_transactions(&connection, None, Some("2024-03"), None, 50, None)
+            .expect("should list")
+            .into_iter()
+            .filter(|row| row.transfer_group.is_some())
+            .map(|row| row.id)
+            .collect();
+        assert_eq!(legs.len(), 2);
+        let mut all = legs.clone();
+        all.push(plain);
+        // Only the plain entry moves; the legs keep their load-bearing null.
+        assert_eq!(bulk_set_category(&connection, &all, Some(food)).expect("should skip legs"), 1);
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50, None).expect("should list");
+        assert!(rows.iter().filter(|row| row.transfer_group.is_some()).all(|row| row.category_id.is_none()));
+        assert_eq!(rows.iter().find(|row| row.id == plain).expect("plain").category_id, Some(food));
+        // Clearing works the same way.
+        assert_eq!(bulk_set_category(&connection, &[plain], None).expect("should clear"), 1);
 
         let _ = std::fs::remove_file(&path);
     }

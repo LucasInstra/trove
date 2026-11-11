@@ -242,6 +242,7 @@ fn list_transactions(
     month: Option<String>,
     account_id: Option<i64>,
     limit: Option<i64>,
+    tag_id: Option<i64>,
 ) -> Result<Vec<db::TransactionRow>, String> {
     let connection = connection(&app)?;
     db::list_transactions(
@@ -250,7 +251,42 @@ fn list_transactions(
         month.as_deref(),
         account_id,
         limit.unwrap_or(500),
+        tag_id,
     )
+}
+
+#[tauri::command]
+fn list_tags(app: tauri::AppHandle) -> Result<Vec<db::Tag>, String> {
+    let connection = connection(&app)?;
+    db::list_tags(&connection)
+}
+
+#[tauri::command]
+fn save_tag(app: tauri::AppHandle, name: String) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_tag(&connection, &name)
+}
+
+#[tauri::command]
+fn delete_tag(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_tag(&connection, id)
+}
+
+#[tauri::command]
+fn bulk_set_category(
+    app: tauri::AppHandle,
+    ids: Vec<i64>,
+    category_id: Option<i64>,
+) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::bulk_set_category(&connection, &ids, category_id)
+}
+
+#[tauri::command]
+fn bulk_tag(app: tauri::AppHandle, ids: Vec<i64>, tag_id: i64, assign: bool) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::bulk_tag(&connection, &ids, tag_id, assign)
 }
 
 #[tauri::command]
@@ -541,6 +577,11 @@ pub fn run() {
             list_accounts,
             list_categories,
             list_transactions,
+            list_tags,
+            save_tag,
+            delete_tag,
+            bulk_set_category,
+            bulk_tag,
             category_totals,
             month_series,
             latest_month,
