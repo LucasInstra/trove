@@ -1,6 +1,6 @@
 [package]
 name = "trove"
-version = "0.1.3"
+version = "0.1.4"
 description = "trove - a local-first personal finance app"
 authors = ["Lucas"]
 edition = "2021"
