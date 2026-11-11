@@ -36,6 +36,8 @@ export type IconName =
   | "bank"
   | "swap"
   | "hourglass"
+  | "pencil"
+  | "trash"
   | "minus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -208,6 +210,19 @@ const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   minus: <path d="M4.5 12h15" />,
+  pencil: (
+    <>
+      <path d="M14.5 5.5 18.5 9.5" />
+      <path d="M16 4l4 4L9.5 18.5H5.5V14.5z" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+      <path d="M6.5 7l1 13h9l1-13" />
+    </>
+  ),
   // The one glyph that fills instead of stroking: a handle is a row of dots, and
   // six hollow rings at 14px read as noise. The colour is still currentColor.
   grip: (

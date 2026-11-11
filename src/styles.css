@@ -998,7 +998,7 @@ button.primary:hover:not(:disabled) {
 
 .tx-row {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 148px 108px;
+  grid-template-columns: 38px minmax(0, 1fr) 148px 108px auto;
   align-items: center;
   gap: 13px;
   padding: 13px 16px;
@@ -1045,6 +1045,28 @@ button.primary:hover:not(:disabled) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tx-note {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.tx-actions .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+.tx-actions .icon-button.danger:hover {
+  color: var(--negative);
 }
 
 .tx-amount {

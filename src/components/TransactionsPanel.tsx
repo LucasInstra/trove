@@ -14,6 +14,8 @@ interface Props {
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
   onClearMonth: () => void;
+  onEditEntry: (entry: TransactionRow) => void;
+  onDeleteEntry: (id: number) => void;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
@@ -35,6 +37,8 @@ export function TransactionsPanel({
   onCategory,
   onImport,
   onClearMonth,
+  onEditEntry,
+  onDeleteEntry,
   month,
   groups,
   accounts,
@@ -44,6 +48,7 @@ export function TransactionsPanel({
   const { lang, t } = useLanguage();
   const searchRef = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   return (
     <div className="ledger">
@@ -119,10 +124,14 @@ export function TransactionsPanel({
                         {initial(row)}
                       </span>
                       <div className="tx-main">
-                        <span className="tx-title">{row.merchant || row.description}</span>
+                        <span className="tx-title">
+                          {row.merchant || row.description}
+                          {row.manual ? <em className="pill-soft">{t("ledger.manual")}</em> : null}
+                        </span>
                         <span className="tx-sub">
                           {row.categoryName ?? t("ledger.noCategory")} · {row.accountName}
                         </span>
+                        {row.notes ? <span className="tx-note">{row.notes}</span> : null}
                       </div>
                       <select
                         className="tx-category"
@@ -144,6 +153,30 @@ export function TransactionsPanel({
                       </select>
                       <span className={row.amountCents < 0 ? "tx-amount out" : "tx-amount in"}>
                         {formatSignedCents(row.amountCents)}
+                      </span>
+                      <span className="tx-actions">
+                        {row.manual ? (
+                          <>
+                            <button
+                              type="button"
+                              className="icon-button"
+                              title={t("common.edit")}
+                              aria-label={`${t("common.edit")}: ${row.description}`}
+                              onClick={() => onEditEntry(row)}
+                            >
+                              <Icon name="pencil" size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-button danger"
+                              title={t("common.delete")}
+                              aria-label={`${t("common.delete")}: ${row.description}`}
+                              onClick={() => setConfirmDeleteId(row.id)}
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          </>
+                        ) : null}
                       </span>
                     </div>
                   );
@@ -179,6 +212,27 @@ export function TransactionsPanel({
               }}
             >
               {t("ledger.clearConfirm")}
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
+
+      {confirmDeleteId !== null ? (
+        <Dialog title={t("ledger.deleteTitle")} onClose={() => setConfirmDeleteId(null)}>
+          <p className="muted">{t("ledger.deleteDesc")}</p>
+          <div className="dialog-actions">
+            <button type="button" className="ghost" onClick={() => setConfirmDeleteId(null)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                onDeleteEntry(confirmDeleteId);
+                setConfirmDeleteId(null);
+              }}
+            >
+              {t("common.delete")}
             </button>
           </div>
         </Dialog>

@@ -1,50 +1,61 @@
 import { useState } from "react";
 import { Dialog } from "./Dialog";
+import { Icon } from "./Icons";
 import { parseCents } from "./PlannerDialogs";
-import type { Account, Category, ManualInput } from "../lib/api";
+import type { Account, Category, ManualEdit, ManualInput, TransactionRow } from "../lib/api";
 import { todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 /**
- * A hand-entered row: type, description, amount, date, account and category.
- * It lands in the ledger next to the imports but never through the dedupe.
+ * A hand-entered row: type, description, amount, date, account, category and
+ * an optional note. It lands in the ledger next to the imports but never
+ * through the dedupe. Editing reopens the same form prefilled; imported rows
+ * never reach it.
  */
 export function ManualDialog({
   accounts,
   categories,
+  entry,
   onClose,
-  onSave,
+  onCreate,
+  onUpdate,
+  onDelete,
 }: {
   accounts: Account[];
   categories: Category[];
+  entry?: TransactionRow | null;
   onClose: () => void;
-  onSave: (input: ManualInput) => void;
+  onCreate: (input: ManualInput) => void;
+  onUpdate: (input: ManualEdit) => void;
+  onDelete?: (id: number) => void;
 }) {
   const { t } = useLanguage();
-  const [kind, setKind] = useState<"expense" | "income">("expense");
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayIso);
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? 0);
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [kind, setKind] = useState<"expense" | "income">(entry && entry.amountCents >= 0 ? "income" : "expense");
+  const [description, setDescription] = useState(entry?.description ?? "");
+  const [amount, setAmount] = useState(entry ? (Math.abs(entry.amountCents) / 100).toFixed(2) : "");
+  const [date, setDate] = useState(entry?.postedOn.slice(0, 10) ?? todayIso());
+  const [accountId, setAccountId] = useState(entry?.accountId ?? accounts[0]?.id ?? 0);
+  const [categoryId, setCategoryId] = useState<number | null>(entry?.categoryId ?? null);
+  const [notes, setNotes] = useState(entry?.notes ?? "");
 
   return (
-    <Dialog title={t("manual.title")} onClose={onClose}>
+    <Dialog title={entry ? t("manual.editTitle") : t("manual.title")} onClose={onClose}>
       <form
         className="dialog-form"
         onSubmit={(event) => {
           event.preventDefault();
           const cents = parseCents(amount);
           if (cents === 0 || accountId === 0) return;
-          onSave({
+          const base = {
             accountId,
             postedOn: date,
             amountCents: kind === "expense" ? -cents : cents,
             description: description.trim(),
             categoryId,
-            // Notes get their own field with the edit dialog.
-            notes: "",
-          });
+            notes: notes.trim(),
+          };
+          if (entry) onUpdate({ ...base, id: entry.id });
+          else onCreate(base);
         }}
       >
         <div className="segmented" role="group" aria-label={t("manual.type")}>
@@ -103,7 +114,17 @@ export function ManualDialog({
             ))}
           </select>
         </label>
+        <label className="field">
+          <span>{t("manual.notes")}</span>
+          <input value={notes} onChange={(event) => setNotes(event.target.value)} />
+        </label>
         <div className="dialog-actions">
+          {entry && onDelete ? (
+            <button type="button" className="ghost danger" onClick={() => onDelete(entry.id)}>
+              <Icon name="trash" size={15} />
+              {t("common.delete")}
+            </button>
+          ) : null}
           <button type="button" className="ghost" onClick={onClose}>
             {t("common.cancel")}
           </button>

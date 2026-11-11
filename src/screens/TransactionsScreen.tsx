@@ -10,6 +10,8 @@ interface TransactionsScreenProps {
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
   onClearMonth: () => void;
+  onEditEntry: (entry: TransactionRow) => void;
+  onDeleteEntry: (id: number) => void;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];

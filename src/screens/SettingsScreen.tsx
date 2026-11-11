@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, type Account } from "../lib/api";
+import { AccountsManager } from "../components/AccountsManager";
 import { BUILD_LABEL, BUILD_NUMBER } from "../lib/build";
 import { LANGUAGES, type Lang } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
@@ -27,7 +28,19 @@ function statusText(updater: UpdaterState, t: Translate): string {
   }
 }
 
-export function SettingsScreen({ updater }: { updater: UpdaterState }) {
+export function SettingsScreen({
+  updater,
+  accounts,
+  onCreateAccount,
+  onRenameAccount,
+  onArchiveAccount,
+}: {
+  updater: UpdaterState;
+  accounts: Account[];
+  onCreateAccount: (name: string) => void;
+  onRenameAccount: (id: number, name: string) => void;
+  onArchiveAccount: (id: number) => void;
+}) {
   const { lang, setLang, t } = useLanguage();
   const [databasePath, setDatabasePath] = useState("");
   const [userName, setUserName] = useState("");
@@ -148,6 +161,13 @@ export function SettingsScreen({ updater }: { updater: UpdaterState }) {
           ) : null}
         </div>
       </article>
+
+      <AccountsManager
+        accounts={accounts}
+        onCreate={onCreateAccount}
+        onRename={onRenameAccount}
+        onArchive={onArchiveAccount}
+      />
 
       <article className="card">
         <header className="card-head">

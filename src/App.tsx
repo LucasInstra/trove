@@ -38,6 +38,7 @@ import type {
   GoalInput,
   Income,
   IncomeInput,
+  ManualEdit,
   ManualInput,
   MonthPoint,
   MonthTotals,
@@ -112,7 +113,7 @@ type DialogState =
   | { kind: "debt"; debt: Debt | null }
   | { kind: "deposit"; goal: Goal }
   | { kind: "budget"; id: number; name: string; budget: number | null }
-  | { kind: "manual" }
+  | { kind: "manual"; entry: TransactionRow | null }
   | { kind: "ceiling" }
   | null;
 
@@ -400,6 +401,53 @@ export function App() {
     }
   };
 
+  const updateManual = async (input: ManualEdit) => {
+    try {
+      await api.updateManual(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const deleteManual = async (id: number) => {
+    try {
+      await api.deleteManual(id);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const createManualAccount = async (name: string) => {
+    try {
+      await api.createManualAccount(name);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const renameManualAccount = async (id: number, name: string) => {
+    try {
+      await api.renameAccount(id, name);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const archiveAccount = async (id: number) => {
+    try {
+      await api.archiveAccount(id);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
   const saveDeposit = async (input: DepositInput) => {
     try {
       await api.saveDeposit(input);
@@ -604,7 +652,7 @@ export function App() {
                 });
               }}
               onImport={() => setRoute("import")}
-              onLaunch={() => setDialog({ kind: "manual" })}
+              onLaunch={() => setDialog({ kind: "manual", entry: null })}
               canLaunch={accounts.length > 0}
               userName={userName}
               primaryLabel={t("ledger.import")}
@@ -690,6 +738,8 @@ export function App() {
               onCategory={(id, categoryId) => void onCategory(id, categoryId)}
               onImport={() => setRoute("import")}
               onClearMonth={() => void clearMonth()}
+              onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
+              onDeleteEntry={(id) => void deleteManual(id)}
               month={month ?? currentMonth()}
               groups={groups}
               accounts={accounts}
@@ -806,7 +856,15 @@ export function App() {
             />
           ) : null}
 
-          {route === "settings" ? <SettingsScreen updater={updater} /> : null}
+          {route === "settings" ? (
+          <SettingsScreen
+            updater={updater}
+            accounts={accounts}
+            onCreateAccount={(name) => void createManualAccount(name)}
+            onRenameAccount={(id, name) => void renameManualAccount(id, name)}
+            onArchiveAccount={(id) => void archiveAccount(id)}
+          />
+        ) : null}
         </main>
       </div>
 
@@ -912,8 +970,11 @@ export function App() {
         <ManualDialog
           accounts={accounts}
           categories={categories}
+          entry={dialog.entry}
           onClose={() => setDialog(null)}
-          onSave={(input) => void saveManual(input)}
+          onCreate={(input) => void saveManual(input)}
+          onUpdate={(input) => void updateManual(input)}
+          onDelete={(id) => void deleteManual(id)}
         />
       ) : null}
 
