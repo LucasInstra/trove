@@ -3126,6 +3126,20 @@ select.tx-category {
   pointer-events: none;
 }
 
+/* The 3D renders are photos of an object, not a line drawing: they get a little
+   more air than the flat illustrations had. */
+.card-art[src$=".png"] {
+  width: 64px;
+  height: 64px;
+  margin: -4px -2px -4px 4px;
+}
+
+.account-figure img {
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 8px 14px rgba(17, 24, 39, 0.16));
+}
+
 [data-theme="dark"] .card-art {
   filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.45));
 }

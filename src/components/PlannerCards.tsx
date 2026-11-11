@@ -9,7 +9,7 @@ import { api } from "../lib/api";
 import { formatCents, formatDate, monthName } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
-import { CardArt, CalendarArt, HouseArt, TargetArt } from "./illustrations";
+import { Icon3D } from "./Icon3D";
 import { InvoiceDialog } from "./InvoiceDialog";
 import { UpcomingInvoices } from "./UpcomingInvoices";
 
@@ -40,7 +40,7 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
         <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.newBill")}>
           <Icon name="plus" size={16} />
         </button>
-        <CalendarArt />
+        <Icon3D name="receipt" className="card-art" />
       </header>
 
       <div className="card-figure">
@@ -165,7 +165,7 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false }: CardsPr
           <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.cardTitle")}>
             <Icon name="plus" size={16} />
           </button>
-          <CardArt />
+          <Icon3D name="credit-card" className="card-art" />
         </header>
         <button type="button" className="empty-add" onClick={onAdd}>
           <Icon name="plus" size={18} />
@@ -249,7 +249,7 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false }: CardsPr
             </>
           ) : null}
         </div>
-        <CardArt />
+        <Icon3D name="credit-card" className="card-art" />
       </header>
 
       <div className="card-figure">
@@ -366,7 +366,7 @@ export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
         <button type="button" className="round-button" onClick={onEdit} aria-label={t("planner.housingCeiling")}>
           <Icon name="settings" size={15} />
         </button>
-        <HouseArt />
+        <Icon3D name="house" className="card-art" />
       </header>
 
       <div className="card-figure">
@@ -421,7 +421,7 @@ export function GoalsCard({ plan, onAdd }: { plan: MonthPlan; onAdd: () => void 
         <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.goalTitle")}>
           <Icon name="plus" size={16} />
         </button>
-        <TargetArt />
+        <Icon3D name="target" className="card-art" />
       </header>
 
       {plan.goals.length === 0 ? (
@@ -493,7 +493,7 @@ export function SplitCard({ people, shares, bills, settled, onAssign, onSettle }
         <div className="card-title">
           <h2>{t("split.title")}</h2>
         </div>
-        <span className="card-icon slate"><Icon name="scale" size={16} /></span>
+        <Icon3D name="scale" size={30} />
       </header>
 
       <div className="card-figure">

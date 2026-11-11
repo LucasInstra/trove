@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
+import { Icon3D } from "../components/Icon3D";
 import { Icon, type IconName } from "../components/Icons";
 import { Mascot } from "../components/Mascot";
 import { Money } from "../components/Money";
@@ -190,11 +191,13 @@ export function OverviewScreen({
           ) : null}
         </div>
 
-        {SHOW_HERO_KEEPER ? (
-          <div className="account-figure" aria-hidden="true">
+        <div className="account-figure" aria-hidden="true">
+          {SHOW_HERO_KEEPER ? (
             <Mascot look={look} size={112} animate={false} boopable={false} bare fps={30} />
-          </div>
-        ) : null}
+          ) : (
+            <Icon3D name="piggy" size={96} />
+          )}
+        </div>
 
         <CompositionBar parts={plan.composition} format={formatCents} />
 
@@ -229,7 +232,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <span className="card-icon violet"><Icon name="ledger" size={15} /></span>
+            <Icon3D name="pie" size={30} />
             <h2>{t("ledger.whereMoney")}</h2>
           </div>
           <span className="muted">{monthLabel(month, lang)}</span>
@@ -260,7 +263,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <span className="card-icon slate"><Icon name="flow" size={15} /></span>
+            <Icon3D name="chart-up" size={30} />
             <h2>{t("ledger.lastSix")}</h2>
           </div>
           <span className="muted">{t("ledger.spending")}</span>
