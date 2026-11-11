@@ -2984,6 +2984,14 @@ select.tx-category {
   box-shadow: 0 10px 22px rgba(17, 24, 39, 0.18);
 }
 
+/* A credit card keeps its brand colour: the generic button hover would repaint
+   it with the surface colour, which in the light theme turns the card white. */
+.credit-card:hover:not(:disabled) {
+  background: var(--card-color, var(--credit-start));
+  border-color: transparent;
+  box-shadow: 0 12px 26px rgba(17, 24, 39, 0.24);
+}
+
 .credit-texture {
   position: absolute;
   inset: 0;
