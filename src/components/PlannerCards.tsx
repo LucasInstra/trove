@@ -5,7 +5,7 @@ import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
 import { groupByDay } from "../domain/projection";
-import { computeSplit } from "../domain/split";
+import { computeSplit, selfPartOf } from "../domain/split";
 import { api } from "../lib/api";
 import { currentMonth, formatCents, formatDate, monthName, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -17,13 +17,14 @@ import { UpcomingInvoices } from "./UpcomingInvoices";
 
 interface BillsProps {
   plan: MonthPlan;
+  people: Person[];
   onToggle: (billId: number, paid: boolean) => void;
   onAdd: () => void;
   onEdit: (bill: Bill) => void;
   compact?: boolean;
 }
 
-export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: BillsProps) {
+export function BillsCard({ plan, people, onToggle, onAdd, onEdit, compact = false }: BillsProps) {
   const { t } = useLanguage();
   const [filter, setFilter] = useState<"all" | "overdue" | "ontime">("all");
   const total = plan.plannedCents;
@@ -135,6 +136,7 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: Bi
           {visibleBills.map((bill) => {
             const paid = plan.paidBillIds.includes(bill.id);
             const late = isOverdue(bill);
+            const share = selfPartOf(bill, people);
             return (
               <li key={bill.id} className={paid ? "bill paid" : late ? "bill late" : "bill"}>
                 <label className="bill-check">
@@ -149,7 +151,14 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: Bi
                     {bill.name}
                   </span>
                 </label>
-                <span className="bill-amount">{formatCents(bill.amountCents)}</span>
+                <span className="bill-figures">
+                  <span className="bill-amount">{formatCents(bill.amountCents)}</span>
+                  {share !== null ? (
+                    <span className="bill-share">
+                      {t("planner.myShare", { amount: formatCents(share) })}
+                    </span>
+                  ) : null}
+                </span>
               </li>
             );
           })}

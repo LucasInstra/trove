@@ -1817,6 +1817,25 @@ select.tx-category {
   color: var(--muted);
 }
 
+.bill-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: none;
+}
+
+.bill-share {
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bill.paid .bill-share {
+  text-decoration: line-through;
+}
+
 .bill.paid .bill-name,
 .bill.paid .bill-amount {
   color: var(--faint);

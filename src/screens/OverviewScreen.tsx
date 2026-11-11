@@ -305,7 +305,7 @@ export function OverviewScreen({
         </div>
       </article>
     ),
-    bills: <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
+    bills: <BillsCard plan={plan} people={people} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
     cards: (
       <CardsCard
         cards={cards}
@@ -469,7 +469,7 @@ export function OverviewScreen({
       </article>
     ),
     bills: (
-      <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} compact />
+      <BillsCard plan={plan} people={people} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} compact />
     ),
     cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} compact />,
     housing: (

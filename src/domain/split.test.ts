@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Bill, Person, Share } from "../lib/api";
-import { computeSplit } from "./split";
+import { computeSplit, selfPartOf } from "./split";
 
 const people: Person[] = [
   { id: 1, name: "Você", color: "#2563eb", isSelf: true, weightPct: 50 },
@@ -82,5 +82,16 @@ describe("computeSplit", () => {
     const result = computeSplit(people, [], [bill(1, 33_333)]);
     // 33.333 / 2 = 16.666,5 -> the target is 16.667 and the rest is 16.666
     expect(result.settlementCents).toBe(16_666);
+  });
+});
+
+describe("selfPartOf", () => {
+  it("takes my weight of the bill with two people", () => {
+    expect(selfPartOf(bill(1, 129_70), people)).toBe(6_485);
+  });
+
+  it("returns null for a single-person household", () => {
+    expect(selfPartOf(bill(1, 129_70), [people[0]])).toBeNull();
+    expect(selfPartOf(bill(1, 129_70), [])).toBeNull();
   });
 });

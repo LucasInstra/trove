@@ -30,6 +30,17 @@ export interface SplitResult {
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
+/**
+ * My slice of one bill by target weight, the "sua parte" of the mockup. Null
+ * for a single-person household, where the whole bill is already mine.
+ */
+export function selfPartOf(bill: Bill, people: Person[]): number | null {
+  if (people.length < 2) return null;
+  const self = people.find((person) => person.isSelf) ?? people[0];
+  const weight = self?.weightPct ?? 50;
+  return Math.round((bill.amountCents * weight) / 100);
+}
+
 export function computeSplit(people: Person[], shares: Share[], bills: Bill[]): SplitResult {
   const selfPerson = people.find((person) => person.isSelf) ?? people[0] ?? null;
   const partnerPerson = people.find((person) => !person.isSelf) ?? null;
