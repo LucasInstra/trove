@@ -121,6 +121,22 @@ describe("planMonth", () => {
     expect(plan.housingCents).toBe(566_622);
     expect(plan.housingRatioPct).toBeCloseTo(20.2, 1);
     expect(plan.overCeiling).toBe(false);
+    // The screen lists the bills behind that number, so the plan carries them.
+    expect(plan.housingBills.map((entry) => entry.id)).toEqual([1]);
+  });
+
+  it("lists no housing bills when no category is chosen", () => {
+    const plan = planMonth({
+      ...base,
+      incomes: [],
+      bills: [bill(1, 566_622, 5, { categoryId: 9 })],
+      payments: [],
+      totals: null,
+      housingCategoryId: null,
+    });
+
+    expect(plan.housingBills).toEqual([]);
+    expect(plan.housingCents).toBe(0);
   });
 
   it("ignores a bill outside its life and an inactive one", () => {
