@@ -5178,8 +5178,7 @@ mod tests {
     }
 
     #[test]
-    fn holdings_round_trip_and_validate() {
-        let path = temporary_database("holdings");
+    fn holdings_round_trip_and_validate() {        let path = temporary_database("holdings");
         let connection = open(&path).expect("should open");
         assert!(list_holdings(&connection).expect("should list").is_empty());
         assert!(has_table(&open(&path).expect("should reopen"), "holdings").expect("should inspect"));
@@ -5211,6 +5210,74 @@ mod tests {
         delete_holding(&connection, id).expect("should delete");
         assert!(list_holdings(&connection).expect("should list").is_empty());
 
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The Fase 1 acceptance script, pinned as a regression test: a Carteira
+    /// account, a R$50 manual entry, a CSV import and its reimport with zero
+    /// duplicates, plus an export and a backup that both survive the round trip.
+    #[test]
+    fn acceptance_carteira_flow() {
+        let path = temporary_database("acceptance");
+        let csv = path.with_extension("csv");
+        let out = path.with_extension("out.csv");
+        let snapshot = path.with_extension("backup.db");
+        std::fs::write(
+            &csv,
+            "Data;Descricao;Valor\n05/03/2024;IFD*IFOOD SAO PAULO;-23,90\n10/03/2024;SALARIO;1500,00\n",
+        )
+        .expect("should write the csv");
+
+        let mut connection = open(&path).expect("should open");
+        let wallet = create_manual_account(&connection, "Carteira").expect("should create Carteira");
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: wallet,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: -5000,
+                description: "Feira".to_string(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("should launch R$50");
+
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.expense_cents, 5000);
+
+        let mapping = crate::csv::CsvMapping {
+            separator: ";".to_string(),
+            encoding: "auto".to_string(),
+            has_header: true,
+            date_col: 0,
+            date_format: "%d/%m/%Y".to_string(),
+            description_col: 1,
+            amount_col: Some(2),
+            debit_col: None,
+            credit_col: None,
+            decimal_sep: ",".to_string(),
+        };
+        let first = import_csv(&mut connection, &csv, wallet, &mapping).expect("should import");
+        assert_eq!((first.inserted, first.duplicates, first.skipped), (2, 0, 0));
+        let second = import_csv(&mut connection, &csv, wallet, &mapping).expect("should reimport");
+        assert_eq!((second.inserted, second.duplicates), (0, 2));
+
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!((totals.income_cents, totals.expense_cents), (150000, 7390));
+
+        let exported = export_csv(&connection, &out, None, Some("2024-03"), Some(wallet))
+            .expect("should export");
+        assert_eq!(exported, 3);
+        backup_to(&connection, &snapshot).expect("should back up");
+        drop(connection);
+        validate_backup_source(&snapshot).expect("should validate the backup");
+        let lines = std::fs::read_to_string(&out).expect("should read the export").lines().count();
+        assert_eq!(lines, 4, "header plus three rows");
+
+        let _ = std::fs::remove_file(&csv);
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(&snapshot);
         let _ = std::fs::remove_file(&path);
     }
 }
