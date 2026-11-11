@@ -2526,6 +2526,18 @@ select.tx-category {
   display: block;
 }
 
+.retire-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .retire-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .composition-value em {
   font-style: normal;
   color: var(--faint);

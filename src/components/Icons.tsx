@@ -35,6 +35,7 @@ export type IconName =
   | "grip"
   | "bank"
   | "swap"
+  | "hourglass"
   | "minus";
 
 const ICONS: Record<IconName, ReactNode> = {
@@ -198,6 +199,12 @@ const ICONS: Record<IconName, ReactNode> = {
     <>
       <path d="M7 4v13m0 0-3.5-3.5M7 17l3.5-3.5" />
       <path d="M17 20V7m0 0 3.5 3.5M17 7l-3.5 3.5" />
+    </>
+  ),
+  // Placeholder hourglass until the final glyphs arrive: bars with a cross.
+  hourglass: (
+    <>
+      <path d="M6.5 3h11M6.5 21h11M7.5 3l9 18M16.5 3l-9 18" />
     </>
   ),
   minus: <path d="M4.5 12h15" />,

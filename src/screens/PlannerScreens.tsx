@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { HousingCard, SplitCard } from "../components/PlannerCards";
+import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
 import { Icon } from "../components/Icons";
 import {
@@ -10,6 +12,7 @@ import {
 import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
 import { installmentEndMonth, remainingInstallments } from "../domain/installment";
 import { netWorthCurve } from "../domain/patrimony";
+import { retirementProjection } from "../domain/retirement";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
 import type { Bill, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, Share } from "../lib/api";
@@ -605,6 +608,153 @@ export function PatrimonyScreen({
               </text>
             </svg>
             <p className="muted small">{t("patrimony.note")}</p>
+          </>
+        )}
+      </article>
+    </section>
+  );
+}
+
+export function RetirementScreen({ plan }: { plan: MonthPlan }) {
+  const { t } = useLanguage();
+  const summary = summarizeGoals(plan.goals);
+  const reserveMonthly = plan.goals
+    .filter((entry) => entry.goal.kind === "reserve")
+    .reduce((sum, entry) => sum + entry.goal.monthlyCents, 0);
+  const [monthly, setMonthly] = useState((reserveMonthly / 100).toFixed(2));
+  const [years, setYears] = useState("20");
+  const [rate, setRate] = useState("6");
+
+  const monthlyCents = parseCents(monthly);
+  const yearsCount = Math.max(0, Math.floor(Number(years) || 0));
+  const ratePct = Math.max(0, Number(String(rate).replace(",", ".")) || 0);
+  const curve = retirementProjection({
+    currentCents: summary.savedCents,
+    monthlyCents,
+    years: yearsCount,
+    annualRatePct: ratePct,
+  });
+  const last = curve.at(-1);
+
+  const width = 600;
+  const height = 220;
+  const pad = { left: 8, right: 8, top: 12, bottom: 22 };
+  const values = curve.map((point) => point.balanceCents);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 1);
+  const span = max - min || 1;
+  const x = (index: number) =>
+    curve.length < 2
+      ? width / 2
+      : pad.left + (index * (width - pad.left - pad.right)) / (curve.length - 1);
+  const y = (value: number) =>
+    pad.top + (1 - (value - min) / span) * (height - pad.top - pad.bottom);
+  const line = curve.map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.balanceCents)}`).join(" ");
+  const area = `${line} L${x(curve.length - 1)},${height - pad.bottom} L${x(0)},${height - pad.bottom} Z`;
+
+  return (
+    <section className="screen planner-screen">
+      <ScreenHeader
+        eyebrow={t("nav.strategyGroup")}
+        title={t("nav.retirement")}
+        description={t("retirement.description")}
+      />
+      <div className="planner-metrics">
+        <article className="card metric-card metric-card-primary">
+          <span className="metric-label">{t("planner.savedSoFar")}</span>
+          <strong className="metric-value">{formatCents(summary.savedCents)}</strong>
+          <span className="metric-note">{t("planner.acrossGoals", { count: plan.goals.length })}</span>
+        </article>
+        <article className="card metric-card">
+          <span className="metric-label">{t("retirement.monthly")}</span>
+          <strong className="metric-value">{formatCents(monthlyCents)}</strong>
+          <span className="metric-note">{t("retirement.perMonth")}</span>
+        </article>
+        <article className="card metric-card metric-card-secondary">
+          <span className="metric-label">{t("retirement.projected")}</span>
+          <strong className="metric-value">{formatCents(last?.balanceCents ?? 0)}</strong>
+          <span className="metric-note">
+            {t("retirement.inYears", { count: yearsCount })}
+          </span>
+        </article>
+      </div>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="hourglass" size={15} />
+            </span>
+            <h2>{t("retirement.simulate")}</h2>
+          </div>
+        </header>
+        <div className="retire-form">
+          <label className="field">
+            <span>{t("retirement.monthly")}</span>
+            <input value={monthly} onChange={(event) => setMonthly(event.target.value)} inputMode="decimal" />
+          </label>
+          <label className="field">
+            <span>{t("retirement.years")}</span>
+            <input
+              type="number"
+              min={0}
+              value={years}
+              onChange={(event) => setYears(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>{t("retirement.rate")}</span>
+            <input value={rate} onChange={(event) => setRate(event.target.value)} inputMode="decimal" />
+          </label>
+        </div>
+      </article>
+
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <span className="card-icon slate">
+              <Icon name="trend" size={15} />
+            </span>
+            <h2>{t("retirement.curve")}</h2>
+          </div>
+        </header>
+        {curve.length < 2 || (last?.balanceCents ?? 0) <= 0 ? (
+          <p className="card-empty">{t("retirement.empty")}</p>
+        ) : (
+          <>
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              className="wealth-curve"
+              role="img"
+              aria-label={t("retirement.curve")}
+            >
+              <path d={area} fill="var(--primary)" fillOpacity={0.12} />
+              <path
+                d={line}
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth={2.5}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+              {curve.map((point, index) =>
+                index % Math.ceil(curve.length / 6) === 0 || index === curve.length - 1 ? (
+                  <g key={point.year}>
+                    <circle cx={x(index)} cy={y(point.balanceCents)} r={3.5} fill="var(--primary)">
+                      <title>{`${t("retirement.year", { count: point.year })}: ${formatCents(point.balanceCents)}`}</title>
+                    </circle>
+                  </g>
+                ) : null,
+              )}
+              <text x={pad.left} y={height - 6} fontSize={11} fill="var(--muted)">
+                {t("retirement.today")}
+              </text>
+              <text x={width - pad.right} y={height - 6} fontSize={11} fill="var(--muted)" textAnchor="end">
+                {t("retirement.inYears", { count: yearsCount })}
+              </text>
+            </svg>
+            <p className="muted small">{t("retirement.note")}</p>
           </>
         )}
       </article>
