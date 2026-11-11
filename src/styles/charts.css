@@ -58,3 +58,30 @@
 .chart-swatch.pace {
   background: var(--faint);
 }
+
+.chart-dot {
+  fill: var(--chart-line);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.spark {
+  display: block;
+  margin-top: 6px;
+}
+
+.spark path {
+  fill: none;
+  stroke: var(--chart-line);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.spark-up path {
+  stroke: var(--positive);
+}
+
+.spark-down path {
+  stroke: var(--negative);
+}

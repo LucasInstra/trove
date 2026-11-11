@@ -13,6 +13,11 @@ export function cumulative(values: number[]): number[] {
   });
 }
 
+/** The last `count` values, in order. Short input comes back whole. */
+export function trailing(values: number[], count: number): number[] {
+  return values.slice(Math.max(0, values.length - Math.max(0, count)));
+}
+
 /** Round up to a 1/2/2.5/5 step so axes never end mid-bar. Zero stays one. */
 export function niceMax(value: number): number {
   if (value <= 0) return 1;
@@ -35,10 +40,20 @@ function scaled(values: number[], width: number, height: number, pad: number): A
   });
 }
 
+/** Scaled coordinates, left to right. Empty in, empty out. */
+export function pointsOf(
+  values: number[],
+  width: number,
+  height: number,
+  pad = 4,
+): Array<[number, number]> {
+  if (values.length === 0) return [];
+  return scaled(values, width, height, pad);
+}
+
 /** An SVG polyline through the values, left to right. Empty in, empty out. */
 export function linePath(values: number[], width: number, height: number, pad = 4): string {
-  if (values.length === 0) return "";
-  return scaled(values, width, height, pad)
+  return pointsOf(values, width, height, pad)
     .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x},${y}`)
     .join(" ");
 }

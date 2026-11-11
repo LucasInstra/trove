@@ -445,6 +445,7 @@ const en: Dictionary = {
   "budgets.perDay": "{amount}/day",
 
   "chart.dailyBurn": "Daily cumulative spending",
+  "chart.balanceLine": "Running net",
   "chart.spent": "spent",
   "chart.pace": "pace",
 
@@ -971,6 +972,7 @@ const pt: Dictionary = {
   "budgets.perDay": "{amount}/dia",
 
   "chart.dailyBurn": "Gasto acumulado dia a dia",
+  "chart.balanceLine": "Saldo acumulado",
   "chart.spent": "gasto",
   "chart.pace": "ritmo",
 

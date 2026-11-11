@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { BreakdownBar } from "../components/BreakdownBar";
+import { BalanceLine } from "../components/charts/BalanceLine";
 import { Donut } from "../components/Donut";
 import { Icon3D } from "../components/Icon3D";
 import { Progress } from "../components/ui/progress";
@@ -377,8 +378,16 @@ export function OverviewScreen({
         ) : (
           <div className="breakdown">
             <div className="breakdown-figure">
-              <strong>{formatCents(spending)}</strong>
-              <span className="muted small">{t("ledger.spending")}</span>
+              <strong>
+                {donutHover != null && donutSlices[donutHover]
+                  ? formatCents(donutSlices[donutHover].value)
+                  : formatCents(spending)}
+              </strong>
+              <span className="muted small">
+                {donutHover != null && donutSlices[donutHover]
+                  ? donutSlices[donutHover].name
+                  : t("ledger.spending")}
+              </span>
             </div>
             <BreakdownBar items={donutSlices} active={donutHover} onActive={setDonutHover} />
             <ul className="legend">
@@ -443,6 +452,9 @@ export function OverviewScreen({
           <p className="card-empty">{t("ledger.noSpending")}</p>
         ) : (
           <>
+            <BalanceLine
+              net={series.slice(-12).map((point) => point.incomeCents - point.expenseCents)}
+            />
             <div className="bars">
               {stacks.map((stack) => (
                 <button
