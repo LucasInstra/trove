@@ -10,6 +10,7 @@ import { formatCents, formatDate, monthName } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 import { Icon3D } from "./Icon3D";
+import { Progress } from "./ui/progress";
 import { InvoiceDialog } from "./InvoiceDialog";
 import { UpcomingInvoices } from "./UpcomingInvoices";
 
@@ -18,9 +19,10 @@ interface BillsProps {
   onToggle: (billId: number, paid: boolean) => void;
   onAdd: () => void;
   onEdit: (bill: Bill) => void;
+  compact?: boolean;
 }
 
-export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
+export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: BillsProps) {
   const { t } = useLanguage();
   const total = plan.plannedCents;
   const paidCount = plan.paidBillIds.length;
@@ -30,6 +32,27 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit }: BillsProps) {
   const activeDay = isCurrentMonth
     ? (plan.dayGroups.find((group) => group.day >= today)?.day ?? plan.dayGroups.at(-1)?.day)
     : plan.dayGroups[0]?.day;
+
+  if (compact) {
+    const paidShare = count > 0 ? (paidCount / count) * 100 : 0;
+    return (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="receipt" size={22} />
+          <span className="compact-title">{t("planner.bills")}</span>
+          <span className="compact-value">{formatCents(total)}</span>
+        </div>
+        <div className="compact-body">
+          <Progress
+            value={paidShare}
+            size="sm"
+            tone={count > 0 && paidCount === count ? "positive" : "primary"}
+          />
+          <span className="muted small">{t("planner.paidOf", { paid: paidCount, count })}</span>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className="card bills-card card-with-art">
@@ -105,14 +128,16 @@ interface CardsProps {
   month: string;
   onAdd: () => void;
   onEdit: (card: CardMeta) => void;
-  /** The compact form of the card: no upcoming invoices, only what is due now. */
+  /** The lean form of the card: no upcoming invoices, only what is due now. */
   lean?: boolean;
+  /** The compact form: one line of figures instead of the carousel. */
+  compact?: boolean;
 }
 
 const CARD_GAP = 12;
 const CARD_FALLBACK = 280;
 
-export function CardsCard({ cards, month, onAdd, onEdit, lean = false }: CardsProps) {
+export function CardsCard({ cards, month, onAdd, onEdit, lean = false, compact = false }: CardsProps) {
   const { lang, t } = useLanguage();
   const [rows, setRows] = useState<Record<number, TransactionRow[]>>({});
   const [activeCard, setActiveCard] = useState(0);
@@ -154,6 +179,28 @@ export function CardsCard({ cards, month, onAdd, onEdit, lean = false }: CardsPr
   useEffect(() => {
     setMonthIndex(0);
   }, [month]);
+
+  if (compact) {
+    const first = cards[0];
+    const limit = first?.meta.limitCents ?? 0;
+    const spend = first?.usageCents ?? 0;
+    const share = limit > 0 ? Math.min(100, (spend / limit) * 100) : 0;
+    return (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="credit-card" size={22} />
+          <span className="compact-title">{t("planner.cards")}</span>
+          <span className="compact-value">{formatCents(spend)}</span>
+        </div>
+        <div className="compact-body">
+          <Progress value={share} size="sm" />
+          <span className="muted small">
+            {t("planner.invoiceOf", { month: monthName(month, lang) })}
+          </span>
+        </div>
+      </article>
+    );
+  }
 
   if (cards.length === 0) {
     return (
@@ -346,9 +393,10 @@ interface HousingProps {
   scope: "primary" | "total";
   onScope: (scope: "primary" | "total") => void;
   onEdit: () => void;
+  compact?: boolean;
 }
 
-export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
+export function HousingCard({ plan, scope, onScope, onEdit, compact = false }: HousingProps) {
   const { lang, t } = useLanguage();
   const ratioPct = scope === "primary" ? plan.housingRatioPrimaryPct : plan.housingRatioPct;
   // 36,8 in Portuguese, 36.8 in English.
@@ -357,6 +405,25 @@ export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
   });
   const ratio = Math.min(100, ratioPct);
   const over = ratioPct > plan.ceilingPct;
+
+  if (compact) {
+    return (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="house" size={22} />
+          <span className="compact-title">{t("planner.housing")}</span>
+          <span className="compact-value">{formatCents(plan.housingCents)}</span>
+        </div>
+        <div className="compact-body">
+          <Progress value={ratio} size="sm" tone={over ? "negative" : "positive"} />
+          <span className={over ? "muted small over" : "muted small"}>
+            {t("planner.ceilingShort", { percent: ratioText, ceiling: plan.ceilingPct })}
+          </span>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="card housing-card card-with-art">
       <header className="card-head">
@@ -410,8 +477,36 @@ export function HousingCard({ plan, scope, onScope, onEdit }: HousingProps) {
   );
 }
 
-export function GoalsCard({ plan, onAdd }: { plan: MonthPlan; onAdd: () => void }) {
+export function GoalsCard({
+  plan,
+  onAdd,
+  compact = false,
+}: {
+  plan: MonthPlan;
+  onAdd: () => void;
+  compact?: boolean;
+}) {
   const { t } = useLanguage();
+  const paid = plan.goals.reduce((sum, entry) => sum + entry.paidCents, 0);
+  const target = plan.goals.reduce((sum, entry) => sum + entry.goal.targetCents, 0);
+  const share = target > 0 ? Math.min(100, (paid / target) * 100) : 0;
+
+  if (compact) {
+    return (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="target" size={22} />
+          <span className="compact-title">{t("planner.goals")}</span>
+          <span className="compact-value">{formatCents(paid)}</span>
+        </div>
+        <div className="compact-body">
+          <Progress value={share} size="sm" />
+          <span className="muted small">{t("layout.goalCount", { count: plan.goals.length })}</span>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="card goals-card card-with-art">
       <header className="card-head">
@@ -463,12 +558,47 @@ interface SplitProps {
   settled: boolean;
   onAssign: (billId: number, personId: number) => void;
   onSettle: () => void;
+  compact?: boolean;
 }
 
 /** Who pays each bill of the month, and who ends up owing whom. */
-export function SplitCard({ people, shares, bills, settled, onAssign, onSettle }: SplitProps) {
+export function SplitCard({
+  people,
+  shares,
+  bills,
+  settled,
+  onAssign,
+  onSettle,
+  compact = false,
+}: SplitProps) {
   const { t } = useLanguage();
   const split = computeSplit(people, shares, bills);
+
+  if (compact) {
+    const partner = split.partnerPerson?.name ?? t("split.partner");
+    return (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="scale" size={22} />
+          <span className="compact-title">{t("split.title")}</span>
+          <span className="compact-value">
+            {people.length > 1 ? formatCents(split.totalCents) : "—"}
+          </span>
+        </div>
+        {people.length > 1 ? (
+          <div className="compact-body">
+            <div className="split-bar tight">
+              <span className="split-self" style={{ width: `${split.selfPct}%` }} />
+              <span className="split-partner" style={{ width: `${split.partnerPct}%` }} />
+            </div>
+            <span className="muted small">{partner}</span>
+          </div>
+        ) : (
+          <span className="muted small">{t("split.noPartner")}</span>
+        )}
+      </article>
+    );
+  }
 
   if (people.length < 2) {
     return (

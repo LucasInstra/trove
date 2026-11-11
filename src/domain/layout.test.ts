@@ -132,8 +132,10 @@ describe("nextMode", () => {
     expect(nextMode("mini")).toBe("full");
   });
 
-  it("takes a lean card straight to a chip, skipping the full card", () => {
-    expect(nextMode("reduced")).toBe("mini");
+  it("drops the detail block first when the card has one", () => {
+    expect(nextMode("full", true)).toBe("reduced");
+    expect(nextMode("reduced")).toBe("compact");
+    expect(nextMode("compact", true)).toBe("mini");
   });
 });
 

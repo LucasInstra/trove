@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { Donut } from "../components/Donut";
 import { Icon3D } from "../components/Icon3D";
+import { Progress } from "../components/ui/progress";
 import { Icon, type IconName } from "../components/Icons";
 import { Mascot } from "../components/Mascot";
 import { Money } from "../components/Money";
@@ -12,6 +13,7 @@ import { SHOW_HERO_KEEPER } from "../lib/features";
 import {
   hasDetailsSection,
   isCardAvailable,
+  moveCardTo,
   nextMode,
   type CardId,
   type CardMode,
@@ -24,11 +26,23 @@ import { formatCents, monthLabel, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import type { Bill, CardMeta, CategoryTotal, MonthPoint, Person, Share } from "../lib/api";
 
-/** The card under the pointer, if it is not the one being dragged. */
-function cardUnder(x: number, y: number, dragged: CardId): CardId | null {
-  const node = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-card]");
-  const id = node?.dataset.card as CardId | undefined;
-  return id && id !== dragged ? id : null;
+/**
+ * Where the dragged card would land. The rectangles are taken when the drag
+ * starts, so the answer does not change when the preview moves the cards under
+ * the pointer.
+ */
+function cardAt(
+  x: number,
+  y: number,
+  cells: { id: CardId; rect: DOMRect }[],
+  dragged: CardId,
+): CardId | null {
+  for (const cell of cells) {
+    if (cell.id === dragged) continue;
+    const { rect } = cell;
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return cell.id;
+  }
+  return null;
 }
 
 interface OverviewProps {
@@ -95,6 +109,12 @@ export function OverviewScreen({
   look,
 }: OverviewProps) {
   const { lang, t } = useLanguage();
+  const [dragId, setDragId] = useState<CardId | null>(null);
+  const [dropId, setDropId] = useState<CardId | null>(null);
+  // The order shown while dragging: the dashboard rearranges itself as a preview
+  // and only the drop commits it.
+  const [preview, setPreview] = useState<LayoutCard[] | null>(null);
+  const dragCells = useRef<{ id: CardId; rect: DOMRect }[]>([]);
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
   const peak = Math.max(...series.slice(-6).map((point) => point.expenseCents), 1);
   const keptShare =
@@ -103,7 +123,8 @@ export function OverviewScreen({
   // Cards that the plan does not support stay out of the grid, and a card the
   // user took off the dashboard waits in the shelf until it is added back.
   const cardContext = { people: people.length, housingCents: plan.housingCents };
-  const visible = layout.filter(
+  const shown = preview ?? layout;
+  const visible = shown.filter(
     (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
   );
   const shelved = layout.filter(
@@ -151,11 +172,22 @@ export function OverviewScreen({
 
   // The button in the card toolbar always names what the next step will do.
   const modeLabel = (mode: CardMode) =>
-    mode === "compact"
-      ? t("layout.collapse")
-      : mode === "mini"
-        ? t("layout.minimise")
-        : t("layout.expand");
+    mode === "reduced"
+      ? t("layout.hideDetails")
+      : mode === "compact"
+        ? t("layout.collapse")
+        : mode === "mini"
+          ? t("layout.minimise")
+          : t("layout.expand");
+
+  const modeShort = (mode: CardMode) =>
+    mode === "reduced"
+      ? t("layout.actionHide")
+      : mode === "compact"
+        ? t("layout.actionCompact")
+        : mode === "mini"
+          ? t("layout.actionMinimise")
+          : t("layout.actionExpand");
 
   const modeIcon = (mode: CardMode): IconName =>
     mode === "compact" ? "chevron-down" : mode === "mini" ? "arrow-down-to-line" : "chevron-up";
@@ -318,14 +350,105 @@ export function OverviewScreen({
     cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} lean />,
   };
 
+  // The compact form of a card keeps the information and drops the furniture: a
+  // header line with the figure and one small visual for the card's own measure.
+  const compactCells: Record<CardId, ReactNode> = {
+    forecast: (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="piggy" size={22} />
+          <span className="compact-title">{t("overview.forecast")}</span>
+          <span className="compact-value">{formatCents(plan.forecastCents)}</span>
+        </div>
+        <div className="compact-body">
+          <Progress
+            value={Math.abs(keptShare)}
+            size="sm"
+            tone={plan.forecastCents >= 0 ? "positive" : "negative"}
+          />
+          <span className="muted small">
+            {plan.forecastCents >= 0
+              ? t("overview.keptShare", { percent: Math.abs(keptShare) })
+              : t("overview.overShare", { percent: Math.abs(keptShare) })}
+          </span>
+        </div>
+      </article>
+    ),
+    bills: (
+      <BillsCard plan={plan} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} compact />
+    ),
+    cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} compact />,
+    housing: (
+      <HousingCard
+        plan={plan}
+        scope={housingScope}
+        onScope={onHousingScope}
+        onEdit={onEditHousing}
+        compact
+      />
+    ),
+    goals: <GoalsCard plan={plan} onAdd={onAddGoal} compact />,
+    split: (
+      <SplitCard
+        people={people}
+        shares={shares}
+        bills={plan.dueBills}
+        settled={splitSettled}
+        onAssign={onAssignShare}
+        onSettle={onSettle}
+        compact
+      />
+    ),
+    donut: (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="pie" size={22} />
+          <span className="compact-title">{t("ledger.whereMoney")}</span>
+          <span className="compact-value">{formatCents(spending)}</span>
+        </div>
+        <div className="compact-body">
+          <Donut
+            size={44}
+            thickness={10}
+            segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))}
+          />
+          <span className="muted small">
+            {byCategory[0] ? byCategory[0].name : t("ledger.noSpending")}
+          </span>
+        </div>
+      </article>
+    ),
+    series: (
+      <article className="card card-compact">
+        <div className="compact-head">
+          <Icon3D name="chart-up" size={22} />
+          <span className="compact-title">{t("ledger.lastSix")}</span>
+          <span className="compact-value">
+            {formatCents(series.find((point) => point.month === month)?.expenseCents ?? 0)}
+          </span>
+        </div>
+        <div className="compact-body">
+          <div className="spark" aria-hidden="true">
+            {series.slice(-6).map((point) => (
+              <span
+                key={point.month}
+                className={point.month === month ? "current" : undefined}
+                style={{ height: `${Math.max(8, (point.expenseCents / peak) * 100)}%` }}
+                title={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
+              />
+            ))}
+          </div>
+        </div>
+      </article>
+    ),
+  };
+
   // Cards have very different heights, so they declare how many row units they
   // take and the grid packs them without the holes a fixed row height leaves.
   const ROW_UNIT = 4;
   const ROW_GAP = 14;
   const gridRef = useRef<HTMLDivElement>(null);
   const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
-  const [dragId, setDragId] = useState<CardId | null>(null);
-  const [dropId, setDropId] = useState<CardId | null>(null);
   const drag = useRef<{
     id: CardId;
     pointerId: number;
@@ -374,7 +497,7 @@ export function OverviewScreen({
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [layout]);
+  }, [layout, preview]);
 
   return (
     <section className="screen overview">
@@ -416,12 +539,12 @@ export function OverviewScreen({
         onPointerLeave={() => setDropId(null)}
       >
         {visible.map((item, index) => {
-          // A card that is minimised becomes a chip one column wide, so it can
-          // fill the single column holes the tall cards leave behind. Opening it
-          // again brings back the width the user chose.
-          const small = item.mode !== "full";
-          const span = small ? 1 : item.span;
-          const target = nextMode(item.mode);
+          // Only the smallest step becomes a chip, one column wide, so it can
+          // fill the single column holes the tall cards leave behind. The compact
+          // card is still a card: it keeps its width and shows its figures.
+          const chip = item.mode === "mini";
+          const span = chip ? 1 : item.span;
+          const target = nextMode(item.mode, hasDetailsSection(item.id));
           const cellClass = [
             "grid-cell",
             `span-${span}`,
@@ -464,35 +587,44 @@ export function OverviewScreen({
                 if (Math.hypot(event.clientX - state.x, event.clientY - state.y) < 6) return;
                 state.active = true;
                 event.currentTarget.setPointerCapture(event.pointerId);
+                dragCells.current = Array.from(
+                  gridRef.current?.querySelectorAll<HTMLElement>("[data-card]") ?? [],
+                ).map((cell) => ({
+                  id: cell.dataset.card as CardId,
+                  rect: cell.getBoundingClientRect(),
+                }));
                 setDragId(state.id);
               }
-              setDropId(cardUnder(event.clientX, event.clientY, state.id));
+              const landing = cardAt(event.clientX, event.clientY, dragCells.current, state.id);
+              if (landing && landing !== dropId) {
+                setDropId(landing);
+                setPreview(moveCardTo(layout, state.id, landing));
+              }
             }}
             onPointerUp={(event) => {
               const state = drag.current;
               drag.current = null;
               if (!state || state.pointerId !== event.pointerId) return;
-              if (state.active) {
-                const landing = cardUnder(event.clientX, event.clientY, state.id);
-                if (landing) onLayoutMoveTo(state.id, landing);
-              }
+              if (state.active && dropId) onLayoutMoveTo(state.id, dropId);
               setDragId(null);
               setDropId(null);
+              setPreview(null);
             }}
             onPointerCancel={() => {
               drag.current = null;
               setDragId(null);
               setDropId(null);
+              setPreview(null);
             }}
             style={{
               gridColumn: `span ${span}`,
               gridRowEnd: `span ${rowSpans[item.id] ?? 1}`,
             }}
           >
-            {small ? (
+            {chip ? (
               <button
                 type="button"
-                className={item.mode === "mini" ? "collapsed-card is-mini" : "collapsed-card"}
+                className="collapsed-card is-mini"
                 onClick={() => onLayoutMode(item.id, "full")}
                 title={t("layout.expand")}
                 aria-label={`${cardName(item.id)} · ${t("layout.expand")}`}
@@ -500,9 +632,11 @@ export function OverviewScreen({
                 <span className="collapsed-card-title">{cardName(item.id)}</span>
                 <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
                 <span className="collapse-trigger" aria-hidden="true">
-                  <Icon name="chevron-down" size={item.mode === "mini" ? 13 : 16} />
+                  <Icon name="chevron-down" size={13} />
                 </span>
               </button>
+            ) : item.mode === "compact" ? (
+              compactCells[item.id]
             ) : item.mode === "reduced" && leanCells[item.id] ? (
               leanCells[item.id]
             ) : (
@@ -531,7 +665,7 @@ export function OverviewScreen({
                   <Icon name="grip" size={15} />
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
-                {small ? null : (
+                {chip ? null : (
                   <>
                     <button
                       type="button"
@@ -552,27 +686,6 @@ export function OverviewScreen({
                     <span className="cell-tools-sep" aria-hidden="true" />
                   </>
                 )}
-                {hasDetailsSection(item.id) && !small ? (
-                  <>
-                    <button
-                      type="button"
-                      className="cell-details"
-                      aria-pressed={item.mode === "reduced"}
-                      aria-label={
-                        item.mode === "reduced" ? t("layout.showDetails") : t("layout.hideDetails")
-                      }
-                      title={
-                        item.mode === "reduced" ? t("layout.showDetails") : t("layout.hideDetails")
-                      }
-                      onClick={() =>
-                        onLayoutMode(item.id, item.mode === "reduced" ? "full" : "reduced")
-                      }
-                    >
-                      <Icon name="file-text" size={14} />
-                    </button>
-                    <span className="cell-tools-sep" aria-hidden="true" />
-                  </>
-                ) : null}
                 <button
                   type="button"
                   className="cell-mode"
@@ -581,6 +694,7 @@ export function OverviewScreen({
                   onClick={() => onLayoutMode(item.id, target)}
                 >
                   <Icon name={modeIcon(target)} size={14} />
+                  <span>{modeShort(target)}</span>
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
                 <button

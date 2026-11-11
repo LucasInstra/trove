@@ -141,13 +141,18 @@ export function resizeCard(layout: LayoutCard[], id: CardId, delta: number): Lay
   );
 }
 
-/** full to compact, compact to mini, mini back to full. A lean card shrinks to a chip. */
-export function nextMode(mode: CardMode): CardMode {
+/**
+ * The steps a card takes when its size control is pressed. A card with a detail
+ * block drops that block first, so the labelled button always names the next
+ * thing that will happen.
+ */
+export function nextMode(mode: CardMode, hasDetails = false): CardMode {
   switch (mode) {
     case "full":
+      return hasDetails ? "reduced" : "compact";
+    case "reduced":
       return "compact";
     case "compact":
-    case "reduced":
       return "mini";
     case "mini":
       return "full";
