@@ -20,7 +20,7 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { CardsScreen, FlowsScreen, HealthScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
+import { CardsScreen, DebtsScreen, FlowsScreen, HealthScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen } from "./screens/PlannerScreens";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -73,6 +73,7 @@ type Route =
   | "patrimony"
   | "flows"
   | "health"
+  | "debts"
   | "import"
   | "settings";
 
@@ -93,6 +94,7 @@ const STRATEGY: Array<{ route: Route; icon: IconName }> = [
   { route: "flows", icon: "swap" },
   { route: "patrimony", icon: "bank" },
   { route: "health", icon: "scale" },
+  { route: "debts", icon: "file-text" },
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
@@ -734,6 +736,15 @@ export function App() {
           ) : null}
 
           {route === "health" ? <HealthScreen plan={plan} byCategory={byCategory} /> : null}
+
+          {route === "debts" ? (
+            <DebtsScreen
+              plan={plan}
+              cards={cards}
+              month={month ?? currentMonth()}
+              onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+            />
+          ) : null}
 
           {route === "house" ? (
             <HouseScreen

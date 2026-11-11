@@ -8,6 +8,7 @@ import {
   summarizeGoals,
 } from "../domain/planner";
 import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
+import { installmentEndMonth, remainingInstallments } from "../domain/installment";
 import { netWorthCurve } from "../domain/patrimony";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
@@ -845,6 +846,142 @@ export function FlowsScreen({
           </ul>
         )}
       </article>
+    </section>
+  );
+}
+
+export function DebtsScreen({
+  plan,
+  cards,
+  month,
+  onEditBill,
+}: {
+  plan: MonthPlan;
+  cards: Array<{ meta: CardMeta; usageCents: number }>;
+  month: string;
+  onEditBill: (bill: Bill) => void;
+}) {
+  const { lang, t } = useLanguage();
+  const installments = plan.dueBills.flatMap((bill) => {
+    const current = remainingInstallments(bill, month);
+    const ends = installmentEndMonth(bill);
+    return current && ends ? [{ bill, ...current, ends }] : [];
+  });
+  const leftCents = installments.reduce((sum, entry) => sum + entry.leftCents, 0);
+  const openInvoices = cards.filter((entry) => entry.usageCents > 0);
+  const openCents = openInvoices.reduce((sum, entry) => sum + entry.usageCents, 0);
+  const lastPayoff = installments.map((entry) => entry.ends).sort().at(-1) ?? null;
+
+  const empty = installments.length === 0 && openInvoices.length === 0;
+
+  return (
+    <section className="screen planner-screen">
+      <ScreenHeader
+        eyebrow={t("nav.strategyGroup")}
+        title={t("nav.debts")}
+        description={t("debts.description")}
+      />
+      <div className="planner-metrics">
+        <article className="card metric-card metric-card-primary">
+          <span className="metric-label">{t("debts.remaining")}</span>
+          <strong className="metric-value">{formatCents(leftCents)}</strong>
+          <span className="metric-note">
+            {t("planner.installmentsCount", { count: installments.length })}
+          </span>
+        </article>
+        <article className="card metric-card">
+          <span className="metric-label">{t("debts.openInvoices")}</span>
+          <strong className="metric-value">{formatCents(openCents)}</strong>
+          <span className="metric-note">{monthLabel(month, lang)}</span>
+        </article>
+        <article className="card metric-card metric-card-secondary">
+          <span className="metric-label">{t("debts.lastPayoff")}</span>
+          <strong className="metric-value">
+            {lastPayoff ? monthName(lastPayoff, lang) : "—"}
+          </strong>
+          <span className="metric-note">{lastPayoff ?? t("debts.empty")}</span>
+        </article>
+      </div>
+
+      {empty ? (
+        <article className="card">
+          <p className="card-empty">{t("debts.empty")}</p>
+        </article>
+      ) : null}
+
+      {installments.length > 0 ? (
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon slate">
+                <Icon name="file-text" size={15} />
+              </span>
+              <h2>{t("planner.installments")}</h2>
+            </div>
+          </header>
+          <ul className="installment-list">
+            {installments.map(({ bill, left, leftCents: leftValue, ends }) => {
+              const current = bill.installmentsTotal
+                ? Math.floor(bill.installmentsTotal) - left
+                : 0;
+              return (
+                <li key={bill.id} className="installment">
+                  <div className="installment-head">
+                    <span className="installment-name">{bill.name}</span>
+                    <span className="muted small">
+                      {current}/{bill.installmentsTotal} · {formatCents(bill.amountCents)}
+                    </span>
+                    <button
+                      type="button"
+                      className="outline-button small-button"
+                      onClick={() => onEditBill(bill)}
+                    >
+                      {t("common.edit")}
+                    </button>
+                  </div>
+                  <div className="meter-track slim">
+                    <div
+                      className="meter-fill"
+                      style={{
+                        width: `${bill.installmentsTotal ? (current / Math.floor(bill.installmentsTotal)) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="muted small">
+                    {t("debts.leftToGo", { left, amount: formatCents(leftValue) })} ·{" "}
+                    {t("debts.payoff", { month: monthLabel(ends, lang) })}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </article>
+      ) : null}
+
+      {openInvoices.length > 0 ? (
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon slate">
+                <Icon name="card" size={15} />
+              </span>
+              <h2>{t("debts.openInvoicesTitle")}</h2>
+            </div>
+          </header>
+          <ul className="installment-list">
+            {openInvoices.map(({ meta, usageCents }) => (
+              <li key={meta.id} className="installment">
+                <div className="installment-head">
+                  <span className="installment-name">
+                    {meta.brand || t("planner.card")} •••• {meta.last4 || "0000"}
+                  </span>
+                  <span className="muted small">{formatCents(usageCents)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </article>
+      ) : null}
     </section>
   );
 }

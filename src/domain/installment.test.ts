@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Bill } from "../lib/api";
-import { installmentOf, monthOffset } from "./installment";
+import { installmentEndMonth, installmentOf, monthOffset, remainingInstallments } from "./installment";
 
 const bill = (patch: Partial<Bill> = {}): Bill => ({
   id: 1,
@@ -45,5 +45,28 @@ describe("installmentOf", () => {
     expect(installmentOf(bill({ installmentsTotal: null }), "2026-11")).toBeNull();
     expect(installmentOf(bill({ installmentsTotal: 0 }), "2026-11")).toBeNull();
     expect(installmentOf(bill({ active: false }), "2026-11")).toBeNull();
+  });
+});
+
+describe("installmentEndMonth", () => {
+  it("lands on the last parcel across year boundaries", () => {
+    expect(installmentEndMonth(bill())).toBe("2028-02");
+    expect(installmentEndMonth(bill({ installmentsTotal: 1 }))).toBe("2026-03");
+    expect(installmentEndMonth(bill({ installmentsTotal: 11 }))).toBe("2027-01");
+  });
+
+  it("returns null without a count", () => {
+    expect(installmentEndMonth(bill({ installmentsTotal: null }))).toBeNull();
+  });
+});
+
+describe("remainingInstallments", () => {
+  it("counts what is still left to pay", () => {
+    expect(remainingInstallments(bill(), "2026-11")).toEqual({ left: 15, leftCents: 15 * 250_00 });
+    expect(remainingInstallments(bill(), "2028-02")).toEqual({ left: 0, leftCents: 0 });
+  });
+
+  it("returns null outside the run", () => {
+    expect(remainingInstallments(bill(), "2026-02")).toBeNull();
   });
 });

@@ -27,3 +27,27 @@ export function installmentOf(bill: Bill, month: string): Installment | null {
   if (offset < 0 || offset >= whole) return null;
   return { current: offset + 1, total: whole };
 }
+
+/** Last month of the run ("YYYY-MM"), or null when not an installment purchase. */
+export function installmentEndMonth(bill: Bill): string | null {
+  const total = bill.installmentsTotal;
+  if (!bill.active || total === null || total === undefined || total < 1) return null;
+  const whole = Math.floor(total);
+  const [year, value] = bill.startsOn.slice(0, 7).split("-").map(Number);
+  if (!year || !value) return null;
+  const index = value - 1 + (whole - 1);
+  const endYear = year + Math.floor(index / 12);
+  const endMonth = (index % 12) + 1;
+  return `${endYear}-${String(endMonth).padStart(2, "0")}`;
+}
+
+/** Parcels still unpaid from `month` on, with their remaining value. */
+export function remainingInstallments(
+  bill: Bill,
+  month: string,
+): { left: number; leftCents: number } | null {
+  const current = installmentOf(bill, month);
+  if (!current) return null;
+  const left = current.total - current.current;
+  return { left, leftCents: left * bill.amountCents };
+}
