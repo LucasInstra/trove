@@ -27,10 +27,9 @@ export function BottomNav({
     <nav
       aria-label={label}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden",
+        "bottom-nav fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden",
         className,
       )}
-      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
     >
       {items.map((item) => (
         <button
@@ -39,12 +38,14 @@ export function BottomNav({
           onClick={item.onSelect}
           aria-current={item.active ? "page" : undefined}
           className={cn(
-            "flex flex-col items-center gap-1 border-0 bg-transparent py-2 text-2xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
-            item.active ? "text-primary [&_svg]:text-primary" : "text-muted hover:text-ink",
+            "bottom-nav-item flex w-[68px] shrink-0 flex-col items-center gap-1 border-0 bg-transparent px-1 py-2 text-[10px] font-medium leading-[1.1] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
+            item.active
+              ? "bg-primary-soft font-semibold text-primary-strong [&_svg]:text-primary-strong"
+              : "text-muted hover:text-ink",
           )}
         >
           {item.icon}
-          <span className="truncate px-1">{item.label}</span>
+          <span className="min-w-0 max-w-full break-words text-center">{item.label}</span>
         </button>
       ))}
     </nav>

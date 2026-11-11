@@ -274,7 +274,11 @@ export function OverviewScreen({
           <p className="card-empty">{t("ledger.noSpending")}</p>
         ) : (
           <div className="donut-row">
-            <Donut segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))} />
+            <Donut
+              segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))}
+              centerLabel={t("common.total")}
+              centerValue={formatCents(spending)}
+            />
             <ul className="legend">
               {byCategory.map((item) => (
                 <li key={`${item.categoryId ?? "none"}-${item.name}`}>
@@ -314,7 +318,9 @@ export function OverviewScreen({
                 aria-label={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
               >
                 <span className="bar-value">
-                  {point.expenseCents > 0 ? formatCents(point.expenseCents) : ""}
+                  {point.month === month && point.expenseCents > 0
+                    ? formatCents(point.expenseCents)
+                    : ""}
                 </span>
                 <div className="bar-track">
                   <div

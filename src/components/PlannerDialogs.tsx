@@ -66,12 +66,14 @@ export function IncomeDialog({ income, onClose, onSave }: { income: Income | nul
 export function BillDialog({
   bill,
   categories,
+  defaultCategoryId = null,
   onClose,
   onSave,
   onDelete,
 }: {
   bill: Bill | null;
   categories: Category[];
+  defaultCategoryId?: number | null;
   onClose: () => void;
   onSave: (input: BillInput) => void;
   onDelete?: (id: number) => void;
@@ -80,7 +82,7 @@ export function BillDialog({
   const [name, setName] = useState(bill?.name ?? "");
   const [amount, setAmount] = useState(bill ? (bill.amountCents / 100).toFixed(2) : "");
   const [dueDay, setDueDay] = useState(bill?.dueDay ?? 5);
-  const [categoryId, setCategoryId] = useState<number | null>(bill?.categoryId ?? null);
+  const [categoryId, setCategoryId] = useState<number | null>(bill?.categoryId ?? defaultCategoryId);
 
   return (
     <Dialog title={bill ? t("planner.editBill") : t("planner.newBill")} onClose={onClose}>

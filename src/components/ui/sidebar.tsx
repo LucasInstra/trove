@@ -11,7 +11,7 @@ function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
   return (
     <aside
       className={cn(
-        "flex w-52 shrink-0 flex-col gap-6 border-r border-line bg-surface px-3 pt-5 pb-4 2xl:w-60",
+        "flex h-full min-h-0 w-52 shrink-0 flex-col gap-4 border-r border-line bg-surface px-3 pt-4 pb-3 2xl:w-60",
         className,
       )}
       {...props}
@@ -54,7 +54,7 @@ function SidebarGroup({
 }) {
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      <span className="px-2.5 pb-1 text-2xs font-semibold tracking-[0.09em] text-faint uppercase">
+      <span className="px-2.5 pb-0.5 text-2xs font-semibold tracking-[0.09em] text-faint uppercase">
         {label}
       </span>
       {children}
@@ -63,11 +63,11 @@ function SidebarGroup({
 }
 
 const sidebarItemVariants = cva(
-  "flex h-9 w-full items-center gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&_svg]:shrink-0",
+  "sidebar-item flex h-9 w-full items-center gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&_svg]:shrink-0",
   {
     variants: {
       active: {
-        true: "bg-nav-active font-semibold text-ink [&_svg]:text-primary",
+        true: "sidebar-item-active relative bg-primary-soft font-semibold text-primary-strong shadow-tile before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary [&_svg]:text-primary-strong",
         false: "font-medium text-muted hover:bg-surface-soft hover:text-ink",
       },
     },
@@ -76,8 +76,7 @@ const sidebarItemVariants = cva(
 );
 
 interface SidebarItemProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof sidebarItemVariants> {}
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof sidebarItemVariants> {}
 
 function SidebarItem({ className, active, ...props }: SidebarItemProps) {
   return (

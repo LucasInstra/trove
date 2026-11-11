@@ -20,6 +20,7 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { CardsScreen, HouseScreen, IncomeScreen, ReserveScreen } from "./screens/PlannerScreens";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -60,12 +61,28 @@ import {
 import type { Mood } from "./components/Mascot";
 import { BUILD_LABEL } from "./lib/build";
 
-type Route = "overview" | "transactions" | "flow" | "import" | "settings";
+type Route =
+  | "overview"
+  | "transactions"
+  | "flow"
+  | "cards"
+  | "reserve"
+  | "house"
+  | "income"
+  | "import"
+  | "settings";
 
 const MENU: Array<{ route: Route; icon: IconName }> = [
   { route: "overview", icon: "grid" },
   { route: "transactions", icon: "ledger" },
   { route: "flow", icon: "arrow-left-right" },
+];
+
+const PLANNING: Array<{ route: Route; icon: IconName }> = [
+  { route: "cards", icon: "card" },
+  { route: "reserve", icon: "target" },
+  { route: "house", icon: "home" },
+  { route: "income", icon: "trend" },
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
@@ -191,9 +208,9 @@ export function App() {
       setByCategory(nextByCategory);
       setSeries(nextSeries);
       setPlanner(nextPlanner);
-      const storedHousing = housing ? Number(housing) : null;
+      const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
-      setHousingCategoryId(storedHousing ?? fallback?.id ?? null);
+      setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
       setCeilingPct(ceiling ? Number(ceiling) : 30);
       setHousingScope(scope === "total" ? "total" : "primary");
       setSplitSettled(settled === "1");
@@ -355,6 +372,16 @@ export function App() {
     setCeilingPct(value);
   };
 
+  const saveHousingCategory = async (categoryId: number | null) => {
+    setHousingCategoryId(categoryId);
+    try {
+      await api.setSetting("housing_category", categoryId === null ? "none" : String(categoryId));
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
   const housingCategory = categories.find((category) => category.id === housingCategoryId);
 
   return (
@@ -365,9 +392,21 @@ export function App() {
         <Sidebar className="hidden md:flex">
           <SidebarBrand mark="t" name="trove" tagline={t("app.tagline")} />
 
-          <nav aria-label={t("nav.primary")} className="flex flex-col gap-4">
+          <nav aria-label={t("nav.primary")} className="flex flex-col gap-3">
             <SidebarGroup label={t("nav.menu")}>
               {MENU.map((item) => (
+                <SidebarItem
+                  key={item.route}
+                  active={route === item.route}
+                  onClick={() => setRoute(item.route)}
+                >
+                  <Icon name={item.icon} size={17} />
+                  {t(`nav.${item.route}`)}
+                </SidebarItem>
+              ))}
+            </SidebarGroup>
+            <SidebarGroup label={t("nav.planningGroup")}>
+              {PLANNING.map((item) => (
                 <SidebarItem
                   key={item.route}
                   active={route === item.route}
@@ -458,7 +497,7 @@ export function App() {
             </div>
           ) : null}
 
-          {route === "overview" || route === "flow" || route === "transactions" ? (
+          {route !== "import" && route !== "settings" ? (
             <TopBar
               month={month ?? currentMonth()}
               onMonth={onMonth}
@@ -563,6 +602,62 @@ export function App() {
             />
           ) : null}
 
+          {route === "cards" ? (
+            <CardsScreen
+              cards={cards}
+              month={month ?? currentMonth()}
+              onAdd={() => setDialog({ kind: "card", card: null })}
+              onEdit={(card) => setDialog({ kind: "card", card })}
+            />
+          ) : null}
+
+          {route === "reserve" ? (
+            <ReserveScreen
+              plan={plan}
+              onAdd={() => setDialog({ kind: "goal", goal: null })}
+              onEdit={(goal) => setDialog({ kind: "goal", goal })}
+            />
+          ) : null}
+
+          {route === "house" ? (
+            <HouseScreen
+              plan={plan}
+              categories={categories}
+              housingCategoryId={housingCategoryId}
+              housingScope={housingScope}
+              people={planner.people}
+              shares={planner.shares}
+              splitSettled={splitSettled}
+              onCategory={(categoryId) => void saveHousingCategory(categoryId)}
+              onScope={(scope) => {
+                setHousingScope(scope);
+                void api.setSetting("housing_scope", scope);
+              }}
+              onEditCeiling={() => setDialog({ kind: "ceiling" })}
+              onAddBill={() => setDialog({ kind: "bill", bill: null })}
+              onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+              onAssign={(billId, personId) => {
+                void api.setShare({ billId, personId }).then(() => {
+                  if (month) void reload(search, month, accountFilter);
+                });
+              }}
+              onSettle={() => {
+                if (!month) return;
+                setSplitSettled(true);
+                void api.setSetting(`split_settled_${month}`, "1");
+              }}
+            />
+          ) : null}
+
+          {route === "income" ? (
+            <IncomeScreen
+              incomes={planner.incomes}
+              plan={plan}
+              onAdd={() => setDialog({ kind: "income", income: null })}
+              onEdit={(income) => setDialog({ kind: "income", income })}
+            />
+          ) : null}
+
           {route === "import" ? (
             <ImportScreen
               look={look}
@@ -581,6 +676,13 @@ export function App() {
         label={t("nav.primary")}
         items={[
           ...MENU.map((item) => ({
+            key: item.route,
+            label: t(`nav.${item.route}`),
+            icon: <Icon name={item.icon} size={19} />,
+            active: route === item.route,
+            onSelect: () => setRoute(item.route),
+          })),
+          ...PLANNING.map((item) => ({
             key: item.route,
             label: t(`nav.${item.route}`),
             icon: <Icon name={item.icon} size={19} />,
@@ -613,6 +715,7 @@ export function App() {
         <BillDialog
           bill={dialog.bill}
           categories={categories}
+          defaultCategoryId={route === "house" ? housingCategoryId : null}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveBill(input)}
           onDelete={(id) => void removeBill(id)}

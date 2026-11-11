@@ -1,0 +1,618 @@
+:root {
+  --shadow-card-lift: 0 10px 24px rgba(17, 24, 39, 0.09);
+  --hero-glow: color-mix(in srgb, var(--primary) 12%, transparent);
+  --line-hover: color-mix(in srgb, var(--primary) 30%, var(--line-strong));
+}
+
+[data-theme="dark"] {
+  --shadow-card-lift: 0 10px 24px rgba(0, 0, 0, 0.32);
+  --hero-glow: color-mix(in srgb, var(--primary) 22%, transparent);
+  --line-hover: color-mix(in srgb, var(--primary) 50%, var(--line-strong));
+}
+
+@layer legacy {
+  /* 150ms ease-out interactions; transforms never change packed card geometry. */
+  button {
+    transition:
+      background-color 150ms ease-out,
+      border-color 150ms ease-out,
+      color 150ms ease-out,
+      box-shadow 150ms ease-out,
+      transform 150ms ease-out;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--line-hover);
+  }
+
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  button.primary {
+    box-shadow: 0 2px 6px var(--shadow-soft);
+  }
+
+  button.primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card-lift);
+  }
+
+  button.primary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .card,
+  .account-card {
+    transition:
+      transform 160ms ease-out,
+      box-shadow 160ms ease-out,
+      border-color 160ms ease-out;
+  }
+
+  .card:hover,
+  .account-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-lift);
+  }
+
+  .planner-grid:has(.cell-tools) .card:hover,
+  .planner-grid:has(.cell-tools) .account-card:hover {
+    transform: none;
+  }
+
+  /* Forecast spotlight. The rings are decoration, not part of the grid measure. */
+  .account-card {
+    background:
+      radial-gradient(ellipse at 94% 4%, var(--hero-glow), transparent 42%),
+      linear-gradient(135deg, var(--surface), var(--primary-soft));
+    box-shadow: var(--shadow-card-lift);
+  }
+
+  .account-card::after {
+    display: block;
+    right: -76px;
+    bottom: -135px;
+    width: 300px;
+    height: 300px;
+    border-color: var(--hero-glow);
+    box-shadow: 0 0 0 22px color-mix(in srgb, var(--hero-glow) 45%, transparent);
+    pointer-events: none;
+  }
+
+  .account-card .account-top,
+  .account-card .account-main,
+  .account-card .composition,
+  .account-card .account-bottom {
+    z-index: 1;
+  }
+
+  .composition-legend li {
+    color: var(--muted);
+  }
+
+  .composition-legend strong {
+    color: var(--ink);
+  }
+
+  .composition-legend .muted {
+    color: var(--faint);
+  }
+
+  /* Distinct dashboard card families: bills, credit, housing, goals and split. */
+  .bills-card {
+    border-top: 3px solid var(--bills-segment);
+    background: linear-gradient(180deg, var(--surface-soft), var(--surface) 30%);
+  }
+
+  .cards-card {
+    background: linear-gradient(150deg, var(--surface), var(--primary-soft));
+  }
+
+  .housing-card {
+    border-left: 3px solid var(--primary);
+    background: color-mix(in srgb, var(--primary-soft) 34%, var(--surface));
+  }
+
+  .housing-card .card-figure {
+    display: grid;
+    gap: 5px;
+  }
+
+  .housing-card .card-figure strong {
+    font-size: 30px;
+  }
+
+  .housing-card .card-figure .delta-line {
+    width: fit-content;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--positive) 9%, var(--surface));
+  }
+
+  .goals-card {
+    border-bottom: 3px solid var(--positive);
+    background: linear-gradient(
+      180deg,
+      var(--surface),
+      color-mix(in srgb, var(--positive) 6%, var(--surface))
+    );
+  }
+
+  .split-card {
+    border-color: var(--line-strong);
+    background: var(--surface-soft);
+  }
+
+  /* Small series bars and rounded composition segments. */
+  .bar-value {
+    min-height: 14px;
+    color: var(--primary-strong);
+    font-size: 10.5px;
+    font-weight: 600;
+  }
+
+  .bar {
+    border-radius: 999px 999px 6px 6px;
+    background: linear-gradient(180deg, var(--line-strong), var(--bar-rest));
+    transition: height 160ms ease-out;
+  }
+
+  .bar.current {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--primary) 48%, var(--surface)),
+      var(--primary)
+    );
+    box-shadow: 0 2px 8px var(--hero-glow);
+  }
+
+  .bar-col[aria-current="true"] {
+    background: color-mix(in srgb, var(--primary-soft) 65%, transparent);
+  }
+
+  .composition-track {
+    gap: 3px;
+    background: transparent;
+  }
+
+  .composition-part {
+    border-radius: 999px;
+  }
+
+  .composition-part.housing {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--primary) 62%, var(--surface)),
+      var(--primary)
+    );
+  }
+
+  .composition-part.bills,
+  .composition-part.spent {
+    background: linear-gradient(
+      90deg,
+      var(--bills-segment),
+      color-mix(in srgb, var(--bills-segment) 55%, var(--primary))
+    );
+  }
+
+  .composition-part.free {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--positive) 55%, var(--surface)),
+      var(--positive)
+    );
+  }
+
+  .composition-legend li {
+    min-width: 108px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-soft);
+  }
+
+  .composition-legend .composition-item {
+    font-size: 11.5px;
+  }
+
+  .composition-value {
+    font-size: 12.5px;
+  }
+
+  .upcoming-line {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .donut-center-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Dedicated planning routes. */
+  .planner-screen {
+    width: 100%;
+    max-width: 1080px;
+  }
+
+  .planner-screen-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 10px 2px 2px;
+  }
+
+  .planner-screen-head h1 {
+    margin-bottom: 5px;
+  }
+
+  .planner-screen-head p {
+    max-width: 560px;
+    font-size: 13px;
+  }
+
+  .planner-screen-head > button {
+    flex: 0 0 auto;
+  }
+
+  .planner-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .metric-card {
+    min-height: 142px;
+    justify-content: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .metric-card-primary {
+    background:
+      radial-gradient(ellipse at 95% 0%, var(--hero-glow), transparent 52%), var(--surface);
+  }
+
+  .metric-card-secondary {
+    background: linear-gradient(140deg, var(--surface-soft), var(--surface));
+  }
+
+  .metric-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .metric-value {
+    color: var(--ink);
+    font-size: clamp(25px, 3vw, 36px);
+    font-weight: 650;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .metric-note {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .entity-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .entity-card {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 1px 2px var(--shadow-soft);
+    transition:
+      transform 150ms ease-out,
+      box-shadow 150ms ease-out,
+      border-color 150ms ease-out;
+  }
+
+  .entity-card:hover {
+    transform: translateY(-1px);
+    border-color: var(--line-hover);
+    box-shadow: var(--shadow-card-lift);
+  }
+
+  .entity-card-credit {
+    border-left: 3px solid var(--entity-color, var(--primary));
+  }
+
+  .entity-card-goal {
+    border-right: 3px solid var(--entity-color, var(--positive));
+  }
+
+  .entity-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    color: var(--primary-strong);
+  }
+
+  .credit-mark,
+  .goal-mark {
+    color: var(--entity-color, var(--primary));
+  }
+
+  .entity-main {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .entity-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .entity-title-row h2,
+  .house-settings-copy h2,
+  .house-empty-card h2,
+  .house-split-empty h2 {
+    margin-bottom: 3px;
+    font-size: 14px;
+  }
+
+  .entity-title-row .muted {
+    display: block;
+  }
+
+  .entity-edit {
+    height: 30px;
+    padding: 0 11px;
+  }
+
+  .entity-figures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .entity-figures > span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .entity-figures small {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entity-figures strong {
+    overflow: hidden;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .goal-meter {
+    height: 9px;
+  }
+
+  .income-amount {
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .planner-empty {
+    min-height: 218px;
+    background: var(--surface);
+  }
+
+  .planner-empty-icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface-soft);
+    color: var(--primary-strong);
+  }
+
+  .planner-empty > strong {
+    font-size: 14px;
+  }
+
+  .house-settings-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr);
+    align-items: center;
+    gap: 18px;
+  }
+
+  .house-settings-copy .muted {
+    display: block;
+    max-width: 520px;
+  }
+
+  .house-category-field {
+    margin: 0;
+  }
+
+  .house-overview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+  }
+
+  .rent-card {
+    border-top: 3px solid var(--bills-segment);
+  }
+
+  .house-empty-card,
+  .house-split-empty {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .house-empty-card > div:nth-child(2),
+  .house-split-empty > div {
+    flex: 1;
+  }
+
+  .house-empty-card .primary {
+    flex: 0 0 auto;
+  }
+
+  .house-split-empty {
+    border-style: dashed;
+    background: var(--surface-soft);
+  }
+
+  .house-split-empty p {
+    font-size: 12px;
+  }
+
+  .bottom-nav-item[aria-current="page"] {
+    box-shadow: inset 0 2px 0 var(--primary);
+  }
+
+  .bottom-nav-item > span {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  @media (max-width: 820px) {
+    .planner-screen-head {
+      align-items: flex-start;
+    }
+
+    .planner-screen-head > button {
+      padding-inline: 10px;
+    }
+
+    .house-overview-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .topbar {
+      gap: 4px;
+      padding: 7px 8px;
+    }
+
+    .title-row {
+      flex: 1 1 auto;
+      gap: 0;
+      min-width: 0;
+    }
+
+    .title-row h1,
+    .title-year {
+      font-size: 16px;
+    }
+
+    .title-year {
+      margin-left: 3px;
+    }
+
+    .topbar-actions {
+      flex: 0 0 auto;
+      gap: 1px;
+    }
+
+    .topbar-primary {
+      width: 34px;
+      min-width: 34px;
+      padding: 0;
+      overflow: hidden;
+      font-size: 0;
+    }
+
+    .topbar-primary svg {
+      flex: 0 0 auto;
+    }
+
+    .planner-screen-head {
+      flex-direction: column;
+    }
+
+    .planner-screen-head > button {
+      align-self: flex-start;
+    }
+
+    .planner-metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .metric-card {
+      min-height: 118px;
+    }
+
+    .entity-card {
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      padding: 13px;
+    }
+
+    .entity-icon {
+      width: 34px;
+      height: 34px;
+    }
+
+    .entity-figures {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .house-settings-card {
+      grid-template-columns: 1fr;
+    }
+
+    .house-empty-card {
+      flex-wrap: wrap;
+    }
+
+    .house-empty-card .primary {
+      margin-left: 54px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    button:active:not(:disabled),
+    button.primary:hover:not(:disabled),
+    .card:hover,
+    .account-card:hover,
+    .entity-card:hover {
+      transform: none;
+    }
+  }
+}
