@@ -174,6 +174,7 @@ const en: Dictionary = {
   "planner.addHousingBill": "Add housing bill",
   "planner.noHousingBills": "No housing bills for this month",
   "planner.noHousingBillsHint": "Add rent or choose the category used for your housing costs.",
+  "planner.pickHousingCategory": "Pick the housing category above first, otherwise the bill will not appear here.",
   "planner.incomeDescription": "Manage the income sources used by your monthly forecast.",
   "planner.addIncome": "Add income",
   "planner.incomeForMonth": "Income for this month",
@@ -496,6 +497,7 @@ const pt: Dictionary = {
   "planner.noHousingBills": "Nenhuma conta de moradia neste mês",
   "planner.noHousingBillsHint":
     "Adicione o aluguel ou escolha a categoria usada para os custos da casa.",
+  "planner.pickHousingCategory": "Escolha a categoria de moradia acima primeiro, senão a conta não aparece aqui.",
   "planner.incomeDescription": "Gerencie as fontes de renda usadas na previsão mensal.",
   "planner.addIncome": "Adicionar renda",
   "planner.incomeForMonth": "Renda deste mês",

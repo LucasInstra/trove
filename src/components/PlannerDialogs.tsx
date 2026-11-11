@@ -40,8 +40,8 @@ export function IncomeDialog({ income, onClose, onSave }: { income: Income | nul
             amountCents: parseCents(amount),
             frequency: "monthly",
             payDay,
-            accountId: null,
-            active: true,
+            accountId: income?.accountId ?? null,
+            active: income?.active ?? true,
           });
         }}
       >

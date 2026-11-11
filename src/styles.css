@@ -29,7 +29,6 @@
   --window-active: #dde0e6;
   --window-close: #e81123;
   --window-close-foreground: #ffffff;
-  --nav-active: #f1f2f4;
   --credit-start: #2b2b2d;
   --credit-end: #111111;
   --border: #eef0f3;
@@ -2292,7 +2291,6 @@ select.tx-category {
   --window-control: #9aa3b0;
   --window-hover: #232830;
   --window-active: #2b313a;
-  --nav-active: var(--surface-soft);
   --border: #2a3038;
   color-scheme: dark;
 }

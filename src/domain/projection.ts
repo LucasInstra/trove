@@ -34,6 +34,7 @@ export interface MonthPlan {
   dayGroups: DayGroup[];
   composition: Composition[];
   housingCents: number;
+  housingBills: Bill[];
   housingRatioPct: number;
   housingRatioPrimaryPct: number;
   ceilingPct: number;
@@ -151,14 +152,13 @@ export function planMonth(input: PlanInput): MonthPlan {
   const committedCents = hasPlan ? plannedCents : realizedCents;
   const forecastCents = incomeCents - committedCents;
 
-  const housingCents =
+  // The bills and the total come from the same filter: the housing screen lists
+  // what this number is made of, and two copies of the rule would drift.
+  const housingBills =
     input.housingCategoryId === null
-      ? 0
-      : sum(
-          dueBills
-            .filter((bill) => bill.categoryId === input.housingCategoryId)
-            .map((bill) => bill.amountCents),
-        );
+      ? []
+      : dueBills.filter((bill) => bill.categoryId === input.housingCategoryId);
+  const housingCents = sum(housingBills.map((bill) => bill.amountCents));
   const housingRatioPct =
     incomeCents > 0 ? Math.round((housingCents / incomeCents) * 1000) / 10 : 0;
   // The app is single-person, so "my income" is the biggest active salary. It is
@@ -195,6 +195,7 @@ export function planMonth(input: PlanInput): MonthPlan {
     dayGroups: groupByDay(dueBills),
     composition: buildComposition(incomeCents, committedCents, forecastCents, hasPlan, housingCents),
     housingCents,
+    housingBills,
     housingRatioPct,
     housingRatioPrimaryPct,
     ceilingPct: input.ceilingPct,

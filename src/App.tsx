@@ -331,15 +331,23 @@ export function App() {
   };
 
   const saveIncome = async (input: IncomeInput) => {
-    setDialog(null);
-    await api.saveIncome(input);
-    if (month) await reload(search, month, accountFilter);
+    try {
+      await api.saveIncome(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const saveBill = async (input: BillInput) => {
-    setDialog(null);
-    await api.saveBill(input);
-    if (month) await reload(search, month, accountFilter);
+    try {
+      await api.saveBill(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const removeBill = async (id: number) => {
@@ -355,15 +363,23 @@ export function App() {
   };
 
   const saveCard = async (input: CardInput) => {
-    setDialog(null);
-    await api.saveCard(input);
-    if (month) await reload(search, month, accountFilter);
+    try {
+      await api.saveCard(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const saveGoal = async (input: GoalInput) => {
-    setDialog(null);
-    await api.saveGoal(input);
-    if (month) await reload(search, month, accountFilter);
+    try {
+      await api.saveGoal(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
   };
 
   const saveCeiling = async (value: number) => {

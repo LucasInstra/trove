@@ -37,12 +37,23 @@ export function Donut({
   }
 
   const lengths = segments.map((segment) => (Math.max(0, segment.value) / total) * circumference);
+  // A round cap grows half a thickness past each end of its dash, so the gap has
+  // to be at least that wide or neighbouring arcs overlap and a zero share is
+  // drawn as a full dot.
+  const gap = thickness + 2;
   const offsets = lengths.map((_, index) =>
     lengths.slice(0, index).reduce((sum, length) => sum + length, 0),
   );
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      role="img"
+      aria-label={centerValue ? `${centerLabel ?? ""} ${centerValue}`.trim() : undefined}
+      aria-hidden={centerValue ? undefined : true}
+    >
       {segments.map((segment, index) => (
         <circle
           key={index}
@@ -52,7 +63,7 @@ export function Donut({
           fill="none"
           stroke={segment.color}
           strokeWidth={thickness}
-          strokeDasharray={`${Math.max(lengths[index] - 2, 0.6)} ${circumference}`}
+          strokeDasharray={`${Math.max(lengths[index] - gap, 0.1)} ${circumference}`}
           strokeDashoffset={-offsets[index]}
           strokeLinecap="round"
           transform={`rotate(-90 ${center} ${center})`}
@@ -61,7 +72,7 @@ export function Donut({
       {centerValue ? (
         <text
           x={center}
-          y={center + (centerLabel ? size * 0.035 : size * 0.035)}
+          y={center + size * 0.035}
           textAnchor="middle"
           fill="var(--ink)"
           fontSize={Math.min(12, size * 0.09)}

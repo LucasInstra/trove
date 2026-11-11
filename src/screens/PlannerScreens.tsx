@@ -3,7 +3,6 @@ import { Icon } from "../components/Icons";
 import {
   activeIncomeCount,
   cardLimitUsage,
-  housingBillsForCategory,
   summarizeCards,
   summarizeGoals,
 } from "../domain/planner";
@@ -296,7 +295,7 @@ export function HouseScreen({
   onSettle: () => void;
 }) {
   const { t } = useLanguage();
-  const housingBills = housingBillsForCategory(plan.dueBills, housingCategoryId);
+  const housingBills = plan.housingBills;
 
   return (
     <section className="screen planner-screen">
@@ -380,7 +379,13 @@ export function HouseScreen({
               <h2>{t("planner.noHousingBills")}</h2>
               <p className="muted small">{t("planner.noHousingBillsHint")}</p>
             </div>
-            <button type="button" className="primary" onClick={onAddBill}>
+            <button
+              type="button"
+              className="primary"
+              onClick={onAddBill}
+              disabled={housingCategoryId === null}
+              title={housingCategoryId === null ? t("planner.pickHousingCategory") : undefined}
+            >
               <Icon name="plus" size={16} />
               {t("planner.addHousingBill")}
             </button>

@@ -1,5 +1,5 @@
 import type { GoalProgress } from "./projection";
-import type { Bill, CardMeta, Income } from "../lib/api";
+import type { CardMeta, Income } from "../lib/api";
 
 export interface CardOverviewEntry {
   meta: CardMeta;
@@ -17,7 +17,10 @@ export function summarizeCards(cards: CardOverviewEntry[]) {
 export function cardLimitUsage(meta: CardMeta, usageCents: number) {
   return {
     availableCents: Math.max(0, meta.limitCents - usageCents),
-    usedPct: meta.limitCents > 0 ? Math.min(100, (usageCents / meta.limitCents) * 100) : 0,
+    usedPct:
+      meta.limitCents > 0
+        ? Math.round(Math.min(100, (usageCents / meta.limitCents) * 100) * 10) / 10
+        : 0,
   };
 }
 
@@ -26,10 +29,6 @@ export function summarizeGoals(goals: GoalProgress[]) {
     monthlyCents: goals.reduce((sum, entry) => sum + entry.goal.monthlyCents, 0),
     savedCents: goals.reduce((sum, entry) => sum + entry.paidCents, 0),
   };
-}
-
-export function housingBillsForCategory(bills: Bill[], categoryId: number | null) {
-  return categoryId === null ? [] : bills.filter((bill) => bill.categoryId === categoryId);
 }
 
 export function activeIncomeCount(incomes: Income[]) {

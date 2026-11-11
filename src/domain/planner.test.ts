@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { GoalProgress } from "./projection";
-import type { Bill, CardMeta, Income } from "../lib/api";
+import type { CardMeta, Income } from "../lib/api";
 import {
   activeIncomeCount,
   cardLimitUsage,
-  housingBillsForCategory,
   summarizeCards,
   summarizeGoals,
 } from "./planner";
@@ -20,22 +19,6 @@ const card = (id: number, limitCents: number): CardMeta => ({
   dueDay: 12,
   color: "var(--primary)",
   texture: "plain",
-});
-
-const bill = (id: number, categoryId: number | null): Bill => ({
-  id,
-  name: `Bill ${id}`,
-  amountCents: 10000,
-  dueDay: 5,
-  frequency: "monthly",
-  categoryId,
-  categoryName: null,
-  categoryColor: null,
-  accountId: null,
-  goalId: null,
-  startsOn: "2026-01-01",
-  endsOn: null,
-  active: true,
 });
 
 describe("planner summaries", () => {
@@ -89,10 +72,19 @@ describe("planner summaries", () => {
     expect(summarizeGoals(goals)).toEqual({ monthlyCents: 15000, savedCents: 60000 });
   });
 
-  it("selects only bills in the housing category", () => {
-    const bills = [bill(1, 7), bill(2, 8), bill(3, null)];
-    expect(housingBillsForCategory(bills, 7).map((entry) => entry.id)).toEqual([1]);
-    expect(housingBillsForCategory(bills, null)).toEqual([]);
+  it("answers zeros for an empty list instead of NaN", () => {
+    expect(summarizeCards([])).toEqual({ invoiceCents: 0, limitCents: 0 });
+    expect(summarizeGoals([])).toEqual({ monthlyCents: 0, savedCents: 0 });
+    expect(activeIncomeCount([])).toBe(0);
+  });
+
+  it("does not divide by a zero limit and caps a maxed card", () => {
+    const noLimit = cardLimitUsage(card(1, 0), 500);
+    expect(noLimit).toEqual({ availableCents: 0, usedPct: 0 });
+
+    const over = cardLimitUsage(card(2, 1_000), 1_500);
+    expect(over.availableCents).toBe(0);
+    expect(over.usedPct).toBe(100);
   });
 
   it("counts active income sources", () => {
