@@ -47,6 +47,7 @@ import type {
   MonthPoint,
   MonthTotals,
   PlannerState,
+  RecurrenceRow,
   TransactionRow,
 } from "./lib/api";
 import { useLanguage } from "./lib/language";
@@ -138,6 +139,7 @@ export function App() {
   const [series, setSeries] = useState<MonthPoint[]>([]);
   const [matrix, setMatrix] = useState<CategoryMonth[]>([]);
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
+  const [recurrence, setRecurrence] = useState<RecurrenceRow[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
@@ -200,7 +202,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -211,6 +213,7 @@ export function App() {
           api.categoryMonthSeries(at, 12),
           api.plannerState(at),
           api.budgetStatus(at).catch(() => null),
+          api.recurrenceRows(at, 12).catch(() => []),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
@@ -226,6 +229,7 @@ export function App() {
       setMatrix(nextMatrix);
       setPlanner(nextPlanner);
       setBudgetStatus(nextBudgetStatus);
+      setRecurrence(nextHistory);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
       setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
@@ -876,6 +880,7 @@ export function App() {
               plan={plan}
               cards={cards}
               month={month ?? currentMonth()}
+              history={recurrence}
               onEditBill={(bill) => setDialog({ kind: "bill", bill })}
             />
           ) : null}

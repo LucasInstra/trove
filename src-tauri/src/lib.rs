@@ -178,6 +178,16 @@ fn save_budget_limit(app: tauri::AppHandle, input: db::BudgetLimitInput) -> Resu
 }
 
 #[tauri::command]
+fn recurrence_rows(
+    app: tauri::AppHandle,
+    end_month: String,
+    count: Option<i64>,
+) -> Result<Vec<db::RecurrenceRow>, String> {
+    let connection = connection(&app)?;
+    db::recurrence_rows(&connection, &end_month, count.unwrap_or(12))
+}
+
+#[tauri::command]
 fn save_category(app: tauri::AppHandle, input: db::CategoryInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::save_category(&connection, &input)
@@ -511,6 +521,7 @@ pub fn run() {
             apply_rules,
             budget_status,
             save_budget_limit,
+            recurrence_rows,
             create_manual_account,
             rename_account,
             archive_account,

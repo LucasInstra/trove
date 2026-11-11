@@ -444,6 +444,12 @@ const en: Dictionary = {
   "budgets.globalName": "Whole month",
   "budgets.perDay": "{amount}/day",
 
+  "recurrence.title": "Recurring charges",
+  "recurrence.subtitle": "subscriptions hiding in the ledger",
+  "recurrence.due": "expected in {month}, around day {day}",
+  "recurrence.overdue": "missing since {month}, was day {day}",
+  "recurrence.scheduled": "next in {month}, around day {day}",
+
   "settings.eyebrow": "Settings",
   "settings.title": "Preferences",
   "settings.updates": "Updates",
@@ -922,6 +928,12 @@ const pt: Dictionary = {
   "budgets.carried": "inclui {amount} de sobra",
   "budgets.globalName": "Mês inteiro",
   "budgets.perDay": "{amount}/dia",
+
+  "recurrence.title": "Cobranças recorrentes",
+  "recurrence.subtitle": "assinaturas escondidas no extrato",
+  "recurrence.due": "esperada em {month}, por volta do dia {day}",
+  "recurrence.overdue": "atrasada desde {month}, era dia {day}",
+  "recurrence.scheduled": "próxima em {month}, por volta do dia {day}",
 
   "settings.eyebrow": "Ajustes",
   "settings.title": "Preferências",

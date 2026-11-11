@@ -125,6 +125,13 @@ export interface BudgetLimitInput {
   carryover: boolean;
 }
 
+export interface RecurrenceRow {
+  postedOn: string;
+  merchant: string;
+  description: string;
+  amountCents: number;
+}
+
 export interface CategoryInput {
   id: number | null;
   name: string;
@@ -450,6 +457,8 @@ export const api = {
   applyRules: () => invoke<number>("apply_rules"),
   budgetStatus: (month: string) => invoke<BudgetStatus>("budget_status", { month }),
   saveBudgetLimit: (input: BudgetLimitInput) => invoke<void>("save_budget_limit", { input }),
+  recurrenceRows: (endMonth: string, count = 12) =>
+    invoke<RecurrenceRow[]>("recurrence_rows", { endMonth, count }),
   createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
   renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
   archiveAccount: (id: number) => invoke<void>("archive_account", { id }),

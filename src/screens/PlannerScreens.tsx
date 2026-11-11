@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HousingCard, SplitCard } from "../components/PlannerCards";
 import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
@@ -10,13 +10,14 @@ import {
   summarizeGoals,
 } from "../domain/planner";
 import { freeToSpend, paceOf } from "../domain/budgets";
+import { detectRecurring } from "../domain/recurrence";
 import { healthSignals, reserveMonths, type HealthStatus } from "../domain/health";
 import { installmentEndMonth, remainingInstallments } from "../domain/installment";
 import { netWorthCurve } from "../domain/patrimony";
 import { retirementProjection } from "../domain/retirement";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
-import type { Bill, BudgetStatus, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, Share } from "../lib/api";
+import type { Bill, BudgetStatus, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint, MonthTotals, Person, RecurrenceRow, Share } from "../lib/api";
 import { formatCents, monthLabel, monthName, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
@@ -1127,14 +1128,17 @@ export function DebtsScreen({
   plan,
   cards,
   month,
+  history,
   onEditBill,
 }: {
   plan: MonthPlan;
   cards: Array<{ meta: CardMeta; usageCents: number }>;
   month: string;
+  history: RecurrenceRow[];
   onEditBill: (bill: Bill) => void;
 }) {
   const { lang, t } = useLanguage();
+  const recurring = useMemo(() => detectRecurring(history, month), [history, month]);
   const installments = plan.dueBills.flatMap((bill) => {
     const current = remainingInstallments(bill, month);
     const ends = installmentEndMonth(bill);
@@ -1250,6 +1254,36 @@ export function DebtsScreen({
                   </span>
                   <span className="muted small">{formatCents(usageCents)}</span>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </article>
+      ) : null}
+
+      {recurring.length > 0 ? (
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon slate">
+                <Icon name="swap" size={15} />
+              </span>
+              <h2>{t("recurrence.title")}</h2>
+            </div>
+            <span className="muted">{t("recurrence.subtitle")}</span>
+          </header>
+          <ul className="installment-list">
+            {recurring.map((charge) => (
+              <li key={`${charge.label}-${charge.amountCents}`} className="installment">
+                <div className="installment-head">
+                  <span className="installment-name">{charge.label}</span>
+                  <span className="muted small">{formatCents(charge.amountCents)}</span>
+                </div>
+                <span className={charge.status === "overdue" ? "muted small over" : "muted small"}>
+                  {t(`recurrence.${charge.status}`, {
+                    month: monthLabel(charge.nextMonth, lang),
+                    day: charge.dayOfMonth,
+                  })}
+                </span>
               </li>
             ))}
           </ul>

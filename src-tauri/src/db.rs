@@ -1825,6 +1825,56 @@ pub fn budget_status(connection: &Connection, month: &str) -> Result<BudgetStatu
     Ok(BudgetStatus { month: month.to_string(), global, lines })
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceRow {
+    pub posted_on: String,
+    pub merchant: String,
+    pub description: String,
+    pub amount_cents: i64,
+}
+
+/// Flat history for the recurrence radar: date, who and how much, trailing
+/// `count` months ending at `end_month`. Pure input for the domain detector —
+/// no grouping or verdicts are persisted. Transfers stay out, since moving
+/// money between own accounts is not a subscription.
+pub fn recurrence_rows(
+    connection: &Connection,
+    end_month: &str,
+    count: i64,
+) -> Result<Vec<RecurrenceRow>, String> {
+    check_month(end_month)?;
+    let end = NaiveDate::parse_from_str(&format!("{end_month}-01"), "%Y-%m-%d")
+        .map_err(|problem| problem.to_string())?;
+    let start = end
+        .checked_sub_months(Months::new(count.max(1) as u32 - 1))
+        .ok_or_else(|| "month window out of range".to_string())?;
+    let mut statement = connection
+        .prepare(
+            "select posted_on, merchant, description, amount_cents
+             from transactions
+             where posted_on >= ?1 and substr(posted_on, 1, 7) <= ?2
+               and transfer_group is null and deleted_at is null
+             order by posted_on asc",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map(
+            params![start.format("%Y-%m-%d").to_string(), end_month],
+            |row| {
+                Ok(RecurrenceRow {
+                    posted_on: row.get(0)?,
+                    merchant: row.get(1)?,
+                    description: row.get(2)?,
+                    amount_cents: row.get(3)?,
+                })
+            },
+        )
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
 /// Imports a bank CSV into one account. Rows carry no FITID, so the dedupe
 /// falls back to the statement fingerprint — the same key an OFX without
 /// FITID would produce, which is what makes reimports and OFX/CSV overlaps
@@ -4538,6 +4588,48 @@ mod tests {
             assert!(save_budget_limit(&connection, &bad).is_err());
         }
         assert!(budget_status(&connection, "março").is_err());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn recurrence_rows_returns_transfer_free_history() {
+        let path = temporary_database("recurrence");
+        let mut connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        for month in ["2024-01", "2024-02", "2024-03"] {
+            save_manual_transaction(
+                &connection,
+                &ManualInput {
+                    account_id: account,
+                    posted_on: format!("{month}-05"),
+                    amount_cents: -1990,
+                    description: "NETFLIX.COM".to_string(),
+                    category_id: None,
+                    notes: String::new(),
+                },
+            )
+            .expect("should spend");
+        }
+        let other = create_manual_account(&connection, "Banco").expect("should create");
+        save_transfer(
+            &mut connection,
+            &TransferInput {
+                from_account_id: account,
+                to_account_id: other,
+                posted_on: "2024-02-06".to_string(),
+                amount_cents: 1990,
+                description: "NETFLIX.COM".to_string(),
+                notes: String::new(),
+            },
+        )
+        .expect("should transfer");
+
+        // The transfer legs share the label and amount but are not charges.
+        let rows = recurrence_rows(&connection, "2024-03", 3).expect("should read");
+        assert_eq!(rows.len(), 3);
+        assert!(rows.iter().all(|row| row.merchant == "NETFLIX.COM"));
+        assert!(recurrence_rows(&connection, "março", 3).is_err());
 
         let _ = std::fs::remove_file(&path);
     }
