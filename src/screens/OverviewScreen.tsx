@@ -22,9 +22,9 @@ import {
 import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
 import { computeSplit } from "../domain/split";
-import { formatCents, monthLabel, monthShort } from "../lib/format";
+import { formatCents, monthLabel, monthShort, shiftMonth } from "../lib/format";
 import { useLanguage } from "../lib/language";
-import type { Bill, CardMeta, CategoryTotal, MonthPoint, Person, Share } from "../lib/api";
+import type { Bill, CardMeta, CategoryMonth, CategoryTotal, MonthPoint, Person, Share } from "../lib/api";
 
 /**
  * Where the dragged card would land. The rectangles are taken when the drag
@@ -50,6 +50,7 @@ interface OverviewProps {
   cards: { meta: CardMeta; usageCents: number; window: InvoiceWindow }[];
   byCategory: CategoryTotal[];
   series: MonthPoint[];
+  matrix: CategoryMonth[];
   month: string;
   onSelectMonth: (month: string) => void;
   onToggleBill: (billId: number, paid: boolean) => void;
@@ -81,6 +82,7 @@ export function OverviewScreen({
   cards,
   byCategory,
   series,
+  matrix,
   month,
   onSelectMonth,
   onToggleBill,
@@ -153,10 +155,34 @@ export function OverviewScreen({
   // A card that occupies more than one column has room to say more, so it does
   // instead of stretching the same content over a wider box.
   const isWide = (id: CardId) => (layout.find((entry) => entry.id === id)?.span ?? 1) >= 2;
-  const seriesPeak = Math.max(
-    ...(isWide("series") ? series.slice(-12) : series.slice(-6)).map((point) => point.expenseCents),
-    1,
+
+  // One column per month, one segment per category that spent that month.
+  // Missing pairs spent nothing, so the matrix stays sparse and the card
+  // fills the gaps with empty columns.
+  const stackCount = isWide("series") ? 12 : 6;
+  const stackMonths = Array.from({ length: stackCount }, (_, offset) =>
+    shiftMonth(month, offset - stackCount + 1),
   );
+  const stacks = stackMonths.map((stackMonth) => {
+    const slices = matrix
+      .filter((entry) => entry.month === stackMonth)
+      .sort((left, right) => right.totalCents - left.totalCents);
+    return {
+      month: stackMonth,
+      slices,
+      total: slices.reduce((sum, slice) => sum + slice.totalCents, 0),
+    };
+  });
+  const stackPeak = Math.max(...stacks.map((stack) => stack.total), 1);
+  const stackLegend = (() => {
+    const seen = new Map<string, string>();
+    for (const stack of stacks) {
+      for (const slice of stack.slices) {
+        if (!seen.has(slice.name)) seen.set(slice.name, slice.color);
+      }
+    }
+    return [...seen];
+  })();
 
   const cardName = (id: CardId) =>
     ({
@@ -358,48 +384,53 @@ export function OverviewScreen({
           </div>
           <span className="muted">{t("ledger.spending")}</span>
         </header>
-        {series.every((point) => point.expenseCents === 0) ? (
+        {stacks.every((stack) => stack.total === 0) ? (
           <p className="card-empty">{t("ledger.noSpending")}</p>
         ) : (
-          <div className="bars">
-            {series.slice(isWide("series") ? -12 : -6).map((point) => (
-              <button
-                type="button"
-                className="bar-col"
-                key={point.month}
-                onClick={() => onSelectMonth(point.month)}
-                aria-current={point.month === month}
-                aria-label={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
-              >
-                <span className="bar-value">
-                  {point.month === month && point.expenseCents > 0
-                    ? formatCents(point.expenseCents)
-                    : ""}
+          <>
+            <div className="bars">
+              {stacks.map((stack) => (
+                <button
+                  type="button"
+                  className="bar-col"
+                  key={stack.month}
+                  onClick={() => onSelectMonth(stack.month)}
+                  aria-current={stack.month === month}
+                  aria-label={`${monthLabel(stack.month, lang)}: ${formatCents(stack.total)}`}
+                >
+                  <span className="bar-value">
+                    {stack.month === month && stack.total > 0 ? formatCents(stack.total) : ""}
+                  </span>
+                  <div className="bar-track">
+                    <div className="bar-stack">
+                      {stack.slices.map((slice) => (
+                        <div
+                          key={slice.categoryId ?? slice.name}
+                          className="bar-segment"
+                          style={{
+                            height: `${Math.max(2, (slice.totalCents / stackPeak) * 100)}%`,
+                            background: slice.color,
+                          }}
+                          title={`${slice.name}: ${formatCents(slice.totalCents)}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <span className={stack.month === month ? "bar-label current" : "bar-label"}>
+                    {monthShort(stack.month, lang)}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="stack-legend" aria-hidden="true">
+              {stackLegend.map(([name, color]) => (
+                <span key={name}>
+                  <span className="dot" style={{ background: color }} />
+                  {name}
                 </span>
-                <div className="bar-track">
-                  <div
-                    className={
-                      point.expenseCents === 0
-                        ? "bar blank"
-                        : point.month === month
-                          ? "bar current"
-                          : "bar"
-                    }
-                    style={{
-                      height:
-                        point.expenseCents === 0
-                          ? "0%"
-                          : `${Math.max(3, (point.expenseCents / seriesPeak) * 100)}%`,
-                    }}
-                    title={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
-                  />
-                </div>
-                <span className={point.month === month ? "bar-label current" : "bar-label"}>
-                  {monthShort(point.month, lang)}
-                </span>
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </article>
     ),

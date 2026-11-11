@@ -27,6 +27,7 @@ import type {
   CardInput,
   CardMeta,
   Category,
+  CategoryMonth,
   CategoryTotal,
   Goal,
   GoalInput,
@@ -104,6 +105,7 @@ export function App() {
   const [totals, setTotals] = useState<MonthTotals | null>(null);
   const [byCategory, setByCategory] = useState<CategoryTotal[]>([]);
   const [series, setSeries] = useState<MonthPoint[]>([]);
+  const [matrix, setMatrix] = useState<CategoryMonth[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
@@ -151,7 +153,7 @@ export function App() {
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextPlanner, housing, ceiling, scope, settled, storedLayout] =
+      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, housing, ceiling, scope, settled, storedLayout] =
         await Promise.all([
           api.transactions(term, at, accountId),
           api.accounts(),
@@ -159,6 +161,7 @@ export function App() {
           api.monthTotals(at),
           api.categoryTotals(at),
           api.monthSeries(at, 12),
+          api.categoryMonthSeries(at, 12),
           api.plannerState(at),
           api.getSetting("housing_category").catch(() => null),
           api.getSetting("housing_ceiling").catch(() => null),
@@ -172,6 +175,7 @@ export function App() {
       setTotals(nextTotals);
       setByCategory(nextByCategory);
       setSeries(nextSeries);
+      setMatrix(nextMatrix);
       setPlanner(nextPlanner);
       const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
       const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
@@ -492,6 +496,7 @@ export function App() {
               cards={cards}
               byCategory={byCategory}
               series={series}
+              matrix={matrix}
               month={month ?? currentMonth()}
               onSelectMonth={setMonth}
               onToggleBill={(id, paid) => void toggleBill(id, paid)}

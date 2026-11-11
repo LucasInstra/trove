@@ -55,6 +55,7 @@ export function FlowScreen({ series, plan, month, onSelectMonth }: FlowProps) {
               className={row.month === month ? "flow-col current" : "flow-col"}
               onClick={() => onSelectMonth(row.month)}
               aria-current={row.month === month}
+              title={`${monthLabel(row.month, lang)} · ${t("flow.in")}: ${formatCents(row.incomeCents)} · ${t("flow.out")}: ${formatCents(row.expense)} · ${t("flow.balance")}: ${formatCents(row.balance)}`}
             >
               <span className="flow-pair">
                 <span

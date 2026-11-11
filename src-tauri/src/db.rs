@@ -4,7 +4,7 @@
 //! the key that proves it was not imported twice.
 
 use crate::ofx;
-use chrono::Utc;
+use chrono::{Months, NaiveDate, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -272,6 +272,16 @@ pub struct MonthPoint {
     pub month: String,
     pub income_cents: i64,
     pub expense_cents: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CategoryMonth {
+    pub month: String,
+    pub category_id: Option<i64>,
+    pub name: String,
+    pub color: String,
+    pub total_cents: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -973,6 +983,50 @@ pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<Categ
         .map_err(|problem| problem.to_string())
 }
 
+/// Spending per category per month inside a calendar window, biggest slice
+/// first within each month. Sparse by design: a missing (month, category)
+/// pair spent nothing, and income never shows up here.
+pub fn category_month_series(
+    connection: &Connection,
+    end_month: &str,
+    count: i64,
+) -> Result<Vec<CategoryMonth>, String> {
+    let end = NaiveDate::parse_from_str(&format!("{end_month}-01"), "%Y-%m-%d")
+        .map_err(|problem| problem.to_string())?;
+    let start = end
+        .checked_sub_months(Months::new(count.max(1) as u32 - 1))
+        .ok_or_else(|| "month window out of range".to_string())?;
+    let mut statement = connection
+        .prepare(
+            "select substr(t.posted_on, 1, 7) as month, c.id,
+                    coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
+                    sum(-t.amount_cents) as total
+             from transactions t
+             left join categories c on c.id = t.category_id
+             where t.posted_on >= ?1 and substr(t.posted_on, 1, 7) <= ?2
+               and t.amount_cents < 0 and t.deleted_at is null
+             group by month, c.id
+             order by month, total desc",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map(
+            params![start.format("%Y-%m-%d").to_string(), end_month],
+            |row| {
+                Ok(CategoryMonth {
+                    month: row.get(0)?,
+                    category_id: row.get(1)?,
+                    name: row.get(2)?,
+                    color: row.get(3)?,
+                    total_cents: row.get(4)?,
+                })
+            },
+        )
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())
+}
+
 /// A calendar window ending at `end_month`, with empty months filled in so the
 /// chart never jumps around while there is little history.
 pub fn month_series(
@@ -1109,6 +1163,44 @@ mod tests {
 
         let empty_month = list_transactions(&connection, None, Some("2024-04"), None, 50).expect("should list");
         assert!(empty_month.is_empty());
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn category_month_series_groups_spending_by_month() {
+        let path = temporary_database("bymonth");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let report = import_ofx(&mut connection, &file).expect("should import");
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: report.account_id,
+                posted_on: "2024-04-05".into(),
+                amount_cents: -5_000,
+                description: "Feira".into(),
+                category_id: None,
+            },
+        )
+        .expect("should save");
+
+        // Income never shows up; manual rows flow in like the rest.
+        let rows = category_month_series(&connection, "2024-04", 3).expect("should group");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].month, "2024-03");
+        assert_eq!(rows[0].total_cents, 2390);
+        assert_eq!(rows[0].name, "Uncategorized");
+        assert_eq!(rows[1].month, "2024-04");
+        assert_eq!(rows[1].total_cents, 5_000);
+
+        // The window cuts older months out.
+        let narrow = category_month_series(&connection, "2024-04", 1).expect("narrow");
+        assert_eq!(narrow.len(), 1);
+        assert_eq!(narrow[0].month, "2024-04");
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);

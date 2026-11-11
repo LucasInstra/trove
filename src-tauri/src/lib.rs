@@ -67,6 +67,16 @@ fn category_totals(app: tauri::AppHandle, month: String) -> Result<Vec<db::Categ
 }
 
 #[tauri::command]
+fn category_month_series(
+    app: tauri::AppHandle,
+    end_month: String,
+    count: Option<i64>,
+) -> Result<Vec<db::CategoryMonth>, String> {
+    let connection = connection(&app)?;
+    db::category_month_series(&connection, &end_month, count.unwrap_or(6))
+}
+
+#[tauri::command]
 fn latest_month(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let connection = connection(&app)?;
     db::latest_month(&connection)
@@ -276,6 +286,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             import_ofx,
             save_manual_transaction,
+            category_month_series,
             list_accounts,
             list_categories,
             list_transactions,

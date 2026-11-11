@@ -31,6 +31,14 @@ export interface TransactionRow {
   manual: boolean;
 }
 
+export interface CategoryMonth {
+  month: string;
+  categoryId: number | null;
+  name: string;
+  color: string;
+  totalCents: number;
+}
+
 export interface ManualInput {
   accountId: number;
   postedOn: string;
@@ -271,6 +279,8 @@ export const api = {
   setCategory: (transactionId: number, categoryId: number | null) =>
     invoke<void>("set_category", { transactionId, categoryId }),
   saveManual: (input: ManualInput) => invoke<number>("save_manual_transaction", { input }),
+  categoryMonthSeries: (endMonth: string, count = 6) =>
+    invoke<CategoryMonth[]>("category_month_series", { endMonth, count }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),
   databaseLocation: () => invoke<string>("database_location"),
 
