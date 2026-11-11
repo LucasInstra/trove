@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
+import { fileName } from "../lib/format";
 import { AccountsManager } from "../components/AccountsManager";
 import { BUILD_LABEL, BUILD_NUMBER } from "../lib/build";
 import { LANGUAGES, type Lang } from "../lib/i18n";
@@ -72,6 +75,60 @@ export function SettingsScreen({
   };
 
   const busy = updater.status === "checking" || updater.status === "downloading";
+
+  const [dataBusy, setDataBusy] = useState(false);
+  const [dataMessage, setDataMessage] = useState("");
+  const [dataError, setDataError] = useState("");
+  const [restorePick, setRestorePick] = useState("");
+
+  const today = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const doBackup = async () => {
+    setDataMessage("");
+    setDataError("");
+    const dest = await save({
+      defaultPath: `trove-backup-${today()}.db`,
+      filters: [{ name: "SQLite database", extensions: ["db"] }],
+    });
+    if (!dest) return;
+    setDataBusy(true);
+    try {
+      await api.backupDatabase(dest);
+      setDataMessage(t("settings.backedUp"));
+    } catch (problem) {
+      setDataError(problem instanceof Error ? problem.message : String(problem));
+    } finally {
+      setDataBusy(false);
+    }
+  };
+
+  const pickRestore = async () => {
+    setDataMessage("");
+    setDataError("");
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "SQLite database", extensions: ["db"] }],
+    });
+    if (typeof selected === "string") setRestorePick(selected);
+  };
+
+  // The backend validates the file before it touches the live database, then
+  // the app relaunches onto the restored file so no stale handle survives.
+  const doRestore = async () => {
+    if (!restorePick) return;
+    setDataBusy(true);
+    setDataError("");
+    try {
+      await api.restoreDatabase(restorePick);
+      await relaunch();
+    } catch (problem) {
+      setDataError(problem instanceof Error ? problem.message : String(problem));
+      setDataBusy(false);
+    }
+  };
 
   return (
     <section className="screen">
@@ -175,6 +232,33 @@ export function SettingsScreen({
         </header>
         <p className="muted">{t("settings.dataDesc")}</p>
         <code className="path">{databasePath || "..."}</code>
+        <div className="row">
+          <button type="button" onClick={() => void doBackup()} disabled={dataBusy}>
+            {t("settings.backup")}
+          </button>
+          <button type="button" className="ghost" onClick={() => void pickRestore()} disabled={dataBusy}>
+            {t("settings.restore")}
+          </button>
+        </div>
+        {dataMessage ? <p className="muted">{dataMessage}</p> : null}
+        {dataError ? (
+          <div className="alert" role="alert">
+            {dataError}
+          </div>
+        ) : null}
+        {restorePick ? (
+          <div className="alert" role="alert">
+            <p>{t("settings.restoreConfirm", { file: fileName(restorePick) })}</p>
+            <div className="dialog-actions">
+              <button type="button" className="ghost" onClick={() => setRestorePick("")}>
+                {t("common.cancel")}
+              </button>
+              <button type="button" className="primary" onClick={() => void doRestore()}>
+                {t("settings.restore")}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </article>
 
       <article className="card">

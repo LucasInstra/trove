@@ -385,6 +385,8 @@ export const api = {
     invoke<CategoryMonth[]>("category_month_series", { endMonth, count }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),
   databaseLocation: () => invoke<string>("database_location"),
+  backupDatabase: (path: string) => invoke<void>("backup_database", { path }),
+  restoreDatabase: (path: string) => invoke<void>("restore_database", { path }),
 
   plannerState: (month: string) => invoke<PlannerState>("planner_state", { month }),
   saveIncome: (input: IncomeInput) => invoke<number>("save_income", { input }),

@@ -1554,6 +1554,48 @@ pub fn export_csv(
     Ok(count)
 }
 
+/// Copies the live database to `dest` as one consistent snapshot. `VACUUM
+/// INTO` reads through the WAL, so the backup is complete even while the app
+/// holds the file open.
+pub fn backup_to(connection: &Connection, dest: &Path) -> Result<(), String> {
+    if dest.to_string_lossy().trim().is_empty() {
+        return Err("backup destination must not be empty".to_string());
+    }
+    let quoted = dest.to_string_lossy().replace('\'', "''");
+    connection
+        .execute_batch(&format!("VACUUM INTO '{quoted}'"))
+        .map_err(|problem| problem.to_string())
+}
+
+/// Refuses anything that is not a trove database before it can replace the
+/// live file: the file must open, pass `integrity_check`, carry a schema
+/// version in range and contain the transactions table.
+pub fn validate_backup_source(path: &Path) -> Result<(), String> {
+    let connection = Connection::open(path).map_err(|_| "not a trove database".to_string())?;
+    let check: String = connection
+        .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+        .map_err(|_| "not a trove database".to_string())?;
+    if check.to_lowercase() != "ok" {
+        return Err("not a trove database".to_string());
+    }
+    let version: Option<String> = connection
+        .query_row("select value from settings where key = 'schema_version'", [], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(|_| "not a trove database".to_string())?;
+    let version = version
+        .and_then(|text| text.parse::<i64>().ok())
+        .ok_or_else(|| "not a trove database".to_string())?;
+    if !(1..=SCHEMA_VERSION).contains(&version) {
+        return Err("backup is from an incompatible app version".to_string());
+    }
+    if !has_table(&connection, "transactions").map_err(|problem| problem.to_string())? {
+        return Err("not a trove database".to_string());
+    }
+    Ok(())
+}
+
 /// A monthly spending target for a category. Null removes the target.
 pub fn set_category_budget(
     connection: &Connection,
@@ -3068,6 +3110,46 @@ mod tests {
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn backup_copies_a_database_that_reopens_intact() {
+        let path = temporary_database("backup");
+        let file = path.with_extension("ofx");
+        let snapshot = path.with_extension("backup.db");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        import_ofx(&mut connection, &file).expect("should import");
+        backup_to(&connection, &snapshot).expect("should back up");
+        drop(connection);
+
+        validate_backup_source(&snapshot).expect("should validate");
+        let restored = open(&snapshot).expect("should reopen the backup");
+        assert_eq!(
+            list_transactions(&restored, None, None, None, 50)
+                .expect("should list")
+                .len(),
+            2
+        );
+        let version: String = restored
+            .query_row("select value from settings where key = 'schema_version'", [], |row| {
+                row.get(0)
+            })
+            .expect("should read the version");
+        assert_eq!(version, SCHEMA_VERSION.to_string());
+
+        // Garbage in, garbage out: a text file is never a valid source.
+        let junk = path.with_extension("junk.db");
+        std::fs::write(&junk, "not a database").expect("should write junk");
+        assert!(validate_backup_source(&junk).is_err());
+        assert!(validate_backup_source(&path.with_extension("missing.db")).is_err());
+        assert!(backup_to(&restored, Path::new("")).is_err());
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&snapshot);
+        let _ = std::fs::remove_file(&junk);
         let _ = std::fs::remove_file(&path);
     }
 }

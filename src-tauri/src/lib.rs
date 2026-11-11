@@ -242,6 +242,31 @@ fn database_location(app: tauri::AppHandle) -> Result<String, String> {
     Ok(database_path(&app)?.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn backup_database(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::backup_to(&connection, Path::new(&path))
+}
+
+#[tauri::command]
+fn restore_database(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let source = PathBuf::from(&path);
+    db::validate_backup_source(&source)?;
+    let dest = database_path(&app)?;
+    if source == dest {
+        return Err("backup and live database are the same file".to_string());
+    }
+    std::fs::copy(&source, &dest).map_err(|problem| problem.to_string())?;
+    for suffix in ["-wal", "-shm", "-journal"] {
+        let mut stale = dest.clone().into_os_string();
+        stale.push(suffix);
+        let _ = std::fs::remove_file(stale);
+    }
+    // Reopen through the migration chain so an older backup heals on boot.
+    db::open(&dest)?;
+    Ok(())
+}
+
 
 #[tauri::command]
 fn planner_state(app: tauri::AppHandle, month: String) -> Result<planner::PlannerState, String> {
@@ -442,6 +467,8 @@ pub fn run() {
             set_category,
             month_totals,
             database_location,
+            backup_database,
+            restore_database,
             planner_state,
             save_income,
             delete_income,
