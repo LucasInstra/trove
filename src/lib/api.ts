@@ -35,6 +35,9 @@ export interface TransactionRow {
   manual: boolean;
   notes: string;
   origin: string;
+  transferGroup: string | null;
+  refundOf: number | null;
+  hasRefund: boolean;
 }
 
 export interface CategoryMonth {
@@ -56,6 +59,21 @@ export interface ManualInput {
 
 export interface ManualEdit extends ManualInput {
   id: number;
+}
+
+export interface TransferInput {
+  fromAccountId: number;
+  toAccountId: number;
+  postedOn: string;
+  amountCents: number;
+  description: string;
+  notes: string;
+}
+
+export interface RefundInput {
+  originalId: number;
+  postedOn?: string | null;
+  notes?: string | null;
 }
 
 export interface CategoryInput {
@@ -373,6 +391,9 @@ export const api = {
   saveManual: (input: ManualInput) => invoke<number>("save_manual_transaction", { input }),
   updateManual: (input: ManualEdit) => invoke<void>("update_manual_transaction", { input }),
   deleteManual: (id: number) => invoke<void>("delete_manual_transaction", { id }),
+  saveTransfer: (input: TransferInput) => invoke<string>("save_transfer", { input }),
+  deleteTransfer: (id: number) => invoke<void>("delete_transfer", { id }),
+  saveRefund: (input: RefundInput) => invoke<number>("save_refund", { input }),
   createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
   renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
   archiveAccount: (id: number) => invoke<void>("archive_account", { id }),

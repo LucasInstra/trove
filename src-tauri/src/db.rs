@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 10;
+pub const SCHEMA_VERSION: i64 = 11;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -252,6 +252,9 @@ pub struct TransactionRow {
     pub manual: bool,
     pub notes: String,
     pub origin: String,
+    pub transfer_group: Option<String>,
+    pub refund_of: Option<i64>,
+    pub has_refund: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -377,8 +380,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v9(&connection)?;
         write_version(&connection, 9)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 10 {
         migrate_to_v10(&connection)?;
+        write_version(&connection, 10)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v11(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -493,6 +500,15 @@ create table if not exists csv_profiles (
     deleted_at    text
 );
 "#;
+
+/// v10 to v11: transfers link two legs through a shared group id, refunds
+/// point at the row they return. Both columns are nullable and every link is
+/// validated in Rust, matching the parent_id precedent.
+fn migrate_to_v11(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "transactions", "transfer_group", "text")?;
+    add_column(connection, "transactions", "refund_of", "integer")?;
+    Ok(())
+}
 
 /// v9 to v10: named CSV mapping profiles so each bank file keeps its layout.
 fn migrate_to_v10(connection: &Connection) -> Result<(), String> {
@@ -1403,7 +1419,9 @@ pub fn list_transactions(
     let mut statement = connection
         .prepare(
             "select t.id, t.account_id, a.name, t.posted_on, t.amount_cents, t.description,
-                    t.merchant, t.category_id, c.name, c.color, t.trntype, t.origin, t.notes
+                    t.merchant, t.category_id, c.name, c.color, t.trntype, t.origin, t.notes,
+                    t.transfer_group, t.refund_of,
+                    exists(select 1 from transactions r where r.refund_of = t.id and r.deleted_at is null)
              from transactions t
              join accounts a on a.id = t.account_id
              left join categories c on c.id = t.category_id
@@ -1438,6 +1456,9 @@ pub fn list_transactions(
                 manual: origin == "manual",
                 notes: row.get(12)?,
                 origin,
+                transfer_group: row.get(13)?,
+                refund_of: row.get(14)?,
+                has_refund: row.get(15)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -1744,18 +1765,23 @@ pub fn update_manual_transaction(
         return Err("description must not be empty".to_string());
     }
     check_date(&input.posted_on)?;
-    let existing: Option<String> = connection
+    let existing: Option<(String, Option<String>, Option<i64>)> = connection
         .query_row(
-            "select origin from transactions where id = ?1 and deleted_at is null",
+            "select origin, transfer_group, refund_of from transactions where id = ?1 and deleted_at is null",
             params![input.id],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()
         .map_err(|problem| problem.to_string())?;
-    match existing.as_deref() {
+    match existing {
         None => return Err(format!("transaction {} does not exist", input.id)),
-        Some(origin) if origin != "manual" => {
+        Some((origin, _, _)) if origin != "manual" => {
             return Err("only manual entries can be edited".to_string())
+        }
+        // Legs carry derived amounts and links: editing one would silently
+        // unbalance its pair, so they are deleted and recreated instead.
+        Some((_, Some(_), _)) | Some((_, _, Some(_))) => {
+            return Err("transfer and refund entries cannot be edited".to_string())
         }
         _ => {}
     }
@@ -1813,21 +1839,260 @@ pub fn update_manual_transaction(
 
 /// Deletes a hand-entered row through the tombstone, freeing nothing else:
 /// manual keys live in their own namespace, so no import can collide.
+/// A transfer leg routes here too and takes its pair along; an original with
+/// a live refund is refused, so the link never dangles.
 pub fn delete_manual_transaction(connection: &Connection, id: i64) -> Result<(), String> {
-    let origin: Option<String> = connection
+    let found: Option<(String, Option<String>)> = connection
         .query_row(
-            "select origin from transactions where id = ?1 and deleted_at is null",
+            "select origin, transfer_group from transactions where id = ?1 and deleted_at is null",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    let transfer_group = match found {
+        None => return Err(format!("transaction {id} does not exist")),
+        Some((origin, group)) if origin != "manual" => {
+            return Err("only manual entries can be deleted".to_string())
+        }
+        Some((_, group)) => group,
+    };
+    if transfer_group.is_some() {
+        return delete_transfer(connection, id);
+    }
+    let refunds: i64 = connection
+        .query_row(
+            "select count(*) from transactions where refund_of = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())?;
+    if refunds > 0 {
+        return Err("entry has a refund linked to it".to_string());
+    }
+    soft_delete_transaction(connection, id)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferInput {
+    pub from_account_id: i64,
+    pub to_account_id: i64,
+    pub posted_on: String,
+    pub amount_cents: i64,
+    pub description: String,
+    pub notes: String,
+}
+
+fn live_account(connection: &Connection, id: i64) -> Result<(), String> {
+    let found: Option<i64> = connection
+        .query_row(
+            "select id from accounts where id = ?1 and deleted_at is null",
             params![id],
             |row| row.get(0),
         )
         .optional()
         .map_err(|problem| problem.to_string())?;
-    match origin.as_deref() {
-        None => return Err(format!("transaction {id} does not exist")),
-        Some("manual") => {}
-        Some(_) => return Err("only manual entries can be deleted".to_string()),
+    if found.is_none() {
+        return Err(format!("account {id} does not exist"));
     }
-    soft_delete_transaction(connection, id)
+    Ok(())
+}
+
+/// Moves money between own accounts as one atomic event: a debit leg and a
+/// credit leg sharing a group id. Both legs stay out of income, spending and
+/// category totals, and neither leg can be edited alone — the pair only
+/// moves or vanishes together.
+pub fn save_transfer(connection: &mut Connection, input: &TransferInput) -> Result<String, String> {
+    if input.amount_cents <= 0 {
+        return Err("transfer amount must be positive".to_string());
+    }
+    if input.from_account_id == input.to_account_id {
+        return Err("transfer needs two different accounts".to_string());
+    }
+    let description = input.description.trim();
+    if description.is_empty() {
+        return Err("description must not be empty".to_string());
+    }
+    check_date(&input.posted_on)?;
+    live_account(connection, input.from_account_id)?;
+    live_account(connection, input.to_account_id)?;
+
+    let transaction = connection
+        .transaction()
+        .map_err(|problem| problem.to_string())?;
+    let stamp = Utc::now().to_rfc3339();
+    let merchant = crate::ofx::merchant_of(description);
+    transaction
+        .execute(
+            "insert into transactions
+             (account_id, posted_on, amount_cents, description, merchant, memo, trntype,
+              notes, origin, transfer_group, dedupe_key, source, created_at, uid, updated_at)
+             values (?1, ?2, ?3, ?4, ?5, '', 'DEBIT', ?6, 'manual',
+                     'transfer:' || lower(hex(randomblob(16))),
+                     'transfer:' || lower(hex(randomblob(16))) || ':out', 'manual', ?7,
+                     lower(hex(randomblob(16))), ?7)",
+            params![
+                input.from_account_id,
+                input.posted_on,
+                -input.amount_cents,
+                description,
+                merchant,
+                input.notes,
+                stamp
+            ],
+        )
+        .map_err(|problem| problem.to_string())?;
+    // Two random ids cannot pair up, so the out leg lends its group to the in
+    // leg through the row it just wrote.
+    let group: String = transaction
+        .query_row(
+            "select transfer_group from transactions where id = last_insert_rowid()",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())?;
+    transaction
+        .execute(
+            "insert into transactions
+             (account_id, posted_on, amount_cents, description, merchant, memo, trntype,
+              notes, origin, transfer_group, dedupe_key, source, created_at, uid, updated_at)
+             values (?1, ?2, ?3, ?4, ?5, '', 'CREDIT', ?6, 'manual', ?7,
+                     ?7 || ':in', 'manual', ?8,
+                     lower(hex(randomblob(16))), ?8)",
+            params![
+                input.to_account_id,
+                input.posted_on,
+                input.amount_cents,
+                description,
+                merchant,
+                input.notes,
+                group,
+                stamp
+            ],
+        )
+        .map_err(|problem| problem.to_string())?;
+    transaction.commit().map_err(|problem| problem.to_string())?;
+    Ok(group)
+}
+
+/// Deletes both legs of a transfer through the tombstone. Single-leg deletes
+/// would leave money appearing from nowhere, so the group only vanishes whole.
+pub fn delete_transfer(connection: &Connection, id: i64) -> Result<(), String> {
+    let group: Option<Option<String>> = connection
+        .query_row(
+            "select transfer_group from transactions where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    let group = match group {
+        None => return Err(format!("transaction {id} does not exist")),
+        Some(None) => return Err("entry is not a transfer".to_string()),
+        Some(Some(group)) => group,
+    };
+    let stamp = Utc::now().to_rfc3339();
+    let affected = connection
+        .execute(
+            "update transactions
+             set deleted_at = ?1, updated_at = ?1, dedupe_key = dedupe_key || ':del:' || uid
+             where transfer_group = ?2 and deleted_at is null",
+            params![stamp, group],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err(format!("transaction {id} does not exist"));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundInput {
+    pub original_id: i64,
+    pub posted_on: Option<String>,
+    pub notes: Option<String>,
+}
+
+/// Returns money on one row: a mirrored leg linked through `refund_of` that
+/// nets against the same side instead of inflating the other. One refund per
+/// original, full amount, same account and category — partial or chained
+/// refunds would silently rewrite history, so they are refused.
+pub fn save_refund(connection: &Connection, input: &RefundInput) -> Result<i64, String> {
+    let original: Option<(i64, String, String, String, Option<i64>, Option<String>, Option<i64>)> =
+        connection
+            .query_row(
+                "select amount_cents, posted_on, description, merchant, category_id,
+                        transfer_group, refund_of
+                 from transactions where id = ?1 and deleted_at is null",
+                params![input.original_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?;
+    let (amount, posted_on, description, merchant, category_id, transfer_group, refund_of) =
+        original.ok_or_else(|| format!("transaction {} does not exist", input.original_id))?;
+    if transfer_group.is_some() {
+        return Err("transfer legs cannot be refunded".to_string());
+    }
+    if refund_of.is_some() {
+        return Err("a refund cannot be refunded again".to_string());
+    }
+    let already: i64 = connection
+        .query_row(
+            "select count(*) from transactions where refund_of = ?1 and deleted_at is null",
+            params![input.original_id],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())?;
+    if already > 0 {
+        return Err("entry already has a refund".to_string());
+    }
+    let posted_on = input.posted_on.clone().unwrap_or(posted_on);
+    check_date(&posted_on)?;
+    let account: i64 = connection
+        .query_row(
+            "select account_id from transactions where id = ?1",
+            params![input.original_id],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())?;
+    let stamp = Utc::now().to_rfc3339();
+    let trntype = if amount > 0 { "DEBIT" } else { "CREDIT" };
+    connection
+        .execute(
+            "insert into transactions
+             (account_id, posted_on, amount_cents, description, merchant, memo, trntype,
+              category_id, notes, origin, refund_of, dedupe_key, source, created_at, uid, updated_at)
+             values (?1, ?2, ?3, ?4, ?5, '', ?6, ?7, ?8, 'manual', ?9,
+                     'refund:' || lower(hex(randomblob(16))), 'manual', ?10,
+                     lower(hex(randomblob(16))), ?10)",
+            params![
+                account,
+                posted_on,
+                -amount,
+                description,
+                merchant,
+                trntype,
+                category_id,
+                input.notes.clone().unwrap_or_default(),
+                input.original_id,
+                stamp
+            ],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(connection.last_insert_rowid())
 }
 
 #[derive(Debug, Serialize)]
@@ -1909,14 +2174,20 @@ pub fn latest_month(connection: &Connection) -> Result<Option<String>, String> {
 pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals, String> {
     check_month(month)?;
     let prefix = format!("{month}%");
-    let (income, expense, count) = connection
+    // Transfers move money between own accounts, so both legs stay out of
+    // income and spending. Refund legs net against their own side instead of
+    // inflating the other: a returned purchase lowers spending, not raises
+    // income. The balance stays exact because both sides move together.
+    let (income, expense, count): (i64, i64, i64) = connection
         .query_row(
             "select
-                coalesce(sum(case when amount_cents > 0 then amount_cents else 0 end), 0),
-                coalesce(sum(case when amount_cents < 0 then -amount_cents else 0 end), 0),
+                coalesce(sum(case when amount_cents > 0 and refund_of is null then amount_cents else 0 end), 0)
+                - coalesce(sum(case when amount_cents < 0 and refund_of is not null then -amount_cents else 0 end), 0),
+                coalesce(sum(case when amount_cents < 0 and refund_of is null then -amount_cents else 0 end), 0)
+                - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0),
                 count(*)
              from transactions
-             where posted_on like ?1 and deleted_at is null",
+             where posted_on like ?1 and transfer_group is null and deleted_at is null",
             params![prefix],
             |row| {
                 Ok((
@@ -1930,8 +2201,10 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
 
     Ok(MonthTotals {
         month: month.to_string(),
-        income_cents: income,
-        expense_cents: expense,
+        // A refund dated into an emptier month nets below zero; the screen
+        // never shows a negative side, and the common same-month case is exact.
+        income_cents: income.max(0),
+        expense_cents: expense.max(0),
         transaction_count: count,
     })
 }
@@ -1940,6 +2213,9 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
 /// category rolls up into its top-level parent, so the bar and the budget
 /// compare against the same household buckets. Uncategorized spending is kept
 /// as its own row so the numbers on screen always add up to the total.
+/// Transfers are not spending and stay out; linked refunds net against the
+/// same bucket, so a returned purchase lowers its category instead of
+/// inflating income.
 pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<CategoryTotal>, String> {
     check_month(month)?;
     let prefix = format!("{month}%");
@@ -1952,11 +2228,16 @@ pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<Categ
              )
              select coalesce(g.id, t.category_id),
                     coalesce(g.name, 'Uncategorized'), coalesce(g.color, '#9aa3af'),
-                    sum(-t.amount_cents) as total, max(g.budget_cents)
+                    max(0, sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end)
+                          - sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end)) as total,
+                    max(g.budget_cents)
              from transactions t
              left join roots r on r.id = t.category_id
              left join categories g on g.id = coalesce(r.root_id, t.category_id)
-             where t.posted_on like ?1 and t.amount_cents < 0 and t.deleted_at is null
+             where t.posted_on like ?1 and t.transfer_group is null
+               and ((t.amount_cents < 0 and t.refund_of is null)
+                    or (t.amount_cents > 0 and t.refund_of is not null))
+               and t.deleted_at is null
              group by coalesce(g.id, t.category_id)
              order by total desc",
         )
@@ -1995,11 +2276,15 @@ pub fn category_month_series(
         .prepare(
             "select substr(t.posted_on, 1, 7) as month, c.id,
                     coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
-                    sum(-t.amount_cents) as total
+                    max(0, sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end)
+                          - sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end)) as total
              from transactions t
              left join categories c on c.id = t.category_id
              where t.posted_on >= ?1 and substr(t.posted_on, 1, 7) <= ?2
-               and t.amount_cents < 0 and t.deleted_at is null
+               and t.transfer_group is null
+               and ((t.amount_cents < 0 and t.refund_of is null)
+                    or (t.amount_cents > 0 and t.refund_of is not null))
+               and t.deleted_at is null
              group by month, c.id
              order by month, total desc",
         )
@@ -2056,10 +2341,12 @@ pub fn month_series(
     let mut statement = connection
         .prepare(
             "select substr(posted_on, 1, 7) as month,
-                    coalesce(sum(case when amount_cents > 0 then amount_cents else 0 end), 0),
-                    coalesce(sum(case when amount_cents < 0 then -amount_cents else 0 end), 0)
+                    max(0, coalesce(sum(case when amount_cents > 0 and refund_of is null then amount_cents else 0 end), 0)
+                           - coalesce(sum(case when amount_cents < 0 and refund_of is not null then -amount_cents else 0 end), 0)),
+                    max(0, coalesce(sum(case when amount_cents < 0 and refund_of is null then -amount_cents else 0 end), 0)
+                           - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0))
              from transactions
-             where posted_on >= ?1 and deleted_at is null
+             where posted_on >= ?1 and transfer_group is null and deleted_at is null
              group by month",
         )
         .map_err(|problem| problem.to_string())?;
@@ -2760,6 +3047,8 @@ mod tests {
         assert!(has_column(&again, "categories", "emoji").expect("should inspect"));
         assert!(has_column(&again, "categories", "sort_order").expect("should inspect"));
         assert!(has_column(&again, "categories", "archived_at").expect("should inspect"));
+        assert!(has_column(&again, "transactions", "transfer_group").expect("should inspect"));
+        assert!(has_column(&again, "transactions", "refund_of").expect("should inspect"));
 
         let _ = std::fs::remove_file(&path);
     }
@@ -3150,6 +3439,205 @@ mod tests {
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&snapshot);
         let _ = std::fs::remove_file(&junk);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    fn transfer_fixture(connection: &Connection) -> (i64, i64) {
+        let from = create_manual_account(connection, "Conta A").expect("should create A");
+        let to = create_manual_account(connection, "Conta B").expect("should create B");
+        (from, to)
+    }
+
+    #[test]
+    fn transfers_move_money_without_touching_totals() {
+        let path = temporary_database("transfer");
+        let mut connection = open(&path).expect("should open");
+        let (from, to) = transfer_fixture(&connection);
+
+        let group = save_transfer(
+            &mut connection,
+            &TransferInput {
+                from_account_id: from,
+                to_account_id: to,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: 10000,
+                description: "Reserva".to_string(),
+                notes: String::new(),
+            },
+        )
+        .expect("should transfer");
+        assert!(group.starts_with("transfer:"));
+
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list");
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| row.transfer_group.as_deref() == Some(group.as_str())));
+        assert_eq!(
+            rows.iter().map(|row| row.amount_cents).sum::<i64>(),
+            0,
+            "the pair nets to zero"
+        );
+
+        // Moving money between own accounts is neither income nor spending.
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.income_cents, 0);
+        assert_eq!(totals.expense_cents, 0);
+        assert!(category_totals(&connection, "2024-03").expect("should total").is_empty());
+        let series = month_series(&connection, "2024-03", 1).expect("should build the series");
+        assert_eq!(series[0].income_cents, 0);
+        assert_eq!(series[0].expense_cents, 0);
+
+        // One leg out, the pair goes: money cannot appear from nowhere.
+        delete_transfer(&connection, rows[0].id).expect("should delete the group");
+        assert!(
+            list_transactions(&connection, None, Some("2024-03"), None, 50)
+                .expect("should list")
+                .is_empty()
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn transfers_refuse_nonsense_and_legs_stay_paired() {
+        let path = temporary_database("transfer-guards");
+        let mut connection = open(&path).expect("should open");
+        let (from, to) = transfer_fixture(&connection);
+        let good = TransferInput {
+            from_account_id: from,
+            to_account_id: to,
+            posted_on: "2024-03-05".to_string(),
+            amount_cents: 1000,
+            description: "Ok".to_string(),
+            notes: String::new(),
+        };
+        assert!(save_transfer(&mut connection, &good).is_ok());
+        // Same account, non-positive amount, bad date, unknown account.
+        for bad in [
+            TransferInput { from_account_id: from, to_account_id: from, posted_on: "2024-03-05".to_string(), amount_cents: 1000, description: "X".to_string(), notes: String::new() },
+            TransferInput { from_account_id: from, to_account_id: to, posted_on: "2024-03-05".to_string(), amount_cents: 0, description: "X".to_string(), notes: String::new() },
+            TransferInput { from_account_id: from, to_account_id: to, posted_on: "ontem".to_string(), amount_cents: 1000, description: "X".to_string(), notes: String::new() },
+            TransferInput { from_account_id: from, to_account_id: 999_999, posted_on: "2024-03-05".to_string(), amount_cents: 1000, description: "X".to_string(), notes: String::new() },
+            TransferInput { from_account_id: from, to_account_id: to, posted_on: "2024-03-05".to_string(), amount_cents: 1000, description: "  ".to_string(), notes: String::new() },
+        ] {
+            assert!(save_transfer(&mut connection, &bad).is_err());
+        }
+
+        let leg = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list")[0]
+            .id;
+        // Legs are derived: no solo edits, and plain entries are not groups.
+        assert!(update_manual_transaction(
+            &connection,
+            &ManualEdit {
+                id: leg,
+                account_id: from,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: -1,
+                description: "X".to_string(),
+                category_id: None,
+                notes: String::new(),
+            }
+        )
+        .is_err());
+        let plain = save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: from,
+                posted_on: "2024-03-06".to_string(),
+                amount_cents: -100,
+                description: "Café".to_string(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("should save a plain entry");
+        assert!(delete_transfer(&connection, plain).is_err());
+        // Deleting through the manual path still removes the whole group.
+        delete_manual_transaction(&connection, leg).expect("should delete the group");
+        assert_eq!(
+            list_transactions(&connection, None, Some("2024-03"), None, 50)
+                .expect("should list")
+                .len(),
+            1,
+            "only the plain entry survives"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn refunds_net_against_their_own_side() {
+        let path = temporary_database("refund");
+        let connection = open(&path).expect("should open");
+        let account = create_manual_account(&connection, "Carteira").expect("should create");
+        let food = save_category(
+            &connection,
+            &CategoryInput {
+                id: None,
+                name: "Comida".into(),
+                kind: "expense".into(),
+                color: "#000".into(),
+                parent_id: None,
+                emoji: String::new(),
+                sort_order: 0,
+            },
+        )
+        .expect("should save the category");
+        let original = save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: account,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: -5000,
+                description: "Mercado".to_string(),
+                category_id: Some(food),
+                notes: String::new(),
+            },
+        )
+        .expect("should save the expense");
+        assert_eq!(month_totals(&connection, "2024-03").expect("should total").expense_cents, 5000);
+
+        let refund = save_refund(
+            &connection,
+            &RefundInput { original_id: original, posted_on: None, notes: None },
+        )
+        .expect("should refund");
+        let rows = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list");
+        let leg = rows.iter().find(|row| row.id == refund).expect("should list the refund");
+        assert_eq!(leg.amount_cents, 5000);
+        assert_eq!(leg.refund_of, Some(original));
+        assert_eq!(leg.category_id, Some(food));
+        assert!(rows.iter().find(|row| row.id == original).expect("original").has_refund);
+
+        // A returned purchase lowers spending instead of raising income.
+        let totals = month_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(totals.income_cents, 0);
+        assert_eq!(totals.expense_cents, 0);
+        assert_eq!(totals.income_cents - totals.expense_cents, 0);
+        let by_category = category_totals(&connection, "2024-03").expect("should total");
+        assert_eq!(by_category.len(), 1);
+        assert_eq!(by_category[0].total_cents, 0);
+
+        // One full refund per original, no chains, no transfer refunds.
+        assert!(save_refund(&connection, &RefundInput { original_id: original, posted_on: None, notes: None }).is_err());
+        assert!(save_refund(&connection, &RefundInput { original_id: refund, posted_on: None, notes: None }).is_err());
+        assert!(delete_manual_transaction(&connection, original).is_err());
+        assert!(update_manual_transaction(
+            &connection,
+            &ManualEdit {
+                id: refund,
+                account_id: account,
+                posted_on: "2024-03-05".to_string(),
+                amount_cents: 1,
+                description: "X".to_string(),
+                category_id: None,
+                notes: String::new(),
+            }
+        )
+        .is_err());
+
         let _ = std::fs::remove_file(&path);
     }
 }

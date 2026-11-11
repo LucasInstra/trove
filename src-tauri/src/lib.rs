@@ -124,6 +124,24 @@ fn delete_manual_transaction(app: tauri::AppHandle, id: i64) -> Result<(), Strin
 }
 
 #[tauri::command]
+fn save_transfer(app: tauri::AppHandle, input: db::TransferInput) -> Result<String, String> {
+    let mut connection = connection(&app)?;
+    db::save_transfer(&mut connection, &input)
+}
+
+#[tauri::command]
+fn delete_transfer(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::delete_transfer(&connection, id)
+}
+
+#[tauri::command]
+fn save_refund(app: tauri::AppHandle, input: db::RefundInput) -> Result<i64, String> {
+    let connection = connection(&app)?;
+    db::save_refund(&connection, &input)
+}
+
+#[tauri::command]
 fn save_category(app: tauri::AppHandle, input: db::CategoryInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::save_category(&connection, &input)
@@ -448,6 +466,9 @@ pub fn run() {
             save_manual_transaction,
             update_manual_transaction,
             delete_manual_transaction,
+            save_transfer,
+            delete_transfer,
+            save_refund,
             create_manual_account,
             rename_account,
             archive_account,
