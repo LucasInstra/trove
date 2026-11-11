@@ -1,6 +1,7 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "./Icons";
-import { dayLabel, formatCents, formatSignedCents } from "../lib/format";
+import { Dialog } from "./Dialog";
+import { dayLabel, formatCents, formatSignedCents, monthLabel } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import type { Account, Category, TransactionRow } from "../lib/api";
 
@@ -12,6 +13,8 @@ interface Props {
   onSearch: (value: string) => void;
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
+  onClearMonth: () => void;
+  month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
   accountFilter: number | null;
@@ -31,6 +34,8 @@ export function TransactionsPanel({
   onSearch,
   onCategory,
   onImport,
+  onClearMonth,
+  month,
   groups,
   accounts,
   accountFilter,
@@ -38,12 +43,18 @@ export function TransactionsPanel({
 }: Props) {
   const { lang, t } = useLanguage();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="ledger">
       <div className="ledger-head">
         <h2>{t("ledger.transactions")}</h2>
         <span className="muted count">{t("ledger.entries", { count: rows.length })}</span>
+        {rows.length > 0 ? (
+          <button type="button" className="ghost danger" onClick={() => setConfirming(true)}>
+            {t("ledger.clearMonth")}
+          </button>
+        ) : null}
       </div>
 
       <div className="toolbar">
@@ -147,6 +158,30 @@ export function TransactionsPanel({
         <p className="muted small ledger-foot">
           {t("ledger.total", { amount: formatCents(groups.reduce((total, group) => total + group.total, 0)) })}
         </p>
+      ) : null}
+
+      {confirming ? (
+        <Dialog
+          title={t("ledger.clearTitle", { month: monthLabel(month, lang) })}
+          onClose={() => setConfirming(false)}
+        >
+          <p className="muted">{t("ledger.clearDesc")}</p>
+          <div className="dialog-actions">
+            <button type="button" className="ghost" onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                setConfirming(false);
+                onClearMonth();
+              }}
+            >
+              {t("ledger.clearConfirm")}
+            </button>
+          </div>
+        </Dialog>
       ) : null}
     </div>
   );

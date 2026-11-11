@@ -240,6 +240,10 @@ const en: Dictionary = {
   "ledger.emptyDesc": "Import the OFX file your bank already offers. Nothing leaves this computer.",
   "ledger.chooseFile": "Choose a file",
   "ledger.noCategory": "No category",
+  "ledger.clearMonth": "Clear month",
+  "ledger.clearTitle": "Clear {month}?",
+  "ledger.clearDesc": "Manual entries go away and bills go back to unpaid. Imported statements stay.",
+  "ledger.clearConfirm": "Clear",
 
   "update.downloading": "downloading {percent}%",
   "update.downloadingPlain": "downloading...",
@@ -537,6 +541,10 @@ const pt: Dictionary = {
     "Importe o arquivo OFX que o seu banco já oferece. Nada sai deste computador.",
   "ledger.chooseFile": "Escolher arquivo",
   "ledger.noCategory": "Sem categoria",
+  "ledger.clearMonth": "Limpar mês",
+  "ledger.clearTitle": "Limpar {month}?",
+  "ledger.clearDesc": "Os lançamentos manuais somem e as contas voltam a em aberto. O extrato importado fica.",
+  "ledger.clearConfirm": "Limpar",
 
   "update.downloading": "baixando {percent}%",
   "update.downloadingPlain": "baixando...",

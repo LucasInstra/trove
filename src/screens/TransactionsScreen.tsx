@@ -9,6 +9,8 @@ interface TransactionsScreenProps {
   onSearch: (value: string) => void;
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
+  onClearMonth: () => void;
+  month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
   accountFilter: number | null;

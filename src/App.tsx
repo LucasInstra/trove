@@ -299,6 +299,16 @@ export function App() {
     }
   };
 
+  const clearMonth = async () => {
+    if (!month) return;
+    try {
+      await api.clearMonth(month);
+      await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
   const saveIncome = async (input: IncomeInput) => {
     try {
       await api.saveIncome(input);
@@ -560,6 +570,8 @@ export function App() {
               onSearch={setSearch}
               onCategory={(id, categoryId) => void onCategory(id, categoryId)}
               onImport={() => setRoute("import")}
+              onClearMonth={() => void clearMonth()}
+              month={month ?? currentMonth()}
               groups={groups}
               accounts={accounts}
               accountFilter={accountFilter}

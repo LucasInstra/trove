@@ -31,6 +31,12 @@ fn save_manual_transaction(app: tauri::AppHandle, input: db::ManualInput) -> Res
 }
 
 #[tauri::command]
+fn clear_month(app: tauri::AppHandle, month: String) -> Result<db::ClearReport, String> {
+    let mut connection = connection(&app)?;
+    db::clear_month(&mut connection, &month)
+}
+
+#[tauri::command]
 fn list_accounts(app: tauri::AppHandle) -> Result<Vec<db::Account>, String> {
     let connection = connection(&app)?;
     db::list_accounts(&connection)
@@ -286,6 +292,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             import_ofx,
             save_manual_transaction,
+            clear_month,
             category_month_series,
             list_accounts,
             list_categories,

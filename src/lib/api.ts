@@ -47,6 +47,11 @@ export interface ManualInput {
   categoryId: number | null;
 }
 
+export interface ClearReport {
+  manualDeleted: number;
+  paymentsCleared: number;
+}
+
 export interface MonthTotals {
   month: string;
   incomeCents: number;
@@ -279,6 +284,7 @@ export const api = {
   setCategory: (transactionId: number, categoryId: number | null) =>
     invoke<void>("set_category", { transactionId, categoryId }),
   saveManual: (input: ManualInput) => invoke<number>("save_manual_transaction", { input }),
+  clearMonth: (month: string) => invoke<ClearReport>("clear_month", { month }),
   categoryMonthSeries: (endMonth: string, count = 6) =>
     invoke<CategoryMonth[]>("category_month_series", { endMonth, count }),
   monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),

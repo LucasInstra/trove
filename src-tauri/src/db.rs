@@ -883,6 +883,40 @@ pub fn save_manual_transaction(
     Ok(connection.last_insert_rowid())
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearReport {
+    pub manual_deleted: i64,
+    pub payments_cleared: i64,
+}
+
+/// Resets a month to its imported state: hand-entered rows and bill-payment
+/// marks go away, imported statements never do. Debts are records of their
+/// own and stay, settled or not.
+pub fn clear_month(connection: &mut Connection, month: &str) -> Result<ClearReport, String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|problem| problem.to_string())?;
+    let prefix = format!("{month}%");
+    let manual_deleted = transaction
+        .execute(
+            "delete from transactions
+             where posted_on like ?1 and source = 'manual' and deleted_at is null",
+            params![prefix],
+        )
+        .map_err(|problem| problem.to_string())?;
+    let payments_cleared = transaction
+        .execute("delete from bill_payments where month = ?1", params![month])
+        .map_err(|problem| problem.to_string())?;
+    transaction
+        .commit()
+        .map_err(|problem| problem.to_string())?;
+    Ok(ClearReport {
+        manual_deleted: manual_deleted as i64,
+        payments_cleared: payments_cleared as i64,
+    })
+}
+
 /// Every file that ever entered the ledger, newest first.
 pub fn list_imports(connection: &Connection, limit: i64) -> Result<Vec<ImportRow>, String> {
     let mut statement = connection
@@ -1192,8 +1226,7 @@ mod tests {
         let rows = category_month_series(&connection, "2024-04", 3).expect("should group");
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].month, "2024-03");
-        assert_eq!(rows[0].total_cents, 2390);
-        assert_eq!(rows[0].name, "Uncategorized");
+        assert_eq!(rows[0].total_cents, 2390);        assert_eq!(rows[0].name, "Uncategorized");
         assert_eq!(rows[1].month, "2024-04");
         assert_eq!(rows[1].total_cents, 5_000);
 
@@ -1256,6 +1289,84 @@ mod tests {
         let totals = month_totals(&connection, "2024-03").expect("should total");
         assert_eq!(totals.expense_cents, 2390 + 12_000);
         assert_eq!(totals.transaction_count, 3);
+
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn clear_month_keeps_imports_and_drops_the_rest() {
+        let path = temporary_database("clear");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let report = import_ofx(&mut connection, &file).expect("should import");
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: report.account_id,
+                posted_on: "2024-03-12".into(),
+                amount_cents: -1_000,
+                description: "Feira".into(),
+                category_id: None,
+            },
+        )
+        .expect("should save");
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: report.account_id,
+                posted_on: "2024-04-02".into(),
+                amount_cents: -2_000,
+                description: "Cinema".into(),
+                category_id: None,
+            },
+        )
+        .expect("should save");
+
+        let bill = crate::planner::save_bill(
+            &connection,
+            &crate::planner::BillInput {
+                id: None,
+                name: "Aluguel".into(),
+                amount_cents: 50_000,
+                due_day: 5,
+                frequency: "monthly".into(),
+                category_id: None,
+                account_id: None,
+                goal_id: None,
+                starts_on: "2024-01-01".into(),
+                ends_on: None,
+                installments_total: None,
+                active: true,
+            },
+        )
+        .expect("should save the bill");
+        crate::planner::set_bill_paid(&connection, bill, "2024-03", true).expect("should pay");
+        crate::planner::set_bill_paid(&connection, bill, "2024-04", true).expect("should pay");
+
+        let cleared = clear_month(&mut connection, "2024-03").expect("should clear");
+        assert_eq!(cleared.manual_deleted, 1);
+        assert_eq!(cleared.payments_cleared, 1);
+
+        // Imports stay, April is untouched.
+        let march = list_transactions(&connection, None, Some("2024-03"), None, 50)
+            .expect("should list");
+        assert_eq!(march.len(), 2);
+        assert!(march.iter().all(|row| !row.manual));
+        let april = list_transactions(&connection, None, Some("2024-04"), None, 50)
+            .expect("should list");
+        assert_eq!(april.len(), 1);
+        assert!(crate::planner::list_payments(&connection, "2024-03")
+            .expect("list")
+            .is_empty());
+        assert_eq!(
+            crate::planner::list_payments(&connection, "2024-04")
+                .expect("list")
+                .len(),
+            1
+        );
 
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);
