@@ -7,6 +7,14 @@ import { TopBar } from "./components/TopBar";
 import { BillDialog, CardDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
 import { Dialog } from "./components/Dialog";
 import { Icon, type IconName } from "./components/Icons";
+import { BottomNav } from "./components/ui/bottom-nav";
+import {
+  Sidebar,
+  SidebarBrand,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarItem,
+} from "./components/ui/sidebar";
 import { OverviewScreen } from "./screens/OverviewScreen";
 import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
@@ -353,44 +361,36 @@ export function App() {
     <div className="app">
       <TitleBar />
 
-      <div className="shell">
-        <aside className="rail">
-          <div className="brand">
-            <span className="brand-mark">t</span>
-            <div>
-              <strong>trove</strong>
-              <span>{t("app.tagline")}</span>
-            </div>
-          </div>
+      <div className="flex min-h-0 flex-1">
+        <Sidebar className="hidden md:flex">
+          <SidebarBrand mark="t" name="trove" tagline={t("app.tagline")} />
 
-          <nav className="nav">
-            <span className="nav-group">{t("nav.menu")}</span>
-            {MENU.map((item) => (
-              <button
-                key={item.route}
-                type="button"
-                className={route === item.route ? "nav-item active" : "nav-item"}
-                onClick={() => setRoute(item.route)}
-              >
-                <Icon name={item.icon} size={17} />
-                {t(`nav.${item.route}`)}
-              </button>
-            ))}
-            <span className="nav-group">{t("nav.settingsGroup")}</span>
-            {ADJUST.map((item) => (
-              <button
-                key={item.route}
-                type="button"
-                className={route === item.route ? "nav-item active" : "nav-item"}
-                onClick={() => setRoute(item.route)}
-              >
-                <Icon name={item.icon} size={17} />
-                {t(`nav.${item.route}`)}
-              </button>
-            ))}
+          <nav className="flex flex-col gap-4">
+            <SidebarGroup label={t("nav.menu")}>
+              {MENU.map((item) => (
+                <SidebarItem
+                  key={item.route}
+                  active={route === item.route}
+                  onClick={() => setRoute(item.route)}
+                >
+                  <Icon name={item.icon} size={17} />
+                  {t(`nav.${item.route}`)}
+                </SidebarItem>
+              ))}
+            </SidebarGroup>
+            <SidebarGroup label={t("nav.settingsGroup")}>
+              {ADJUST.map((item) => (
+                <SidebarItem
+                  key={item.route}
+                  active={route === item.route}
+                  onClick={() => setRoute(item.route)}
+                >
+                  <Icon name={item.icon} size={17} />
+                  {t(`nav.${item.route}`)}
+                </SidebarItem>
+              ))}
+            </SidebarGroup>
           </nav>
-
-          <div className="rail-spacer" />
 
           {SHOW_KEEPER ? (
             <div className="keeper">
@@ -410,33 +410,47 @@ export function App() {
             </div>
           ) : null}
 
-          <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
+          <SidebarFooter>
+            <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
 
-          <div className="rail-foot">
-            <button
-              type="button"
-              className="theme-pill"
-              onClick={() => {
-                const next: Theme = theme === "dark" ? "light" : "dark";
-                setTheme(next);
-                saveTheme(next);
-              }}
-              aria-label={t("common.theme")}
-            >
-              <span className={theme === "light" ? "theme-half active" : "theme-half"}>
-                <Icon name="sun" size={14} />
+            <div className="flex items-center justify-between gap-2 px-1">
+              <button
+                type="button"
+                className="flex items-center rounded-full border border-line bg-surface-soft p-0.5"
+                onClick={() => {
+                  const next: Theme = theme === "dark" ? "light" : "dark";
+                  setTheme(next);
+                  saveTheme(next);
+                }}
+                aria-label={t("common.theme")}
+              >
+                <span
+                  className={
+                    theme === "light"
+                      ? "grid size-6 place-items-center rounded-full bg-surface text-ink shadow-tile"
+                      : "grid size-6 place-items-center rounded-full text-faint"
+                  }
+                >
+                  <Icon name="sun" size={14} />
+                </span>
+                <span
+                  className={
+                    theme === "dark"
+                      ? "grid size-6 place-items-center rounded-full bg-surface text-ink shadow-tile"
+                      : "grid size-6 place-items-center rounded-full text-faint"
+                  }
+                >
+                  <Icon name="moon" size={14} />
+                </span>
+              </button>
+              <span className="truncate text-2xs text-faint">
+                {t("common.version", { value: updater.currentVersion || "0.1.0" })} · {BUILD_LABEL}
               </span>
-              <span className={theme === "dark" ? "theme-half" : "theme-half active"}>
-                <Icon name="moon" size={14} />
-              </span>
-            </button>
-            <span className="rail-version">
-              {t("common.version", { value: updater.currentVersion || "0.1.0" })} · {BUILD_LABEL}
-            </span>
-          </div>
-        </aside>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
 
-        <main className="main">
+        <main className="main min-w-0 flex-1 pb-20 md:pb-11">
           {error ? (
             <div className="alert" role="alert">
               {error}
@@ -561,6 +575,25 @@ export function App() {
           {route === "settings" ? <SettingsScreen updater={updater} /> : null}
         </main>
       </div>
+
+      <BottomNav
+        items={[
+          ...MENU.map((item) => ({
+            key: item.route,
+            label: t(`nav.${item.route}`),
+            icon: <Icon name={item.icon} size={19} />,
+            active: route === item.route,
+            onSelect: () => setRoute(item.route),
+          })),
+          {
+            key: "settings",
+            label: t("nav.settings"),
+            icon: <Icon name="settings" size={19} />,
+            active: route === "settings",
+            onSelect: () => setRoute("settings"),
+          },
+        ]}
+      />
 
       {SHOW_KEEPER && panelOpen ? (
         <KeeperPanel look={look} onChange={updateLook} onClose={() => setPanelOpen(false)} />

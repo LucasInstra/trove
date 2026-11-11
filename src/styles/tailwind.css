@@ -1,0 +1,64 @@
+/*
+ * Tailwind v4 for the new components.
+ *
+ * The preflight is deliberately not imported: the app still carries its own
+ * reset in `styles.css`, which loads in the `legacy` layer, below the theme and
+ * the utilities, so a utility class always wins over an old rule.
+ *
+ * The colour tokens point at the CSS variables the app already uses, which is
+ * what keeps light and dark working: the utilities read `--surface` and the
+ * theme switch flips that variable underneath.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@theme {
+  /* The app sets a 13px root, so every rem-based utility would come out 19%
+     smaller than its name. The spacing and type scales are pinned to pixels. */
+  --spacing: 4px;
+
+  --text-xs: 11px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12px;
+  --text-sm--line-height: 17px;
+  --text-base: 13px;
+  --text-base--line-height: 19px;
+  --text-lg: 15px;
+  --text-lg--line-height: 21px;
+  --text-xl: 17px;
+  --text-xl--line-height: 23px;
+
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-sunken: var(--bg-sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-nav-active: var(--nav-active);
+  --color-bar-rest: var(--bar-rest);
+  --color-hero: var(--hero);
+  --color-hero-text: var(--hero-text);
+  --color-window-hover: var(--window-hover);
+  --color-window-active: var(--window-active);
+  --color-window-close: var(--window-close);
+
+  --radius-tile: 14px;
+  --radius-card: 18px;
+
+  --shadow-tile: 0 1px 2px var(--shadow-soft);
+  --shadow-raised: 0 10px 24px rgba(17, 24, 39, 0.14);
+
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+}
