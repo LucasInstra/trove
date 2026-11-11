@@ -13,6 +13,12 @@ export function parseCents(raw: string): number {
   return Math.round(Math.abs(value) * 100);
 }
 
+/** "24" becomes 24 parcels; anything else becomes a regular bill. */
+export function parseInstallments(raw: string): number | null {
+  const value = Number.parseInt(raw.trim(), 10);
+  return Number.isInteger(value) && value >= 2 ? value : null;
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="field">
@@ -83,6 +89,9 @@ export function BillDialog({
   const [amount, setAmount] = useState(bill ? (bill.amountCents / 100).toFixed(2) : "");
   const [dueDay, setDueDay] = useState(bill?.dueDay ?? 5);
   const [categoryId, setCategoryId] = useState<number | null>(bill?.categoryId ?? defaultCategoryId);
+  const [installments, setInstallments] = useState(
+    bill?.installmentsTotal ? String(bill.installmentsTotal) : "",
+  );
 
   return (
     <Dialog title={bill ? t("planner.editBill") : t("planner.newBill")} onClose={onClose}>
@@ -101,7 +110,7 @@ export function BillDialog({
             goalId: bill?.goalId ?? null,
             startsOn: bill?.startsOn ?? today(),
             endsOn: bill?.endsOn ?? null,
-            installmentsTotal: bill?.installmentsTotal ?? null,
+            installmentsTotal: parseInstallments(installments),
             active: true,
           });
         }}
@@ -122,6 +131,15 @@ export function BillDialog({
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
           </select>
+        </Field>
+        <Field label={t("planner.installmentsTotal")}>
+          <input
+            type="number"
+            min={2}
+            value={installments}
+            placeholder={t("planner.installmentsHint")}
+            onChange={(event) => setInstallments(event.target.value)}
+          />
         </Field>
         <div className="dialog-actions">
           {bill && onDelete ? (
