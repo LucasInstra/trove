@@ -79,6 +79,7 @@ export function KpisCard({
         <Tile label={t("kpi.income")} datum={kpis.income} prevLabel={prevLabel} />
         <Tile label={t("kpi.expense")} datum={kpis.expense} prevLabel={prevLabel} invert />
         <Tile label={t("kpi.balance")} datum={kpis.balance} prevLabel={prevLabel} />
+        <Tile label={t("kpi.freed")} datum={kpis.freed} prevLabel={null} />
       </div>
     </article>
   );

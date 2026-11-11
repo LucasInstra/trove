@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import type { MonthPoint } from "../lib/api";
+import type { Bill, MonthPoint } from "../lib/api";
 import type { MonthPlan } from "./projection";
 import { computeKpis } from "./kpis";
+
+const installmentBill = (id: number, amountCents: number, startsOn: string, total: number): Bill => ({
+  id,
+  name: `Parcelado ${id}`,
+  amountCents,
+  dueDay: 20,
+  frequency: "monthly",
+  categoryId: null,
+  categoryName: null,
+  categoryColor: null,
+  accountId: null,
+  goalId: null,
+  startsOn,
+  endsOn: null,
+  installmentsTotal: total,
+  active: true,
+});
 
 function plan(overrides: Partial<MonthPlan>): MonthPlan {
   return {
@@ -76,5 +93,28 @@ describe("computeKpis", () => {
     const kpis = computeKpis(plan({ month: "2026-11", forecastCents: 2_000_00 }), series, "2026-11");
     expect(kpis.income.deltaPct).toBeNull();
     expect(kpis.balance.deltaPct).toBeNull();
+  });
+
+  it("sums the installments paying their last parcel this month", () => {
+    const series = [point("2026-10", 5_000_00, 3_000_00), point("2026-11", 5_200_00, 3_100_00)];
+    // 24 parcels from 2026-03 end in 2028-02: not yet. 9 from 2026-03 end in 2026-11.
+    const done = installmentBill(1, 250_00, "2026-03-01", 9);
+    const running = installmentBill(2, 100_00, "2026-03-01", 24);
+    const kpis = computeKpis(
+      plan({ month: "2026-11", dueBills: [done, running] }),
+      series,
+      "2026-11",
+    );
+    expect(kpis.freed).toEqual({ valueCents: 250_00, prevCents: null, deltaPct: null });
+  });
+
+  it("reports zero freed when nothing ends this month", () => {
+    const series = [point("2026-11", 5_000_00, 3_000_00)];
+    const kpis = computeKpis(
+      plan({ month: "2026-11", dueBills: [installmentBill(1, 100_00, "2026-03-01", 24)] }),
+      series,
+      "2026-11",
+    );
+    expect(kpis.freed.valueCents).toBe(0);
   });
 });

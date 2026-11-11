@@ -389,6 +389,7 @@ const en: Dictionary = {
   "kpi.income": "Income",
   "kpi.expense": "Spending",
   "kpi.balance": "Balance",
+  "kpi.freed": "Freed up",
 
 };
 
@@ -776,6 +777,7 @@ const pt: Dictionary = {
   "kpi.income": "Entradas",
   "kpi.expense": "Gastos",
   "kpi.balance": "Resultado",
+  "kpi.freed": "Liberou",
 
 };
 

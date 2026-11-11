@@ -1,5 +1,6 @@
 import type { MonthPoint } from "../lib/api";
 import type { MonthPlan } from "./projection";
+import { remainingInstallments } from "./installment";
 
 export interface KpiDatum {
   /** Current month value, in cents. */
@@ -14,6 +15,8 @@ export interface Kpis {
   income: KpiDatum;
   expense: KpiDatum;
   balance: KpiDatum;
+  /** Parcel value freed up: installments paying their last parcel this month. */
+  freed: KpiDatum;
   /** Previous month id ("YYYY-MM") for the delta label, or null. */
   prevMonth: string | null;
 }
@@ -38,10 +41,15 @@ export function computeKpis(plan: MonthPlan, series: MonthPoint[], month: string
 
   const incomeCents = plan.incomeCents;
   const expenseCents = plan.hasPlan ? plan.plannedCents : plan.realizedCents;
+  const freedCents = plan.dueBills.reduce((sum, bill) => {
+    const remaining = remainingInstallments(bill, month);
+    return remaining && remaining.left === 0 ? sum + bill.amountCents : sum;
+  }, 0);
   return {
     income: datum(incomeCents, prev?.incomeCents ?? null),
     expense: datum(expenseCents, prev?.expenseCents ?? null),
     balance: datum(plan.forecastCents, prev ? prev.incomeCents - prev.expenseCents : null),
+    freed: datum(freedCents, null),
     prevMonth: prev?.month ?? null,
   };
 }
