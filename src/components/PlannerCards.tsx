@@ -4,6 +4,7 @@ import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
+import { groupByDay } from "../domain/projection";
 import { computeSplit } from "../domain/split";
 import { api } from "../lib/api";
 import { currentMonth, formatCents, formatDate, monthName, todayIso } from "../lib/format";
@@ -24,14 +25,22 @@ interface BillsProps {
 
 export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: BillsProps) {
   const { t } = useLanguage();
+  const [filter, setFilter] = useState<"all" | "overdue" | "ontime">("all");
   const total = plan.plannedCents;
   const paidCount = plan.paidBillIds.length;
   const count = plan.dueBills.length;
   const today = new Date().getDate();
   const isCurrentMonth = plan.month === currentMonth();
+  const isOverdue = (bill: Bill) =>
+    !plan.paidBillIds.includes(bill.id) && isCurrentMonth && bill.dueDay < today;
+  const visibleBills =
+    filter === "all"
+      ? plan.dueBills
+      : plan.dueBills.filter((bill) => (filter === "overdue" ? isOverdue(bill) : !isOverdue(bill)));
+  const visibleGroups = groupByDay(visibleBills);
   const activeDay = isCurrentMonth
-    ? (plan.dayGroups.find((group) => group.day >= today)?.day ?? plan.dayGroups.at(-1)?.day)
-    : plan.dayGroups[0]?.day;
+    ? (visibleGroups.find((group) => group.day >= today)?.day ?? visibleGroups.at(-1)?.day)
+    : visibleGroups[0]?.day;
 
   if (compact) {
     const paidShare = count > 0 ? (paidCount / count) * 100 : 0;
@@ -74,9 +83,31 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: Bi
         </span>
       </div>
 
-      {plan.dayGroups.length > 0 ? (
+      {count > 0 ? (
+        <div className="segmented" role="group" aria-label={t("planner.bills")}>
+          {(
+            [
+              { id: "all", key: "planner.billsAll" },
+              { id: "overdue", key: "planner.billsOverdue" },
+              { id: "ontime", key: "planner.billsOnTime" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={filter === option.id ? "active" : undefined}
+              aria-pressed={filter === option.id}
+              onClick={() => setFilter(option.id)}
+            >
+              {t(option.key)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {visibleGroups.length > 0 ? (
         <div className="day-pills" role="list">
-          {plan.dayGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <span
               key={group.day}
               className={group.day === activeDay ? "day-pill active" : "day-pill"}
@@ -95,11 +126,15 @@ export function BillsCard({ plan, onToggle, onAdd, onEdit, compact = false }: Bi
           <Icon name="plus" size={18} />
           {t("planner.addBill")}
         </button>
+      ) : visibleBills.length === 0 ? (
+        <p className="muted small">
+          {filter === "overdue" ? t("planner.billsNoneOverdue") : t("planner.billsNoneOnTime")}
+        </p>
       ) : (
         <ul className="bill-list">
-          {plan.dueBills.map((bill) => {
+          {visibleBills.map((bill) => {
             const paid = plan.paidBillIds.includes(bill.id);
-            const late = !paid && isCurrentMonth && bill.dueDay < today;
+            const late = isOverdue(bill);
             return (
               <li key={bill.id} className={paid ? "bill paid" : late ? "bill late" : "bill"}>
                 <label className="bill-check">
