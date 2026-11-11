@@ -9,7 +9,7 @@
 export const SHOW_KEEPER = false;
 
 /**
- * The forecast card keeps the keeper as its illustration, drawn bare: no halo,
- * only the soft shadow the figure carries.
+ * The forecast card kept the keeper as its illustration, drawn bare. Parked for
+ * now, at the user's request, while the cards get the attention.
  */
-export const SHOW_HERO_KEEPER = true;
+export const SHOW_HERO_KEEPER = false;
