@@ -19,7 +19,7 @@ import type { Bill, CardMeta, Category, CategoryTotal, Goal, Income, MonthPoint,
 import { formatCents, monthLabel, monthName, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
-function ScreenHeader({
+export function ScreenHeader({
   eyebrow,
   title,
   description,

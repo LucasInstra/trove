@@ -21,6 +21,7 @@ import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { CardsScreen, DebtsScreen, FlowsScreen, HealthScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen, RetirementScreen } from "./screens/PlannerScreens";
+import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -29,6 +30,7 @@ import type {
   CardInput,
   CardMeta,
   Category,
+  CategoryInput,
   CategoryMonth,
   CategoryTotal,
   Debt,
@@ -76,6 +78,8 @@ type Route =
   | "health"
   | "debts"
   | "retirement"
+  | "debts"
+  | "categories"
   | "import"
   | "settings";
 
@@ -102,6 +106,7 @@ const STRATEGY: Array<{ route: Route; icon: IconName }> = [
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
   { route: "import", icon: "import" },
+  { route: "categories", icon: "tag" },
   { route: "settings", icon: "settings" },
 ];
 
@@ -462,6 +467,34 @@ export function App() {
     try {
       await api.setCategoryBudget(id, budget);
       setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const saveCategory = async (input: CategoryInput) => {
+    try {
+      await api.saveCategory(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const deleteCategory = async (id: number) => {
+    try {
+      await api.deleteCategory(id);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
+  const archiveCategory = async (id: number, archived: boolean) => {
+    try {
+      await api.archiveCategory(id, archived);
       if (month) await reload(search, month, accountFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
@@ -853,6 +886,15 @@ export function App() {
                 if (month) void reload(search, month, accountFilter);
                 setRoute("overview");
               }}
+            />
+          ) : null}
+
+          {route === "categories" ? (
+            <CategoriesScreen
+              categories={categories}
+              onSave={(input) => void saveCategory(input)}
+              onDelete={(id) => void deleteCategory(id)}
+              onArchive={(id, archived) => void archiveCategory(id, archived)}
             />
           ) : null}
 
