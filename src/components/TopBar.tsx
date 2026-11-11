@@ -11,6 +11,9 @@ interface TopBarProps {
   notifications: PlanNotification[];
   onReadAll: () => void;
   onImport: () => void;
+  onLaunch: () => void;
+  canLaunch: boolean;
+  userName: string | null;
   primaryLabel: string;
   showLayout: boolean;
   layoutEditing: boolean;
@@ -24,6 +27,9 @@ export function TopBar({
   notifications,
   onReadAll,
   onImport,
+  onLaunch,
+  canLaunch,
+  userName,
   primaryLabel,
   showLayout,
   layoutEditing,
@@ -31,10 +37,15 @@ export function TopBar({
 }: TopBarProps) {
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const hour = new Date().getHours();
+  const part = hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : "evening";
+  const greeting = userName ? `${t(`greeting.${part}`)}, ${userName}` : t(`greeting.${part}`);
 
   return (
     <header className="topbar">
-      <div className="title-row">
+      <div>
+        <p className="eyebrow">{greeting}</p>
+        <div className="title-row">
         <button
           type="button"
           className="icon-button"
@@ -67,6 +78,7 @@ export function TopBar({
           />
           <Icon name="calendar" size={15} />
         </label>
+        </div>
       </div>
 
       <div className="topbar-actions">
@@ -125,9 +137,19 @@ export function TopBar({
             <Icon name="layout" size={17} />
           </button>
         ) : null}
-        <button type="button" className="primary topbar-primary" onClick={onImport}>
+        <button type="button" className="outline-button" onClick={onImport}>
           <Icon name="arrow-down-to-line" size={16} />
           {primaryLabel}
+        </button>
+        <button
+          type="button"
+          className="primary topbar-primary"
+          onClick={onLaunch}
+          disabled={!canLaunch}
+          title={canLaunch ? undefined : t("manual.needsAccount")}
+        >
+          <Icon name="plus" size={16} />
+          {t("manual.launch")}
         </button>
       </div>
     </header>

@@ -3,6 +3,7 @@ import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
 import { BillDialog, CardDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
+import { ManualDialog } from "./components/ManualDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
 import { Icon, type IconName } from "./components/Icons";
@@ -36,6 +37,7 @@ import type {
   GoalInput,
   Income,
   IncomeInput,
+  ManualInput,
   MonthPoint,
   MonthTotals,
   PlannerState,
@@ -94,6 +96,7 @@ type DialogState =
   | { kind: "card"; card: CardMeta | null }
   | { kind: "goal"; goal: Goal | null }
   | { kind: "debt"; debt: Debt | null }
+  | { kind: "manual" }
   | { kind: "ceiling" }
   | null;
 
@@ -122,6 +125,7 @@ export function App() {
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
   const updater = useUpdater();
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
@@ -154,6 +158,20 @@ export function App() {
     if (!langHydrated.current) return;
     void api.setSetting("lang", lang).catch(() => {});
   }, [lang]);
+
+  // The profile name lives with the other settings; TopBar greets with it.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getSetting("user_name")
+      .then((stored) => {
+        if (!cancelled) setUserName(stored && stored.trim() ? stored.trim() : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [route]);
 
   const reload = useCallback(async (term: string, at: string, accountId: number | null) => {
     try {
@@ -356,6 +374,16 @@ export function App() {
     if (month) await reload(search, month, accountFilter);
   };
 
+  const saveManual = async (input: ManualInput) => {
+    try {
+      await api.saveManual(input);
+      setDialog(null);
+      if (month) await reload(search, month, accountFilter);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
+
   const toggleDebt = async (id: number, settled: boolean) => {
     if (!month) return;
     await api.setDebtSettled(id, settled);
@@ -520,6 +548,9 @@ export function App() {
                 });
               }}
               onImport={() => setRoute("import")}
+              onLaunch={() => setDialog({ kind: "manual" })}
+              canLaunch={accounts.length > 0}
+              userName={userName}
               primaryLabel={t("ledger.import")}
               showLayout={route === "overview"}
               layoutEditing={layoutEditing}
@@ -758,6 +789,15 @@ export function App() {
           onClose={() => setDialog(null)}
           onSave={(input) => void saveDebt(input)}
           onDelete={(id) => void removeDebt(id)}
+        />
+      ) : null}
+
+      {dialog?.kind === "manual" ? (
+        <ManualDialog
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setDialog(null)}
+          onSave={(input) => void saveManual(input)}
         />
       ) : null}
 
