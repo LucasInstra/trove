@@ -1033,14 +1033,31 @@ button.primary:hover:not(:disabled) {
 
 .bulk-bar {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+}
+
+.bulk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bulk-row {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
-  padding: 10px 14px;
 }
 
-.bulk-bar input {
+.bulk-row .muted {
+  min-width: 72px;
+}
+
+.bulk-row input {
   max-width: 160px;
 }
 
@@ -4330,6 +4347,65 @@ button.primary:hover:not(:disabled) {
   .overview,
   .transactions {
     max-width: 2280px;
+  }
+}
+
+/* Narrow windows keep the app's air: smaller chrome, same columns. The ledger
+   rows hold a fixed width and scroll sideways instead of crushing. */
+@media (max-width: 820px) {
+  .main {
+    padding: 18px 16px 32px;
+  }
+
+  .screen {
+    gap: 14px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .ledger-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 560px) {
+  .main {
+    padding: 14px 12px 88px;
+  }
+
+  .screen {
+    gap: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .tx-list {
+    overflow-x: auto;
+  }
+
+  .tx-row {
+    min-width: 560px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .bulk-bar {
+    padding: 10px 12px;
+  }
+
+  .flow-bars,
+  .bars {
+    min-height: 120px;
   }
 }
 }

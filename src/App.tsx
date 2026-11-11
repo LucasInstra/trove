@@ -742,7 +742,7 @@ export function App() {
             onClick={() => setRoute("settings")}
           />
 
-          <nav aria-label={t("nav.primary")} className="flex flex-col gap-3">
+          <nav aria-label={t("nav.primary")} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
             <SidebarGroup label={t("nav.menu")}>
               {MENU.map((item) => (
                 <SidebarItem

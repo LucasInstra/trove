@@ -166,112 +166,123 @@ export function TransactionsPanel({
 
       {keptSelection.length > 0 ? (
         <div className="card bulk-bar" role="toolbar" aria-label={t("bulk.title")}>
-          <span className="muted small">
-            {t("bulk.selected", { count: keptSelection.length })}
-          </span>
-          <select
-            value={bulkCategory}
-            onChange={(event) => setBulkCategory(event.target.value)}
-            aria-label={t("planner.category")}
-          >
-            <option value="">{t("bulk.pickCategory")}</option>
-            <option value="none">{t("ledger.noCategory")}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="outline-button small-button"
-            disabled={bulkCategory === ""}
-            onClick={() => {
-              onBulkCategory(
-                keptSelection,
-                bulkCategory === "none" ? null : Number(bulkCategory),
-              );
-              setBulkCategory("");
-              setSelected([]);
-            }}
-          >
-            {t("bulk.applyCategory")}
-          </button>
-          <select
-            value={bulkTag}
-            onChange={(event) => setBulkTag(event.target.value)}
-            aria-label={t("tags.title")}
-          >
-            <option value="">{t("bulk.pickTag")}</option>
-            {tags.map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                #{tag.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="outline-button small-button"
-            disabled={bulkTag === ""}
-            onClick={() => {
-              onBulkTag(keptSelection, Number(bulkTag), true);
-              setBulkTag("");
-              setSelected([]);
-            }}
-          >
-            {t("bulk.attach")}
-          </button>
-          <button
-            type="button"
-            className="outline-button small-button"
-            disabled={bulkTag === ""}
-            onClick={() => {
-              onBulkTag(keptSelection, Number(bulkTag), false);
-              setBulkTag("");
-              setSelected([]);
-            }}
-          >
-            {t("bulk.detach")}
-          </button>
-          {bulkTag !== "" ? (
+          <div className="bulk-head">
+            <strong>{t("bulk.selected", { count: keptSelection.length })}</strong>
+            <button type="button" className="ghost" onClick={() => setSelected([])}>
+              {t("common.cancel")}
+            </button>
+          </div>
+          <div className="bulk-row">
+            <span className="muted small">{t("planner.category")}</span>
+            <select
+              value={bulkCategory}
+              onChange={(event) => setBulkCategory(event.target.value)}
+              aria-label={t("planner.category")}
+            >
+              <option value="">{t("bulk.pickCategory")}</option>
+              <option value="none">{t("ledger.noCategory")}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
-              className="icon-button danger"
-              title={t("common.delete")}
-              aria-label={`${t("common.delete")}: #${tags.find((tag) => tag.id === Number(bulkTag))?.name ?? ""}`}
+              className="outline-button small-button"
+              disabled={bulkCategory === ""}
               onClick={() => {
-                onDeleteTag(Number(bulkTag));
-                setBulkTag("");
+                onBulkCategory(
+                  keptSelection,
+                  bulkCategory === "none" ? null : Number(bulkCategory),
+                );
+                setBulkCategory("");
                 setSelected([]);
               }}
             >
-              <Icon name="trash" size={15} />
+              {t("bulk.applyCategory")}
             </button>
-          ) : null}
-          <input
-            value={newTag}
-            onChange={(event) => setNewTag(event.target.value)}
-            maxLength={40}
-            placeholder={t("tags.new")}
-            aria-label={t("tags.new")}
-          />
-          <button
-            type="button"
-            className="outline-button small-button"
-            disabled={newTag.trim() === ""}
-            onClick={() =>
-              void onNewTag(newTag.trim()).then((id) => {
-                if (id !== null) onBulkTag(keptSelection, id, true);
-                setNewTag("");
+          </div>
+          <div className="bulk-row">
+            <span className="muted small">{t("tags.title")}</span>
+            <select
+              value={bulkTag}
+              onChange={(event) => setBulkTag(event.target.value)}
+              aria-label={t("tags.title")}
+            >
+              <option value="">{t("bulk.pickTag")}</option>
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  #{tag.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="outline-button small-button"
+              disabled={bulkTag === ""}
+              onClick={() => {
+                onBulkTag(keptSelection, Number(bulkTag), true);
                 setSelected([]);
-              })
-            }
-          >
-            {t("bulk.createAttach")}
-          </button>
-          <button type="button" className="ghost" onClick={() => setSelected([])}>
-            {t("common.cancel")}
-          </button>
+              }}
+            >
+              {t("bulk.attach")}
+            </button>
+            <button
+              type="button"
+              className="outline-button small-button"
+              disabled={bulkTag === ""}
+              onClick={() => {
+                onBulkTag(keptSelection, Number(bulkTag), false);
+                setSelected([]);
+              }}
+            >
+              {t("bulk.detach")}
+            </button>
+            {bulkTag !== "" ? (
+              <button
+                type="button"
+                className="icon-button danger"
+                title={t("common.delete")}
+                aria-label={`${t("common.delete")}: #${tags.find((tag) => tag.id === Number(bulkTag))?.name ?? ""}`}
+                onClick={() => {
+                  onDeleteTag(Number(bulkTag));
+                  setBulkTag("");
+                  setSelected([]);
+                }}
+              >
+                <Icon name="trash" size={15} />
+              </button>
+            ) : null}
+          </div>
+          <div className="bulk-row">
+            <input
+              value={newTag}
+              onChange={(event) => setNewTag(event.target.value)}
+              maxLength={40}
+              placeholder={t("tags.new")}
+              aria-label={t("tags.new")}
+            />
+            <button
+              type="button"
+              className="outline-button small-button"
+              disabled={newTag.trim() === ""}
+              onClick={() =>
+                void onNewTag(newTag.trim()).then((id) => {
+                  if (id !== null) {
+                    onBulkTag(keptSelection, id, true);
+                    setBulkTag(String(id));
+                  }
+                  setNewTag("");
+                  setSelected([]);
+                })
+              }
+            >
+              {newTag.trim() === ""
+                ? t("bulk.createAttach")
+                : t("bulk.createAttachNamed", { name: newTag.trim() })}
+            </button>
+          </div>
         </div>
       ) : null}
 

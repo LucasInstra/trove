@@ -466,6 +466,7 @@ const en: Dictionary = {
   "bulk.attach": "Attach",
   "bulk.detach": "Detach",
   "bulk.createAttach": "Create and attach",
+  "bulk.createAttachNamed": "Create \"{name}\" and attach",
 
   "report.title": "Month report",
   "report.copy": "Copy",
@@ -1036,6 +1037,7 @@ const pt: Dictionary = {
   "bulk.attach": "Anexar",
   "bulk.detach": "Remover",
   "bulk.createAttach": "Criar e anexar",
+  "bulk.createAttachNamed": "Criar \"{name}\" e anexar",
 
   "report.title": "Relatório do mês",
   "report.copy": "Copiar",
