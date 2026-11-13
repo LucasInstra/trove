@@ -37,17 +37,22 @@ export function SettingsScreen({
   onCreateAccount,
   onRenameAccount,
   onArchiveAccount,
+  onSaveUserName,
 }: {
   updater: UpdaterState;
   accounts: Account[];
   onCreateAccount: (name: string) => void;
   onRenameAccount: (id: number, name: string) => void;
   onArchiveAccount: (id: number) => void;
+  onSaveUserName: (name: string | null) => void;
 }) {
   const { lang, setLang, t } = useLanguage();
   const [databasePath, setDatabasePath] = useState("");
   const [userName, setUserName] = useState("");
   const [savedName, setSavedName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   useEffect(() => {
     api
@@ -65,13 +70,23 @@ export function SettingsScreen({
       .catch(() => {});
   }, []);
 
-  const saveName = () => {
+  const saveName = async () => {
     const value = userName.trim();
-    if (value === savedName) return;
-    void api
-      .setSetting("user_name", value)
-      .then(() => setSavedName(value))
-      .catch(() => {});
+    if (savingName || value === savedName) return;
+    setSavingName(true);
+    setNameSaved(false);
+    setNameError("");
+    try {
+      await api.setSetting("user_name", value);
+      setUserName(value);
+      setSavedName(value);
+      onSaveUserName(value || null);
+      setNameSaved(true);
+    } catch (problem) {
+      setNameError(problem instanceof Error ? problem.message : String(problem));
+    } finally {
+      setSavingName(false);
+    }
   };
 
   const busy = updater.status === "checking" || updater.status === "downloading";
@@ -167,13 +182,40 @@ export function SettingsScreen({
             value={userName}
             maxLength={40}
             placeholder={t("settings.userNamePlaceholder")}
-            onChange={(event) => setUserName(event.target.value)}
-            onBlur={saveName}
+            onChange={(event) => {
+              setUserName(event.target.value);
+              setNameSaved(false);
+              setNameError("");
+            }}
+            onBlur={() => void saveName()}
             onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void saveName();
+              }
             }}
           />
         </label>
+        <div className="row settings-profile-actions">
+          <button
+            type="button"
+            className="primary"
+            disabled={savingName || userName.trim() === savedName}
+            onClick={() => void saveName()}
+          >
+            {savingName ? t("settings.savingProfile") : t("common.save")}
+          </button>
+          {nameSaved ? (
+            <span className="muted small" role="status">
+              {t("settings.profileSaved")}
+            </span>
+          ) : null}
+        </div>
+        {nameError ? (
+          <div className="alert" role="alert">
+            {nameError}
+          </div>
+        ) : null}
       </article>
 
       <article className="card">

@@ -1,32 +1,22 @@
-import chartUp from "@/assets/icons3d/chart-up.png";
-import creditCard from "@/assets/icons3d/credit-card.png";
-import house from "@/assets/icons3d/house.png";
-import pie from "@/assets/icons3d/pie.png";
-import piggy from "@/assets/icons3d/piggy.png";
-import receipt from "@/assets/icons3d/receipt.png";
-import scale from "@/assets/icons3d/scale.png";
-import target from "@/assets/icons3d/target.png";
+import { Icon, type IconName } from "./Icons";
 import { cn } from "@/lib/utils";
 
 /**
- * The 3D icon set that came as a sprite sheet: cut once into transparent PNGs and
- * used where a card needs a recognisable object. They are colourful renders, so
- * they only make sense at 28px and up; the linear `Icon` family stays for
- * controls and the sidebar.
- *
- * The imports are explicit on purpose: a glob would bundle all 24 renders for
- * the eight the app actually shows.
+ * Card title marks. These used to be colourful 3D renders; the app now uses the
+ * same linear icon family everywhere, in a small tinted chip, so a card title
+ * reads like every other. Large decorative renders (`card-art`, 60px and up)
+ * are dropped: they carried no information and pushed the figures down.
  */
 const ICONS = {
-  "chart-up": chartUp,
-  "credit-card": creditCard,
-  house,
-  pie,
-  piggy,
-  receipt,
-  scale,
-  target,
-} as const;
+  "chart-up": "trend",
+  "credit-card": "card",
+  house: "home",
+  pie: "grid",
+  piggy: "target",
+  receipt: "file-text",
+  scale: "scale",
+  target: "target",
+} as const satisfies Record<string, IconName>;
 
 export type Icon3DName = keyof typeof ICONS;
 
@@ -39,15 +29,15 @@ interface Icon3DProps {
 }
 
 export function Icon3D({ name, size = 40, className, alt }: Icon3DProps) {
+  if (size >= 60 || className?.includes("card-art")) return null;
   return (
-    <img
-      src={ICONS[name]}
-      width={size}
-      height={size}
-      alt={alt ?? ""}
+    <span
+      className={cn("card-icon", className)}
+      role={alt ? "img" : undefined}
+      aria-label={alt}
       aria-hidden={alt ? undefined : true}
-      draggable={false}
-      className={cn("shrink-0 select-none object-contain", className)}
-    />
+    >
+      <Icon name={ICONS[name]} size={15} />
+    </span>
   );
 }

@@ -1,15 +1,12 @@
 import { useMemo, useState } from "react";
+import { CreditCardArt } from "../components/CreditCardArt";
 import { Dialog } from "../components/Dialog";
 import { HousingCard, SplitCard } from "../components/PlannerCards";
 import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
 import { Icon } from "../components/Icons";
-import {
-  activeIncomeCount,
-  cardLimitUsage,
-  summarizeCards,
-  summarizeGoals,
-} from "../domain/planner";
+import { useScreenFrame } from "../components/SectionPage";
+import { cardLimitUsage, summarizeCards, summarizeGoals } from "../domain/planner";
 import { freeToSpend, paceOf } from "../domain/budgets";
 import { detectRecurring } from "../domain/recurrence";
 import { buildMonthlyReport } from "../domain/report";
@@ -19,8 +16,31 @@ import { netWorthCurve, holdingsTotal, totalWealth } from "../domain/patrimony";
 import { retirementProjection } from "../domain/retirement";
 import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
-import type { Bill, BudgetStatus, CardMeta, Category, CategoryTotal, Goal, Holding, HoldingInput, Income, MonthPoint, MonthTotals, Person, RecurrenceRow, Share } from "../lib/api";
-import { formatCents, formatDate, monthLabel, monthName, monthShort } from "../lib/format";
+import type {
+  Bill,
+  BudgetStatus,
+  CardMeta,
+  Category,
+  CategoryTotal,
+  Goal,
+  Holding,
+  HoldingInput,
+  Income,
+  MonthPoint,
+  MonthTotals,
+  Person,
+  RecurrenceRow,
+  Share,
+} from "../lib/api";
+import {
+  formatCents,
+  formatDate,
+  monthLabel,
+  monthName,
+  monthShort,
+  todayIso,
+} from "../lib/format";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 
 export function ScreenHeader({
@@ -34,10 +54,13 @@ export function ScreenHeader({
   description: string;
   action?: { label: string; onClick: () => void };
 }) {
+  const frame = useScreenFrame();
   return (
     <header className="planner-screen-head">
-      <div>
-        <span className="eyebrow">{eyebrow}</span>
+      <div className="planner-screen-title">
+        {(frame?.eyebrow ?? eyebrow) !== title ? (
+          <span className="eyebrow">{frame?.eyebrow ?? eyebrow}</span>
+        ) : null}
         <h1>{title}</h1>
         <p className="muted">{description}</p>
       </div>
@@ -47,6 +70,7 @@ export function ScreenHeader({
           {action.label}
         </button>
       ) : null}
+      {frame?.tabs ? <div className="planner-screen-tabs">{frame.tabs}</div> : null}
     </header>
   );
 }
@@ -95,13 +119,13 @@ export function CardsScreen({
             {t("planner.invoiceOf", { month: monthName(month, lang) })}
           </span>
           <strong className="metric-value">{formatCents(summary.invoiceCents)}</strong>
-          <span className="metric-note">{t("planner.cardsCount", { count: cards.length })}</span>
+          <span className="metric-note">{cards.length === 1 ? t("planner.cardsCountOne") : t("planner.cardsCount", { count: cards.length })}</span>
         </article>
         <article className="card metric-card metric-card-secondary">
           <span className="metric-label">{t("planner.totalLimit")}</span>
           <strong className="metric-value">{formatCents(summary.limitCents)}</strong>
           <span className="metric-note">
-            {t("planner.limitAcrossCards", { count: cards.length })}
+            {cards.length === 1 ? t("planner.limitAcrossCardsOne") : t("planner.limitAcrossCards", { count: cards.length })}
           </span>
         </article>
       </div>
@@ -114,13 +138,11 @@ export function CardsScreen({
             const { availableCents, usedPct } = cardLimitUsage(meta, usageCents);
             return (
               <article
-                className="entity-card entity-card-credit"
+                className="entity-card entity-card-credit credit-entity"
                 key={meta.id}
                 style={{ "--entity-color": meta.color } as CSSProperties}
               >
-                <div className="entity-icon credit-mark">
-                  <Icon name="card" size={19} />
-                </div>
+                <CreditCardArt meta={meta} />
                 <div className="entity-main">
                   <div className="entity-title-row">
                     <div>
@@ -161,13 +183,17 @@ export function CardsScreen({
                   >
                     <div
                       className="meter-fill"
-                      style={{ width: `${usedPct}%`, background: "var(--entity-color)" }}
+                      style={{ width: `${Math.max(usedPct, usedPct > 0 ? 2 : 0)}%`, background: "var(--entity-color, var(--primary))" }}
                     />
                   </div>
                 </div>
               </article>
             );
           })}
+          <button type="button" className="empty-add" onClick={onAdd}>
+            <Icon name="plus" size={18} />
+            {t("planner.addCard")}
+          </button>
         </div>
       )}
     </section>
@@ -344,7 +370,7 @@ export function HouseScreen({
             <option value="">{t("ledger.noCategory")}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {categoryName(t, category.name)}
               </option>
             ))}
           </select>
@@ -437,71 +463,6 @@ export function HouseScreen({
   );
 }
 
-export function IncomeScreen({
-  incomes,
-  plan,
-  onAdd,
-  onEdit,
-}: {
-  incomes: Income[];
-  plan: MonthPlan;
-  onAdd: () => void;
-  onEdit: (income: Income) => void;
-}) {
-  const { t } = useLanguage();
-  return (
-    <section className="screen planner-screen">
-      <ScreenHeader
-        eyebrow={t("planner.section")}
-        title={t("nav.income")}
-        description={t("planner.incomeDescription")}
-        action={{ label: t("planner.addIncome"), onClick: onAdd }}
-      />
-      <div className="planner-metrics">
-        <article className="card metric-card metric-card-primary">
-          <span className="metric-label">{t("planner.incomeForMonth")}</span>
-          <strong className="metric-value">{formatCents(plan.incomeCents)}</strong>
-          <span className="metric-note">
-            {t("planner.incomeSources", { count: activeIncomeCount(incomes) })}
-          </span>
-        </article>
-      </div>
-      {incomes.length === 0 ? (
-        <EmptyList label={t("planner.noIncome")} action={onAdd} />
-      ) : (
-        <div className="entity-list">
-          {incomes.map((income) => (
-            <article className="entity-card entity-card-income" key={income.id}>
-              <div className="entity-icon">
-                <Icon name="trend" size={19} />
-              </div>
-              <div className="entity-main">
-                <div className="entity-title-row">
-                  <div>
-                    <h2>{income.name}</h2>
-                    <span className="muted small">
-                      {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
-                      {income.active ? t("planner.active") : t("planner.inactive")}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="outline-button entity-edit"
-                    onClick={() => onEdit(income)}
-                  >
-                    {t("common.edit")}
-                  </button>
-                </div>
-                <strong className="income-amount">{formatCents(income.amountCents)}</strong>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function PatrimonyScreen({
   plan,
   series,
@@ -539,7 +500,9 @@ export function PatrimonyScreen({
       : pad.left + (index * (width - pad.left - pad.right)) / (curve.length - 1);
   const y = (value: number) =>
     pad.top + (1 - (value - min) / span) * (height - pad.top - pad.bottom);
-  const line = curve.map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.runningCents)}`).join(" ");
+  const line = curve
+    .map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.runningCents)}`)
+    .join(" ");
   const area = `${line} L${x(curve.length - 1)},${height - pad.bottom} L${x(0)},${height - pad.bottom} Z`;
 
   return (
@@ -577,9 +540,7 @@ export function PatrimonyScreen({
             </span>
             <h2>{t("holdings.title")}</h2>
           </div>
-          <span className="muted">
-            {t("holdings.total", { amount: formatCents(total) })}
-          </span>
+          <span className="muted">{t("holdings.total", { amount: formatCents(total) })}</span>
         </header>
         <p className="muted small">{t("holdings.desc")}</p>
         {holdings.length > 0 ? (
@@ -622,7 +583,11 @@ export function PatrimonyScreen({
           <p className="card-empty">{t("holdings.empty")}</p>
         )}
         <div className="row">
-          <button type="button" className="outline-button small-button" onClick={() => setDialog({ holding: null })}>
+          <button
+            type="button"
+            className="outline-button small-button"
+            onClick={() => setDialog({ holding: null })}
+          >
             <Icon name="plus" size={14} />
             {t("holdings.new")}
           </button>
@@ -670,14 +635,26 @@ export function PatrimonyScreen({
                 />
               ) : null}
               {curve.map((point, index) => (
-                <circle key={point.month} cx={x(index)} cy={y(point.runningCents)} r={3.5} fill="var(--primary)">
+                <circle
+                  key={point.month}
+                  cx={x(index)}
+                  cy={y(point.runningCents)}
+                  r={3.5}
+                  fill="var(--primary)"
+                >
                   <title>{`${monthLabel(point.month, lang)}: ${formatCents(point.runningCents)}`}</title>
                 </circle>
               ))}
               <text x={pad.left} y={height - 6} fontSize={11} fill="var(--muted)">
                 {monthShort(curve[0].month, lang)}
               </text>
-              <text x={width - pad.right} y={height - 6} fontSize={11} fill="var(--muted)" textAnchor="end">
+              <text
+                x={width - pad.right}
+                y={height - 6}
+                fontSize={11}
+                fill="var(--muted)"
+                textAnchor="end"
+              >
                 {monthShort(curve[curve.length - 1].month, lang)}
               </text>
             </svg>
@@ -738,12 +715,8 @@ function HoldingDialog({
   const { t } = useLanguage();
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<(typeof HOLDING_KINDS)[number]>(initial?.kind ?? "other");
-  const [amount, setAmount] = useState(
-    initial ? (initial.amountCents / 100).toFixed(2) : "",
-  );
-  const [updatedOn, setUpdatedOn] = useState(
-    initial?.updatedOn ?? new Date().toISOString().slice(0, 10),
-  );
+  const [amount, setAmount] = useState(initial ? (initial.amountCents / 100).toFixed(2) : "");
+  const [updatedOn, setUpdatedOn] = useState(initial?.updatedOn ?? todayIso());
 
   return (
     <Dialog title={initial ? t("holdings.edit") : t("holdings.new")} onClose={onClose}>
@@ -765,7 +738,12 @@ function HoldingDialog({
       >
         <label className="field">
           <span>{t("planner.name")}</span>
-          <input value={name} onChange={(event) => setName(event.target.value)} required maxLength={60} />
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            maxLength={60}
+          />
         </label>
         <div className="form-grid">
           <label className="field">
@@ -790,7 +768,12 @@ function HoldingDialog({
         </div>
         <label className="field">
           <span>{t("holdings.updatedOnLabel")}</span>
-          <input type="date" value={updatedOn} onChange={(event) => setUpdatedOn(event.target.value)} required />
+          <input
+            type="date"
+            value={updatedOn}
+            onChange={(event) => setUpdatedOn(event.target.value)}
+            required
+          />
         </label>
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>
@@ -839,7 +822,9 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
       : pad.left + (index * (width - pad.left - pad.right)) / (curve.length - 1);
   const y = (value: number) =>
     pad.top + (1 - (value - min) / span) * (height - pad.top - pad.bottom);
-  const line = curve.map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.balanceCents)}`).join(" ");
+  const line = curve
+    .map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.balanceCents)}`)
+    .join(" ");
   const area = `${line} L${x(curve.length - 1)},${height - pad.bottom} L${x(0)},${height - pad.bottom} Z`;
 
   return (
@@ -853,7 +838,9 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
         <article className="card metric-card metric-card-primary">
           <span className="metric-label">{t("planner.savedSoFar")}</span>
           <strong className="metric-value">{formatCents(summary.savedCents)}</strong>
-          <span className="metric-note">{t("planner.acrossGoals", { count: plan.goals.length })}</span>
+          <span className="metric-note">
+            {t("planner.acrossGoals", { count: plan.goals.length })}
+          </span>
         </article>
         <article className="card metric-card">
           <span className="metric-label">{t("retirement.monthly")}</span>
@@ -863,9 +850,7 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
         <article className="card metric-card metric-card-secondary">
           <span className="metric-label">{t("retirement.projected")}</span>
           <strong className="metric-value">{formatCents(last?.balanceCents ?? 0)}</strong>
-          <span className="metric-note">
-            {t("retirement.inYears", { count: yearsCount })}
-          </span>
+          <span className="metric-note">{t("retirement.inYears", { count: yearsCount })}</span>
         </article>
       </div>
 
@@ -881,7 +866,11 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
         <div className="retire-form">
           <label className="field">
             <span>{t("retirement.monthly")}</span>
-            <input value={monthly} onChange={(event) => setMonthly(event.target.value)} inputMode="decimal" />
+            <input
+              value={monthly}
+              onChange={(event) => setMonthly(event.target.value)}
+              inputMode="decimal"
+            />
           </label>
           <label className="field">
             <span>{t("retirement.years")}</span>
@@ -894,7 +883,11 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
           </label>
           <label className="field">
             <span>{t("retirement.rate")}</span>
-            <input value={rate} onChange={(event) => setRate(event.target.value)} inputMode="decimal" />
+            <input
+              value={rate}
+              onChange={(event) => setRate(event.target.value)}
+              inputMode="decimal"
+            />
           </label>
         </div>
       </article>
@@ -940,7 +933,13 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
               <text x={pad.left} y={height - 6} fontSize={11} fill="var(--muted)">
                 {t("retirement.today")}
               </text>
-              <text x={width - pad.right} y={height - 6} fontSize={11} fill="var(--muted)" textAnchor="end">
+              <text
+                x={width - pad.right}
+                y={height - 6}
+                fontSize={11}
+                fill="var(--muted)"
+                textAnchor="end"
+              >
                 {t("retirement.inYears", { count: yearsCount })}
               </text>
             </svg>
@@ -954,7 +953,7 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
 
 const HEALTH_TONE: Record<HealthStatus, string> = {
   ok: "var(--positive)",
-  warn: "var(--primary)",
+  warn: "var(--warning)",
   bad: "var(--negative)",
 };
 
@@ -974,7 +973,7 @@ export function HealthScreen({
   history: RecurrenceRow[];
 }) {
   const { lang, t } = useLanguage();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const recurring = useMemo(() => detectRecurring(history, month), [history, month]);
   const report =
     totals != null
@@ -1079,10 +1078,12 @@ export function HealthScreen({
               {report.top.map((item) => (
                 <li key={item.name} className="installment">
                   <div className="installment-head">
-                    <span className="installment-name">{item.name}</span>
+                    <span className="installment-name">{categoryName(t, item.name)}</span>
                     <span className="muted small">
                       {formatCents(item.totalCents)}
-                      {item.effectiveCents != null ? ` / ${formatCents(item.effectiveCents)}` : null}
+                      {item.effectiveCents != null
+                        ? ` / ${formatCents(item.effectiveCents)}`
+                        : null}
                       {item.pace === "over" ? ` · ${t("budgets.paceOver")}` : null}
                     </span>
                   </div>
@@ -1104,7 +1105,9 @@ export function HealthScreen({
                 <li key={`${charge.label}-${charge.amountCents}`} className="installment">
                   <div className="installment-head">
                     <span className="installment-name">{charge.label}</span>
-                    <span className={charge.status === "overdue" ? "muted small over" : "muted small"}>
+                    <span
+                      className={charge.status === "overdue" ? "muted small over" : "muted small"}
+                    >
                       {t(`recurrence.${charge.status}`, {
                         month: monthLabel(charge.nextMonth, lang),
                         day: charge.dayOfMonth,
@@ -1132,7 +1135,7 @@ export function HealthScreen({
                     : t("report.noSavings"),
                   ...report.top.map(
                     (item) =>
-                      `${item.name}: ${formatCents(item.totalCents)}${item.effectiveCents != null ? ` / ${formatCents(item.effectiveCents)}` : ""}`,
+                      `${categoryName(t, item.name)}: ${formatCents(item.totalCents)}${item.effectiveCents != null ? ` / ${formatCents(item.effectiveCents)}` : ""}`,
                   ),
                   ...(report.freeCents !== null && report.globalEffectiveCents !== null
                     ? [
@@ -1190,7 +1193,7 @@ export function FlowsScreen({
   const expenseCents = totals?.expenseCents ?? 0;
   const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
   const peak = Math.max(...ranked.map((item) => item.totalCents), 1);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const lines = new Map((status?.lines ?? []).map((line) => [line.categoryId, line]));
   const free = freeToSpend(expenseCents, status?.global?.effectiveCents ?? null);
   const [capOpen, setCapOpen] = useState(false);
@@ -1209,7 +1212,9 @@ export function FlowsScreen({
         <article className="card metric-card metric-card-primary">
           <span className="metric-label">{t("flow.in")}</span>
           <strong className="metric-value">{formatCents(incomeCents)}</strong>
-          <span className="metric-note">{t("planner.incomeSources", { count: incomes.filter((entry) => entry.active).length })}</span>
+          <span className="metric-note">
+            {t("planner.incomeSources", { count: incomes.filter((entry) => entry.active).length })}
+          </span>
         </article>
         <article className="card metric-card">
           <span className="metric-label">{t("flow.out")}</span>
@@ -1223,129 +1228,129 @@ export function FlowsScreen({
         </article>
       </div>
 
-      <article className="card">
-        <header className="card-head">
-          <div className="card-title">
-            <span className="card-icon slate">
-              <Icon name="target" size={15} />
-            </span>
-            <h2>{t("budgets.freeTitle")}</h2>
-          </div>
-          <span className="muted">{monthLabel(month, lang)}</span>
-        </header>
-        {status?.global && free !== null ? (
-          <>
-            <strong className="metric-value">{formatCents(free)}</strong>
-            <span className="muted small">
-              {t("budgets.freeNote", {
-                remaining: formatCents(free),
-                effective: formatCents(status.global.effectiveCents),
-                perDay: formatCents(
-                  paceOf(expenseCents, status.global.effectiveCents, today, month).perDayCents,
-                ),
-              })}
-              {status.global.carryInCents > 0
-                ? ` · ${t("budgets.carryIn", { amount: formatCents(status.global.carryInCents) })}`
-                : null}
-            </span>
-          </>
-        ) : (
-          <>
-            <p className="muted">{t("budgets.noCapHint")}</p>
-            <span className="muted small">{t("budgets.noCap")}</span>
-          </>
-        )}
-        {capOpen ? (
-          <form
-            className="row"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (capRaw.trim() === "") {
-                onSaveGlobal(null, false);
+      <div className="planner-pair">
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon slate">
+                <Icon name="target" size={15} />
+              </span>
+              <h2>{t("budgets.freeTitle")}</h2>
+            </div>
+            <span className="muted">{monthLabel(month, lang)}</span>
+          </header>
+          {status?.global && free !== null ? (
+            <>
+              <strong className="metric-value">{formatCents(free)}</strong>
+              <span className="muted small">
+                {t("budgets.freeNote", {
+                  remaining: formatCents(free),
+                  effective: formatCents(status.global.effectiveCents),
+                  perDay: formatCents(
+                    paceOf(expenseCents, status.global.effectiveCents, today, month).perDayCents,
+                  ),
+                })}
+                {status.global.carryInCents > 0
+                  ? ` · ${t("budgets.carryIn", { amount: formatCents(status.global.carryInCents) })}`
+                  : null}
+              </span>
+            </>
+          ) : (
+            <>
+              <p className="muted">{t("budgets.noCapHint")}</p>
+              <span className="muted small">{t("budgets.noCap")}</span>
+            </>
+          )}
+          {capOpen ? (
+            <form
+              className="row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (capRaw.trim() === "") {
+                  onSaveGlobal(null, false);
+                  setCapOpen(false);
+                  return;
+                }
+                const cents = parseCents(capRaw);
+                if (cents <= 0) return;
+                onSaveGlobal(cents, capCarry);
                 setCapOpen(false);
-                return;
-              }
-              const cents = parseCents(capRaw);
-              if (cents <= 0) return;
-              onSaveGlobal(cents, capCarry);
-              setCapOpen(false);
-            }}
-          >
-            <input
-              value={capRaw}
-              onChange={(event) => setCapRaw(event.target.value)}
-              inputMode="decimal"
-              placeholder={t("budget.none")}
-              aria-label={t("budgets.setCap")}
-            />
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={capCarry}
-                onChange={(event) => setCapCarry(event.target.checked)}
-              />
-              {t("budgets.carryover")}
-            </label>
-            <button type="submit" className="primary">
-              {t("common.save")}
-            </button>
-          </form>
-        ) : (
-          <div>
-            <button
-              type="button"
-              className="outline-button small-button"
-              onClick={() => {
-                setCapRaw(
-                  status?.global ? (status.global.limitCents / 100).toFixed(2) : "",
-                );
-                setCapCarry(status?.global?.carryover ?? false);
-                setCapOpen(true);
               }}
             >
-              {status?.global ? t("budgets.editCap") : t("budgets.setCap")}
-            </button>
-          </div>
-        )}
-      </article>
+              <input
+                value={capRaw}
+                onChange={(event) => setCapRaw(event.target.value)}
+                inputMode="decimal"
+                placeholder={t("budget.none")}
+                aria-label={t("budgets.setCap")}
+              />
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={capCarry}
+                  onChange={(event) => setCapCarry(event.target.checked)}
+                />
+                {t("budgets.carryover")}
+              </label>
+              <button type="submit" className="primary">
+                {t("common.save")}
+              </button>
+            </form>
+          ) : (
+            <div>
+              <button
+                type="button"
+                className="outline-button small-button"
+                onClick={() => {
+                  setCapRaw(status?.global ? (status.global.limitCents / 100).toFixed(2) : "");
+                  setCapCarry(status?.global?.carryover ?? false);
+                  setCapOpen(true);
+                }}
+              >
+                {status?.global ? t("budgets.editCap") : t("budgets.setCap")}
+              </button>
+            </div>
+          )}
+        </article>
 
-      <article className="card">
-        <header className="card-head">
-          <div className="card-title">
-            <span className="card-icon slate">
-              <Icon name="trend" size={15} />
-            </span>
-            <h2>{t("flows.incomeTitle")}</h2>
-          </div>
-        </header>
-        {incomes.length === 0 ? (
-          <EmptyList label={t("planner.noIncome")} action={onAddIncome} />
-        ) : (
-          <ul className="installment-list">
-            {incomes.map((income) => (
-              <li key={income.id} className="installment">
-                <div className="installment-head">
-                  <span className="installment-name">{income.name}</span>
-                  <span className="muted small">{formatCents(income.amountCents)}</span>
-                </div>
-                <span className="muted small">
-                  {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
-                  {income.active ? t("planner.active") : t("planner.inactive")}
-                </span>
-                <div>
-                  <button
-                    type="button"
-                    className="outline-button small-button"
-                    onClick={() => onEditIncome(income)}
-                  >
-                    {t("common.edit")}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </article>
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <span className="card-icon slate">
+                <Icon name="trend" size={15} />
+              </span>
+              <h2>{t("flows.incomeTitle")}</h2>
+            </div>
+          </header>
+          {incomes.length === 0 ? (
+            <EmptyList label={t("planner.noIncome")} action={onAddIncome} />
+          ) : (
+            <ul className="installment-list">
+              {incomes.map((income) => (
+                <li key={income.id} className="installment">
+                  <div className="installment-head">
+                    <span className="installment-name">{income.name}</span>
+                    <span className="muted small">{formatCents(income.amountCents)}</span>
+                  </div>
+                  <span className="muted small">
+                    {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
+                    {income.active ? t("planner.active") : t("planner.inactive")}
+                  </span>
+                  <div>
+                    <button
+                      type="button"
+                      className="outline-button small-button"
+                      onClick={() => onEditIncome(income)}
+                    >
+                      {t("common.edit")}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      </div>
 
       <article className="card">
         <header className="card-head">
@@ -1370,9 +1375,7 @@ export function FlowsScreen({
                   ? Math.min(100, (item.totalCents / cap) * 100)
                   : (item.totalCents / peak) * 100;
               const pace =
-                line != null
-                  ? paceOf(line.spentCents, line.effectiveCents, today, month)
-                  : null;
+                line != null ? paceOf(line.spentCents, line.effectiveCents, today, month) : null;
               const paceKey =
                 pace?.status === "over"
                   ? "budgets.paceOver"
@@ -1386,7 +1389,7 @@ export function FlowsScreen({
                   <div className="installment-head">
                     <span className="installment-name">
                       <span className="dot" style={{ background: item.color }} />
-                      {item.name}
+                      {categoryName(t, item.name)}
                       {line?.overridden ? (
                         <em className="pill-soft">{t("budgets.overridden")}</em>
                       ) : null}
@@ -1428,7 +1431,7 @@ export function FlowsScreen({
                           budget: item.budgetCents,
                         })
                       }
-                      aria-label={t("budget.title", { name: item.name })}
+                      aria-label={t("budget.title", { name: categoryName(t, item.name) })}
                     >
                       {row}
                     </button>
@@ -1466,7 +1469,11 @@ export function DebtsScreen({
   const leftCents = installments.reduce((sum, entry) => sum + entry.leftCents, 0);
   const openInvoices = cards.filter((entry) => entry.usageCents > 0);
   const openCents = openInvoices.reduce((sum, entry) => sum + entry.usageCents, 0);
-  const lastPayoff = installments.map((entry) => entry.ends).sort().at(-1) ?? null;
+  const lastPayoff =
+    installments
+      .map((entry) => entry.ends)
+      .sort()
+      .at(-1) ?? null;
 
   const empty = installments.length === 0 && openInvoices.length === 0;
 
@@ -1492,9 +1499,7 @@ export function DebtsScreen({
         </article>
         <article className="card metric-card metric-card-secondary">
           <span className="metric-label">{t("debts.lastPayoff")}</span>
-          <strong className="metric-value">
-            {lastPayoff ? monthName(lastPayoff, lang) : "—"}
-          </strong>
+          <strong className="metric-value">{lastPayoff ? monthName(lastPayoff, lang) : "—"}</strong>
           <span className="metric-note">{lastPayoff ?? t("debts.empty")}</span>
         </article>
       </div>

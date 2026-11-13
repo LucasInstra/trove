@@ -26,6 +26,11 @@ interface Props {
 export function CompositionBar({ parts, format }: Props) {
   const { t } = useLanguage();
   if (parts.length === 0) return null;
+  // Slivers under 5% are unreadable in the legend, so they share one line.
+  const small = parts.filter((part) => part.key !== "free" && part.sharePct < 5);
+  const legend = small.length > 1 ? parts.filter((part) => !small.includes(part)) : parts;
+  const otherCents = small.reduce((sum, part) => sum + (SIGNS[part.key] === "+" ? part.amountCents : -part.amountCents), 0);
+  const otherShare = small.reduce((sum, part) => sum + part.sharePct, 0);
   return (
     <div className="composition">
       <div className="composition-track">
@@ -39,7 +44,7 @@ export function CompositionBar({ parts, format }: Props) {
         ))}
       </div>
       <ul className="composition-legend">
-        {parts.map((part) => (
+        {legend.map((part) => (
           <li key={part.key}>
             <span className="composition-item">
               <span className={`dot composition-dot ${part.key}`} />
@@ -52,6 +57,19 @@ export function CompositionBar({ parts, format }: Props) {
             </span>
           </li>
         ))}
+        {small.length > 1 ? (
+          <li key="other">
+            <span className="composition-item">
+              <span className="dot composition-dot reserved" />
+              {t("overview.compositionOther")}
+            </span>
+            <span className="composition-value">
+              {otherCents < 0 ? "−" : "+"}
+              {format(Math.abs(otherCents))}
+              <em>{Math.round(otherShare)}%</em>
+            </span>
+          </li>
+        ) : null}
       </ul>
     </div>
   );

@@ -3,6 +3,7 @@ import { Dialog } from "./Dialog";
 import { Icon } from "./Icons";
 import { parseCents } from "./PlannerDialogs";
 import type { Category, Rule, RuleInput } from "../lib/api";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 
 const TARGETS = ["merchant", "description", "both"] as const;
@@ -79,7 +80,7 @@ function RuleDialog({
             <select value={categoryId} onChange={(event) => setCategoryId(Number(event.target.value))}>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.name}
+                  {categoryName(t, category.name)}
                 </option>
               ))}
             </select>
@@ -173,7 +174,7 @@ export function RulesManager({
               <div className="installment-head">
                 <span className="installment-name">
                   <span className="dot" style={{ background: rule.categoryColor }} />
-                  {rule.pattern} → {rule.categoryName}
+                  {rule.pattern} → {categoryName(t, rule.categoryName)}
                 </span>
                 <span className="muted small">
                   {t(`rules.target_${rule.target}`)} · {t(`rules.sign_${rule.sign}`)}

@@ -17,22 +17,16 @@ export function formatDate(iso: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function currentMonth(): string {
-  const now = new Date();
+export function currentMonth(now = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /** Today in the user's own calendar, not in UTC: a bill due today is due today. */
-export function todayIso(): string {
-  const now = new Date();
+export function todayIso(now = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-export function shiftMonth(month: string, delta: number): string {
-  const [year, value] = month.split("-").map(Number);
-  const date = new Date(year, value - 1 + delta, 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
+export { addMonths as shiftMonth } from "../domain/month";
 
 const MONTHS: Record<Lang, string[]> = {
   en: [

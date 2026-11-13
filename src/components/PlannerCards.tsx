@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Bill, CardMeta, Goal, Person, Share, TransactionRow } from "../lib/api";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
@@ -8,8 +8,9 @@ import { groupByDay } from "../domain/projection";
 import { computeSplit, selfPartOf } from "../domain/split";
 import { scopeOfBill } from "../domain/scope";
 import { api } from "../lib/api";
-import { currentMonth, formatCents, formatDate, monthName, todayIso } from "../lib/format";
+import { currentMonth, formatCents, monthName, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
+import { CreditCardArt } from "./CreditCardArt";
 import { Icon } from "./Icons";
 import { Icon3D } from "./Icon3D";
 import { Progress } from "./ui/progress";
@@ -93,6 +94,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
 
       {count > 0 ? (
         <>
+          <div className="bills-filters">
           <div className="segmented" role="group" aria-label={t("planner.bills")}>
             {(
               [
@@ -131,6 +133,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
               </button>
             ))}
           </div>
+          </div>
         </>
       ) : null}
 
@@ -142,6 +145,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
               className={group.day === activeDay ? "day-pill active" : "day-pill"}
               role="listitem"
               aria-current={group.day === activeDay ? "date" : undefined}
+              title={group.count === 1 ? t("planner.dayBillsOne") : t("planner.dayBills", { count: group.count })}
             >
               <b>{String(group.day).padStart(2, "0")}</b>
               <em>{group.count}</em>
@@ -402,57 +406,21 @@ export function CardsCard({
       </button>
 
       <div
-        className={wide ? "cards-track as-grid" : lean ? "cards-track as-dense" : "cards-track"}
+        className={wide ? "cards-track as-grid" : "cards-track"}
         ref={trackRef}
         onScroll={onScroll}
       >
         {cards.map(({ meta }) => {
           const state = invoiceWindow(meta.closingDay, meta.dueDay, activeMonth);
           const open = state.to >= today;
-          const cardUsage = usageFor(meta, activeMonth);
           return (
             <button
               key={meta.id}
               type="button"
-              className="credit-card"
-              style={{ "--card-color": meta.color } as CSSProperties}
+              className="credit-card credit-card-real"
               onClick={() => onEdit(meta)}
             >
-              <span className="credit-texture" aria-hidden="true" />
-              <span className="credit-top">
-                <span className="credit-brand">{meta.brand || t("planner.card")}</span>
-                <span className="credit-state">{open ? t("planner.open") : t("planner.closed")}</span>
-              </span>
-              <span className="credit-middle">
-                <svg className="credit-chip" width="34" height="26" viewBox="0 0 34 26" aria-hidden="true">
-                  <defs>
-                    <linearGradient id={`chip-${meta.id}`} x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0" stopColor="#f6e3ab" />
-                      <stop offset="0.5" stopColor="#d9b86c" />
-                      <stop offset="1" stopColor="#b18f43" />
-                    </linearGradient>
-                  </defs>
-                  <rect width="34" height="26" rx="5" fill={`url(#chip-${meta.id})`} />
-                  <path
-                    d="M0 9h11M0 17h11M23 0v26M11 9h12v8H11z"
-                    fill="none"
-                    stroke="rgba(90, 66, 20, 0.45)"
-                    strokeWidth="1"
-                  />
-                </svg>
-                <span className="credit-number">•••• {meta.last4 || "0000"}</span>
-                <Icon name="contactless" size={18} strokeWidth={1.5} />
-              </span>
-              <span className="credit-bottom">
-                <span className="credit-field">
-                  <em>{t("planner.due")}</em>
-                  <b>{formatDate(dateInMonth(activeMonth, meta.dueDay)).slice(0, 5)}</b>
-                </span>
-                <span className="credit-field end">
-                  <em>{t("planner.freeLimit")}</em>
-                  <b>{formatCents(Math.max(0, meta.limitCents - cardUsage))}</b>
-                </span>
-              </span>
+              <CreditCardArt meta={meta} status={open ? t("planner.open") : t("planner.closed")} />
             </button>
           );
         })}
@@ -546,7 +514,7 @@ export function HousingCard({
       <div className="card-figure">
         <strong>{formatCents(plan.housingCents)}</strong>
         <span className={over ? "delta-line down" : "delta-line"}>
-          <Icon name="check" size={14} />
+          {over ? <b aria-hidden="true">!</b> : <Icon name="check" size={14} />}
           {t("planner.housingRatio", { percent: ratioText, ceiling: plan.ceilingPct })}
         </span>
       </div>

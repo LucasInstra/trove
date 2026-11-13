@@ -2,9 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { CompositionBar } from "../components/CompositionBar";
 import { BreakdownBar } from "../components/BreakdownBar";
 import { BalanceLine } from "../components/charts/BalanceLine";
-import { Donut } from "../components/Donut";
 import { Icon3D } from "../components/Icon3D";
-import { Progress } from "../components/ui/progress";
 import { Icon, type IconName } from "../components/Icons";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
@@ -18,17 +16,33 @@ import {
   isCardAvailable,
   moveCardTo,
   nextMode,
+  CARD_SPANS,
+  MIN_CARD_HEIGHT,
+  normalizeHeight,
+  resizeCard,
+  spanOptions,
   type CardId,
   type CardMode,
   type LayoutCard,
+  type Span,
 } from "../domain/layout";
-import { rowSpanFor } from "../domain/packing";
 import type { MonthPlan } from "../domain/projection";
 import { computeScore } from "../domain/score";
 import { computeSplit } from "../domain/split";
-import { formatCents, monthLabel, monthShort, shiftMonth } from "../lib/format";
+import { formatCents, formatDate, monthLabel, monthShort, shiftMonth } from "../lib/format";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
-import type { Bill, CardMeta, CategoryMonth, CategoryTotal, Debt, MonthPoint, Person, Share } from "../lib/api";
+import type {
+  Bill,
+  CardMeta,
+  CategoryMonth,
+  CategoryTotal,
+  Debt,
+  MonthPoint,
+  Person,
+  Share,
+  TransactionRow,
+} from "../lib/api";
 
 /**
  * Where the dragged card would land. The rectangles are taken when the drag
@@ -49,12 +63,34 @@ function cardAt(
   return null;
 }
 
+interface CardResizeState {
+  id: CardId;
+  pointerId: number;
+  /** Which edge started the resize: the right edge or the bottom edge. */
+  axis: "width" | "height";
+  startX: number;
+  startY: number;
+  startWidth: number;
+  startHeight: number;
+  startSpan: Span;
+  initialHeight: number | null;
+  span: Span;
+  height: number;
+  heightChanged: boolean;
+  columnWidth: number;
+  columnGap: number;
+  maxSpan: number;
+  changed: boolean;
+}
+
 interface OverviewProps {
   plan: MonthPlan;
   cards: { meta: CardMeta; usageCents: number; window: InvoiceWindow }[];
   byCategory: CategoryTotal[];
   series: MonthPoint[];
   matrix: CategoryMonth[];
+  /** The month's newest entries, unfiltered by the ledger's search, account or tag. */
+  rows: TransactionRow[];
   month: string;
   onSelectMonth: (month: string) => void;
   onToggleBill: (billId: number, paid: boolean) => void;
@@ -77,6 +113,7 @@ interface OverviewProps {
   layout: LayoutCard[];
   layoutEditing: boolean;
   onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
+  onLayoutResize: (id: CardId, span: Span, height: number | null) => void;
   onLayoutSpan: (id: CardId, span: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
   onLayoutReset: () => void;
@@ -92,6 +129,7 @@ export function OverviewScreen({
   byCategory,
   series,
   matrix,
+  rows,
   month,
   onSelectMonth,
   onToggleBill,
@@ -117,6 +155,7 @@ export function OverviewScreen({
   layout,
   layoutEditing,
   onLayoutMoveTo,
+  onLayoutResize,
   onLayoutSpan,
   onLayoutMode,
   onLayoutReset,
@@ -129,19 +168,29 @@ export function OverviewScreen({
   // and only the drop commits it.
   const [preview, setPreview] = useState<LayoutCard[] | null>(null);
   const [donutHover, setDonutHover] = useState<number | null>(null);
+  // The series card can be paged back in time without leaving the month.
+  // The shift is stored with the month it applies to, so changing month resets it.
+  const [seriesShiftState, setSeriesShiftState] = useState({ month, shift: 0 });
+  const seriesShift = seriesShiftState.month === month ? seriesShiftState.shift : 0;
+  const setSeriesShift = (update: (value: number) => number) =>
+    setSeriesShiftState({ month, shift: update(seriesShift) });
   const dragCells = useRef<{ id: CardId; rect: DOMRect }[]>([]);
+  // The layout being shown, which is the drag preview while a card moves.
+  const shown = preview ?? layout;
+  const spanOf = (id: CardId) => shown.find((entry) => entry.id === id)?.span ?? 1;
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
   // Biggest first, and the tail becomes one slice: a legend of twelve rows is a
-  // list, not a chart.
+  // list, not a chart. A wider card has room for more rows.
+  const legendLimit = spanOf("donut") >= 2 ? 8 : 3;
   const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
-  const topCategories = ranked.slice(0, 5);
-  const restCents = ranked.slice(5).reduce((total, item) => total + item.totalCents, 0);
+  const topCategories = ranked.slice(0, legendLimit);
+  const restCents = ranked.slice(legendLimit).reduce((total, item) => total + item.totalCents, 0);
   const donutSlices =
-    ranked.length > 5
+    ranked.length > legendLimit
       ? [
           ...topCategories.map((item) => ({
             categoryId: item.categoryId,
-            name: item.name,
+            name: categoryName(t, item.name),
             color: item.color,
             value: item.totalCents,
             budgetCents: item.budgetCents,
@@ -150,19 +199,35 @@ export function OverviewScreen({
         ]
       : topCategories.map((item) => ({
           categoryId: item.categoryId,
-          name: item.name,
+          name: categoryName(t, item.name),
           color: item.color,
           value: item.totalCents,
           budgetCents: item.budgetCents,
         }));
-  const peak = Math.max(...series.slice(-6).map((point) => point.expenseCents), 1);
   const keptShare =
     plan.incomeCents > 0 ? Math.round((plan.forecastCents / plan.incomeCents) * 100) : 0;
+
+  // Income against spending. A full-width card earns the whole year.
+  const inoutMonths = series.slice(-(spanOf("inout") >= 3 ? 12 : 6));
+  const inoutPeak = Math.max(
+    ...inoutMonths.map((point) => Math.max(point.incomeCents, point.expenseCents)),
+    1,
+  );
+  const currentPoint = series.find((point) => point.month === month);
+  const inoutNet = (currentPoint?.incomeCents ?? 0) - (currentPoint?.expenseCents ?? 0);
+
+  // The ledger arrives newest first; sort defensively and keep the head. The
+  // narrow card shows three entries, the wide one five.
+  const recentLimit = spanOf("recent") >= 2 ? 5 : 3;
+  const recent = [...rows]
+    .sort((left, right) =>
+      left.postedOn === right.postedOn ? right.id - left.id : left.postedOn < right.postedOn ? 1 : -1,
+    )
+    .slice(0, recentLimit);
 
   // Cards that the plan does not support stay out of the grid, and a card the
   // user took off the dashboard waits in the shelf until it is added back.
   const cardContext = { people: people.length, housingCents: plan.housingCents };
-  const shown = preview ?? layout;
   const visible = shown.filter(
     (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
   );
@@ -172,14 +237,17 @@ export function OverviewScreen({
 
   // A card that occupies more than one column has room to say more, so it does
   // instead of stretching the same content over a wider box.
-  const isWide = (id: CardId) => (layout.find((entry) => entry.id === id)?.span ?? 1) >= 2;
+  const isWide = (id: CardId) => spanOf(id) >= 2;
 
   // One column per month, one segment per category that spent that month.
   // Missing pairs spent nothing, so the matrix stays sparse and the card
   // fills the gaps with empty columns.
   const stackCount = isWide("series") ? 12 : 6;
+  // Only the 12 months ending at `month` are loaded, so the window cannot page past them.
+  const minSeriesShift = stackCount - 12;
+  const seriesEnd = shiftMonth(month, Math.max(minSeriesShift, seriesShift));
   const stackMonths = Array.from({ length: stackCount }, (_, offset) =>
-    shiftMonth(month, offset - stackCount + 1),
+    shiftMonth(seriesEnd, offset - stackCount + 1),
   );
   const stacks = stackMonths.map((stackMonth) => {
     const slices = matrix
@@ -216,6 +284,8 @@ export function OverviewScreen({
       installments: t("planner.installments"),
       debts: t("debts.title"),
       score: t("score.title"),
+      inout: t("overview.inout"),
+      recent: t("overview.recent"),
     })[id];
 
   const collapsedFigure = (id: CardId): ReactNode => {
@@ -256,6 +326,10 @@ export function OverviewScreen({
         );
       case "score":
         return `${computeScore(plan).total}/100`;
+      case "inout":
+        return formatCents(inoutNet);
+      case "recent":
+        return t("overview.recentCount", { count: recent.length });
     }
   };
 
@@ -263,26 +337,22 @@ export function OverviewScreen({
   const modeLabel = (mode: CardMode) =>
     mode === "reduced"
       ? t("layout.hideDetails")
-      : mode === "compact"
-        ? t("layout.collapse")
-        : mode === "mini"
-          ? t("layout.minimise")
-          : t("layout.expand");
+      : mode === "mini"
+        ? t("layout.minimise")
+        : t("layout.expand");
 
   const modeShort = (mode: CardMode) =>
     mode === "reduced"
       ? t("layout.actionHide")
-      : mode === "compact"
-        ? t("layout.actionCompact")
-        : mode === "mini"
-          ? t("layout.actionMinimise")
-          : t("layout.actionExpand");
+      : mode === "mini"
+        ? t("layout.actionMinimise")
+        : t("layout.actionExpand");
 
   const modeIcon = (mode: CardMode): IconName =>
-    mode === "compact" ? "chevron-down" : mode === "mini" ? "arrow-down-to-line" : "chevron-up";
+    mode === "mini" ? "arrow-down-to-line" : "chevron-up";
 
   const cells: Record<CardId, ReactNode> = {
-    kpis: <KpisCard plan={plan} series={series} month={month} />,
+    kpis: <KpisCard plan={plan} series={series} month={month} span={spanOf("kpis")} />,
     installments: <InstallmentsCard plan={plan} month={month} />,
     debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} />,
     score: <ScoreCard plan={plan} />,
@@ -446,7 +516,29 @@ export function OverviewScreen({
             <Icon3D name="chart-up" size={30} />
             <h2>{isWide("series") ? t("ledger.lastTwelve") : t("ledger.lastSix")}</h2>
           </div>
-          <span className="muted">{t("ledger.spending")}</span>
+          <div className="card-nav">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setSeriesShift((value) => Math.max(minSeriesShift, value - 1))}
+              aria-label={t("planner.previousMonth")}
+              title={t("planner.previousMonth")}
+              disabled={seriesShift <= minSeriesShift}
+            >
+              <Icon name="chevron-left" size={16} />
+            </button>
+            <span className="muted small">{monthLabel(seriesEnd, lang)}</span>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setSeriesShift((value) => Math.min(0, value + 1))}
+              aria-label={t("planner.nextMonth")}
+              title={t("planner.nextMonth")}
+              disabled={seriesShift === 0}
+            >
+              <Icon name="chevron-right" size={16} />
+            </button>
+          </div>
         </header>
         {stacks.every((stack) => stack.total === 0) ? (
           <p className="card-empty">{t("ledger.noSpending")}</p>
@@ -501,6 +593,102 @@ export function OverviewScreen({
         )}
       </article>
     ),
+    inout: (
+      <article className="card overview-chart">
+        <header className="card-head">
+          <div className="card-title">
+            <Icon3D name="chart-up" size={30} />
+            <h2>{t("overview.inout")}</h2>
+          </div>
+          <span className="muted">
+            {inoutMonths.length > 6 ? t("ledger.lastTwelve") : t("ledger.lastSix")}
+          </span>
+        </header>
+        {inoutMonths.every((point) => point.incomeCents === 0 && point.expenseCents === 0) ? (
+          <p className="card-empty">{t("ledger.noSpending")}</p>
+        ) : (
+          <>
+            <div className="flow-bars">
+              {inoutMonths.map((point) => (
+                <button
+                  type="button"
+                  key={point.month}
+                  className={point.month === month ? "flow-col current" : "flow-col"}
+                  onClick={() => onSelectMonth(point.month)}
+                  aria-current={point.month === month}
+                  title={`${monthLabel(point.month, lang)} · ${t("kpi.income")}: ${formatCents(point.incomeCents)} · ${t("kpi.expense")}: ${formatCents(point.expenseCents)}`}
+                >
+                  <span className="flow-pair">
+                    <span
+                      className="flow-bar in"
+                      style={{ height: `${Math.max(2, (point.incomeCents / inoutPeak) * 100)}%` }}
+                    />
+                    <span
+                      className="flow-bar out"
+                      style={{ height: `${Math.max(2, (point.expenseCents / inoutPeak) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="flow-label">{monthShort(point.month, lang)}</span>
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const current = inoutMonths.find((point) => point.month === month);
+              return current ? (
+                <p className="flow-summary">
+                  {t("overview.currentMonthFlow", {
+                    month: monthLabel(month, lang),
+                    income: formatCents(current.incomeCents),
+                    expense: formatCents(current.expenseCents),
+                  })}
+                </p>
+              ) : null;
+            })()}
+            <div className="flow-legend">
+              <span>
+                <i className="flow-swatch in" />
+                {t("kpi.income")}
+              </span>
+              <span>
+                <i className="flow-swatch out" />
+                {t("kpi.expense")}
+              </span>
+            </div>
+          </>
+        )}
+      </article>
+    ),
+    recent: (
+      <article className="card">
+        <header className="card-head">
+          <div className="card-title">
+            <Icon3D name="receipt" size={30} />
+            <h2>{t("overview.recent")}</h2>
+          </div>
+          <span className="muted">{monthLabel(month, lang)}</span>
+        </header>
+        {recent.length === 0 ? (
+          <p className="card-empty">{t("overview.recentEmpty")}</p>
+        ) : (
+          <ul className="recent-list">
+            {recent.map((row) => (
+              <li key={row.id} className="recent-row">
+                <span className="dot" style={{ background: row.categoryColor ?? "var(--faint)" }} />
+                <span className="recent-main">
+                  <span className="recent-title">{row.merchant || row.description}</span>
+                  <span className="recent-meta">
+                    {(row.categoryName ? categoryName(t, row.categoryName) : null) ?? t("ledger.noCategory")} · {formatDate(row.postedOn)}
+                  </span>
+                </span>
+                <span className={row.amountCents < 0 ? "recent-amount out" : "recent-amount in"}>
+                  {formatCents(row.amountCents)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+    ),
   };
 
   // Only the cards card has a block that can be hidden on its own.
@@ -508,110 +696,10 @@ export function OverviewScreen({
     cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} lean />,
   };
 
-  // The compact form of a card keeps the information and drops the furniture: a
-  // header line with the figure and one small visual for the card's own measure.
-  const compactCells: Record<CardId, ReactNode> = {
-    kpis: <KpisCard plan={plan} series={series} month={month} compact />,
-    installments: <InstallmentsCard plan={plan} month={month} compact />,
-    debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} compact />,
-    score: <ScoreCard plan={plan} compact />,
-    forecast: (
-      <article className="card card-compact">
-        <div className="compact-head">
-          <Icon3D name="piggy" size={22} />
-          <span className="compact-title">{t("overview.forecast")}</span>
-          <span className="compact-value">{formatCents(plan.forecastCents)}</span>
-        </div>
-        <div className="compact-body">
-          <Progress
-            value={Math.abs(keptShare)}
-            size="sm"
-            tone={plan.forecastCents >= 0 ? "positive" : "negative"}
-            label={t("overview.forecast")}
-          />
-          <span className="muted small">
-            {plan.forecastCents >= 0
-              ? t("overview.keptShare", { percent: Math.abs(keptShare) })
-              : t("overview.overShare", { percent: Math.abs(keptShare) })}
-          </span>
-        </div>
-      </article>
-    ),
-    bills: (
-      <BillsCard plan={plan} people={people} housingCategoryId={housingCategoryId} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} compact />
-    ),
-    cards: <CardsCard cards={cards} month={month} onAdd={onAddCard} onEdit={onEditCard} compact />,
-    housing: (
-      <HousingCard
-        plan={plan}
-        scope={housingScope}
-        onScope={onHousingScope}
-        onEdit={onEditHousing}
-        compact
-      />
-    ),
-    goals: <GoalsCard plan={plan} onAdd={onAddGoal} compact />,
-    split: (
-      <SplitCard
-        people={people}
-        shares={shares}
-        bills={plan.dueBills}
-        settled={splitSettled}
-        onAssign={onAssignShare}
-        onSettle={onSettle}
-        compact
-      />
-    ),
-    donut: (
-      <article className="card card-compact">
-        <div className="compact-head">
-          <Icon3D name="pie" size={22} />
-          <span className="compact-title">{t("ledger.whereMoney")}</span>
-          <span className="compact-value">{formatCents(spending)}</span>
-        </div>
-        <div className="compact-body">
-          <Donut
-            size={44}
-            thickness={10}
-            segments={byCategory.map((item) => ({ color: item.color, value: item.totalCents }))}
-          />
-          <span className="muted small">
-            {byCategory[0] ? byCategory[0].name : t("ledger.noSpending")}
-          </span>
-        </div>
-      </article>
-    ),
-    series: (
-      <article className="card card-compact">
-        <div className="compact-head">
-          <Icon3D name="chart-up" size={22} />
-          <span className="compact-title">{t("ledger.lastSix")}</span>
-          <span className="compact-value">
-            {formatCents(series.find((point) => point.month === month)?.expenseCents ?? 0)}
-          </span>
-        </div>
-        <div className="compact-body">
-          <div className="spark" aria-hidden="true">
-            {series.slice(-6).map((point) => (
-              <span
-                key={point.month}
-                className={point.month === month ? "current" : undefined}
-                style={{ height: `${Math.max(8, (point.expenseCents / peak) * 100)}%` }}
-                title={`${monthLabel(point.month, lang)}: ${formatCents(point.expenseCents)}`}
-              />
-            ))}
-          </div>
-        </div>
-      </article>
-    ),
-  };
-
-  // Cards have very different heights, so they declare how many row units they
-  // take and the grid packs them without the holes a fixed row height leaves.
-  const ROW_UNIT = 4;
-  const ROW_GAP = 14;
+  // The grid sizes its own rows: the tallest card sets the height of the row,
+  // and every cell in it stretches to match.
   const gridRef = useRef<HTMLDivElement>(null);
-  const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
+  const previousPositions = useRef(new Map<CardId, DOMRect>());
   const drag = useRef<{
     id: CardId;
     pointerId: number;
@@ -619,61 +707,179 @@ export function OverviewScreen({
     y: number;
     active: boolean;
   } | null>(null);
+  const resize = useRef<CardResizeState | null>(null);
+  const [resizingId, setResizingId] = useState<CardId | null>(null);
+
+  const snapshotDragCells = () =>
+    Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-card]") ?? []).map((cell) => ({
+      id: cell.dataset.card as CardId,
+      rect: cell.getBoundingClientRect(),
+    }));
+
+  // One pointer drag feeds two handles: the right edge changes the width, the
+  // bottom edge the minimum height.
+  const beginResize = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    id: CardId,
+    axis: CardResizeState["axis"],
+  ) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const grid = gridRef.current;
+    const cell = event.currentTarget.closest<HTMLElement>("[data-card]");
+    const item = shown.find((entry) => entry.id === id);
+    if (!grid || !cell || !item) return;
+
+    const columns = Math.max(
+      1,
+      getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length,
+    );
+    const columnGap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const gridWidth = grid.getBoundingClientRect().width;
+    const columnWidth = (gridWidth - columnGap * (columns - 1)) / columns;
+    if (columnWidth <= 0) return;
+
+    const startHeight = normalizeHeight(
+      Math.max(item.height ?? MIN_CARD_HEIGHT, cell.getBoundingClientRect().height),
+    );
+    resize.current = {
+      id,
+      pointerId: event.pointerId,
+      axis,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: cell.getBoundingClientRect().width,
+      startHeight,
+      startSpan: item.span,
+      initialHeight: item.height ?? null,
+      span: item.span,
+      height: startHeight,
+      heightChanged: false,
+      columnWidth,
+      columnGap,
+      maxSpan: Math.min(CARD_SPANS[id].max, columns),
+      changed: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResizingId(id);
+  };
+
+  const moveResize = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const state = resize.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    event.preventDefault();
+
+    const deltaX = event.clientX - state.startX;
+    const deltaY = event.clientY - state.startY;
+    const span =
+      state.axis === "height" || Math.abs(deltaX) < 5
+        ? state.span
+        : (Math.min(
+            state.maxSpan,
+            Math.max(
+              1,
+              Math.round(
+                (state.startWidth + deltaX + state.columnGap) /
+                  (state.columnWidth + state.columnGap),
+              ),
+            ),
+          ) as Span);
+    const height =
+      state.axis === "width"
+        ? state.height
+        : normalizeHeight(state.startHeight + deltaY);
+    if (span === state.span && height === state.height) return;
+
+    state.span = span;
+    state.height = height;
+    state.heightChanged = height !== state.startHeight;
+    state.changed = true;
+    setPreview(
+      resizeCard(layout, state.id, span, state.heightChanged ? height : state.initialHeight),
+    );
+  };
+
+  const endResize = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const state = resize.current;
+    resize.current = null;
+    if (!state || state.pointerId !== event.pointerId) return;
+    if (state.changed) {
+      onLayoutResize(state.id, state.span, state.heightChanged ? state.height : state.initialHeight);
+    }
+    setResizingId(null);
+    setPreview(null);
+  };
+
+  const cancelResize = () => {
+    resize.current = null;
+    setResizingId(null);
+    setPreview(null);
+  };
 
   useEffect(() => {
-    if (!dragId) return;
+    if (!dragId && !resizingId) return;
     const cancel = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       drag.current = null;
+      resize.current = null;
       setDragId(null);
       setDropId(null);
+      setResizingId(null);
       setPreview(null);
     };
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
-  }, [dragId]);
+  }, [dragId, resizingId]);
+
+  const layoutPositionKey = visible
+    .map(({ id, span, mode, height }) => `${id}:${span}:${mode}:${height ?? "auto"}`)
+    .join("|");
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
-    let frame = 0;
 
-    const measure = () => {
-      const next: Record<string, number> = {};
-      for (const cell of grid.querySelectorAll<HTMLElement>("[data-card]")) {
-        const id = cell.dataset.card ?? "";
-        const card = cell.firstElementChild as HTMLElement | null;
-        if (!id || !card) continue;
-        next[id] = rowSpanFor(card.offsetHeight, ROW_UNIT, ROW_GAP);
+    const nextPositions = new Map<CardId, DOMRect>();
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const cell of grid.querySelectorAll<HTMLElement>("[data-card]")) {
+      const id = cell.dataset.card as CardId;
+      const rect = cell.getBoundingClientRect();
+      const previous = previousPositions.current.get(id);
+      if (previous && !reduceMotion && id !== dragId && id !== resizingId) {
+        const x = previous.left - rect.left;
+        const y = previous.top - rect.top;
+        if (Math.abs(x) > 1 || Math.abs(y) > 1) {
+          cell.animate(
+            [
+              { transform: `translate(${x}px, ${y}px)` },
+              { transform: "translate(0, 0)" },
+            ],
+            { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+          );
+        }
       }
-      setRowSpans((current) => {
-        const keys = Object.keys(next);
-        const stable =
-          keys.length === Object.keys(current).length && keys.every((key) => current[key] === next[key]);
-        return stable ? current : next;
-      });
-    };
-
-    measure();
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(() => {
-        cancelAnimationFrame(frame);
-        frame = requestAnimationFrame(measure);
-      });
-      observer.observe(grid);
-      for (const cell of grid.querySelectorAll<HTMLElement>("[data-card]")) {
-        const card = cell.firstElementChild;
-        if (card) observer.observe(card);
-      }
+      nextPositions.set(id, rect);
     }
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [layout]);
+    previousPositions.current = nextPositions;
+  }, [layoutPositionKey, dragId, resizingId]);
+
+  // A window resize or sidebar collapse reflows the grid without a layout change;
+  // refresh the saved positions so the next animation starts from where cards are.
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const observer = new ResizeObserver(() => {
+      const positions = new Map<CardId, DOMRect>();
+      for (const cell of grid.querySelectorAll<HTMLElement>("[data-card]")) {
+        positions.set(cell.dataset.card as CardId, cell.getBoundingClientRect());
+      }
+      previousPositions.current = positions;
+    });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section className="screen overview">
@@ -715,17 +921,20 @@ export function OverviewScreen({
         onPointerLeave={() => setDropId(null)}
       >
         {visible.map((item, index) => {
-          // Only the smallest step becomes a chip, one column wide, so it can
-          // fill the single column holes the tall cards leave behind. The compact
-          // card is still a card: it keeps its width and shows its figures.
+          // Only the smallest step becomes a one-line chip. The compact card is
+          // still a card and shows its figures.
           const chip = item.mode === "mini";
-          const span = chip ? 1 : item.span;
+          // The width belongs to the card, not to how much of it is shown: a
+          // minimised card keeps the columns the user chose.
+          const span = item.span;
+          const manualHeight = chip ? undefined : item.height;
           const target = nextMode(item.mode, hasDetailsSection(item.id));
           const cellClass = [
             "grid-cell",
             `span-${span}`,
-            item.id === "bills" ? "natural" : "",
+            manualHeight != null ? "is-resized" : "",
             dragId === item.id ? "is-dragging" : "",
+            resizingId === item.id ? "is-resizing" : "",
             dropId === item.id ? "is-drop-target" : "",
           ]
             .filter(Boolean)
@@ -749,12 +958,10 @@ export function OverviewScreen({
                 pointerId: event.pointerId,
                 x: event.clientX,
                 y: event.clientY,
-                active: Boolean(grip),
+                active: false,
               };
-              if (grip) {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                setDragId(item.id);
-              }
+              dragCells.current = snapshotDragCells();
+              event.currentTarget.setPointerCapture(event.pointerId);
             }}
             onPointerMove={(event) => {
               const state = drag.current;
@@ -762,13 +969,6 @@ export function OverviewScreen({
               if (!state.active) {
                 if (Math.hypot(event.clientX - state.x, event.clientY - state.y) < 6) return;
                 state.active = true;
-                event.currentTarget.setPointerCapture(event.pointerId);
-                dragCells.current = Array.from(
-                  gridRef.current?.querySelectorAll<HTMLElement>("[data-card]") ?? [],
-                ).map((cell) => ({
-                  id: cell.dataset.card as CardId,
-                  rect: cell.getBoundingClientRect(),
-                }));
                 setDragId(state.id);
               }
               const landing = cardAt(event.clientX, event.clientY, dragCells.current, state.id);
@@ -794,11 +994,15 @@ export function OverviewScreen({
             }}
             onPointerCancel={() => {
               drag.current = null;
+              resize.current = null;
               setDragId(null);
               setDropId(null);
+              setResizingId(null);
               setPreview(null);
             }}
-            style={{ gridRowEnd: `span ${rowSpans[item.id] ?? 1}` }}
+            style={{
+              minHeight: manualHeight == null ? undefined : `${manualHeight}px`,
+            }}
           >
             {chip ? (
               <button
@@ -814,9 +1018,8 @@ export function OverviewScreen({
                   <Icon name="chevron-down" size={13} />
                 </span>
               </button>
-            ) : item.mode === "compact" ? (
-              compactCells[item.id]
-            ) : item.mode === "reduced" && leanCells[item.id] ? (
+            ) : (item.mode === "reduced" || (item.id === "cards" && span === 1)) &&
+              leanCells[item.id] ? (
               leanCells[item.id]
             ) : (
               cells[item.id]
@@ -839,15 +1042,23 @@ export function OverviewScreen({
                       event.preventDefault();
                       onLayoutMoveTo(item.id, below.id);
                     }
+                    if (event.key === "Home" && visible[0]) {
+                      event.preventDefault();
+                      onLayoutMoveTo(item.id, visible[0].id);
+                    }
+                    if (event.key === "End" && visible[visible.length - 1]) {
+                      event.preventDefault();
+                      onLayoutMoveTo(item.id, visible[visible.length - 1].id);
+                    }
                   }}
                 >
-                  <Icon name="grip" size={15} />
+                  <Icon name="grip" size={18} />
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
-                {chip ? null : (
+                {spanOptions(item.id).length < 2 ? null : (
                   <>
                     <span className="cell-spans" role="group" aria-label={t("layout.width")}>
-                      {[1, 2, 3].map((span) => (
+                      {spanOptions(item.id).map((span) => (
                         <button
                           key={span}
                           type="button"
@@ -885,6 +1096,36 @@ export function OverviewScreen({
                   <Icon name="x" size={13} />
                 </button>
               </div>
+            ) : null}
+            {layoutEditing && !chip ? (
+              <>
+                <button
+                  type="button"
+                  className="cell-resize-handle is-right"
+                  aria-label={t("layout.resizeWidth", { name: cardName(item.id) })}
+                  title={t("layout.resizeWidth", { name: cardName(item.id) })}
+                  onPointerDown={(event) => beginResize(event, item.id, "width")}
+                  onPointerMove={moveResize}
+                  onPointerUp={endResize}
+                  onPointerCancel={cancelResize}
+                />
+                <button
+                  type="button"
+                  className="cell-resize-handle is-bottom"
+                  aria-label={t("layout.resizeHeight", { name: cardName(item.id) })}
+                  title={t(item.height == null ? "layout.resizeHeight" : "layout.fitContent", {
+                    name: cardName(item.id),
+                  })}
+                  onPointerDown={(event) => beginResize(event, item.id, "height")}
+                  onPointerMove={moveResize}
+                  onPointerUp={endResize}
+                  onPointerCancel={cancelResize}
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                    if (item.height != null) onLayoutResize(item.id, item.span, null);
+                  }}
+                />
+              </>
             ) : null}
           </div>
           );

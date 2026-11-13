@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Dialog } from "./Dialog";
 import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
-import { monthLabel } from "../lib/format";
+import { monthLabel, todayIso } from "../lib/format";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
-
-const today = () => new Date().toISOString().slice(0, 10);
 
 /** Money typed as "1.234,56" or "1234.56" becomes integer cents. */
 export function parseCents(raw: string): number {
@@ -109,7 +108,7 @@ export function BillDialog({
             categoryId,
             accountId: null,
             goalId: bill?.goalId ?? null,
-            startsOn: bill?.startsOn ?? today(),
+            startsOn: bill?.startsOn ?? todayIso(),
             endsOn: bill?.endsOn ?? null,
             installmentsTotal: parseInstallments(installments),
             active: true,
@@ -129,7 +128,7 @@ export function BillDialog({
           <select value={categoryId ?? ""} onChange={(event) => setCategoryId(event.target.value === "" ? null : Number(event.target.value))}>
             <option value="">{t("ledger.noCategory")}</option>
             {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
+              <option key={category.id} value={category.id}>{categoryName(t, category.name)}</option>
             ))}
           </select>
         </Field>
@@ -238,7 +237,7 @@ export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClo
             kind: goal?.kind ?? "reserve",
             targetCents: parseCents(target),
             monthlyCents: parseCents(monthly),
-            startsOn: goal?.startsOn ?? today(),
+            startsOn: goal?.startsOn ?? todayIso(),
             accountId: null,
             color,
           });
@@ -268,7 +267,7 @@ export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClo
 export function DepositDialog({ goal, onClose, onSave }: { goal: Goal; onClose: () => void; onSave: (input: DepositInput) => void }) {
   const { t } = useLanguage();
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(todayIso());
 
   return (
     <Dialog title={t("deposit.title", { name: goal.name })} onClose={onClose}>

@@ -1,0 +1,963 @@
+/*
+ * trove theme: sober and dense.
+ *
+ * Loaded last and outside any layer, so it settles the tokens and the shared
+ * surfaces (cards, page headers, metric strips, entity rows) that the older
+ * sheets styled one screen at a time. Colour is reserved for meaning: blue for
+ * the brand and progress, red for over budget or late, everything else neutral.
+ */
+
+:root {
+  --bg: #f3f2ee;
+  --surface: #ffffff;
+  --surface-soft: #f7f6f2;
+  --bg-sunken: #efeee9;
+  --ink: #1b1d1a;
+  --muted: #62665e;
+  --faint: #8d9188;
+  --line: #e4e2db;
+  --line-strong: #d6d3ca;
+  --border: #e4e2db;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --primary-soft: #e8effd;
+  --primary-foreground: #ffffff;
+  --positive: #3d7a4f;
+  --negative: #b8432f;
+  --warning: #b7791f;
+  --bills-segment: #93b4f8;
+  --hero: #ffffff;
+  --hero-text: #1b1d1a;
+  --shadow-soft: rgba(27, 29, 26, 0.04);
+  --bar-rest: #e7e5df;
+  --chart-line: #2563eb;
+  --chart-fill: rgba(37, 99, 235, 0.12);
+  --window-control: #62665e;
+  --window-hover: #e9e7e1;
+  --window-active: #dedbd3;
+  --shadow-card-lift: 0 1px 2px rgba(27, 29, 26, 0.06);
+  --hero-glow: transparent;
+  --line-hover: var(--line-strong);
+  --radius: 10px;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  --bg: #121412;
+  --surface: #191c19;
+  --surface-soft: #1f231f;
+  --bg-sunken: #222622;
+  --ink: #e8ebe5;
+  --muted: #a1a69c;
+  --faint: #7d8279;
+  --line: #2a2f2a;
+  --line-strong: #363c36;
+  --border: #2a2f2a;
+  --primary: #2563eb;
+  --primary-strong: #93b4f8;
+  --primary-soft: #1b2740;
+  --primary-foreground: #ffffff;
+  --positive: #7fb08f;
+  --negative: #e0806c;
+  --warning: #d9a54a;
+  --bills-segment: #1d4ed8;
+  --hero: #191c19;
+  --hero-text: #e8ebe5;
+  --bar-rest: #2a2f2a;
+  --chart-line: #93b4f8;
+  --chart-fill: rgba(147, 180, 248, 0.14);
+  --window-control: #a1a69c;
+  --window-hover: #232723;
+  --window-active: #2c312c;
+  --shadow-card-lift: none;
+  --line-hover: var(--line-strong);
+}
+
+/* Figures line up in columns everywhere. */
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Surfaces --------------------------------------------------------- */
+
+.card,
+.account-card,
+.entity-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .card {
+  box-shadow: none;
+}
+
+/* Cards no longer jump on hover: they are panels, not buttons. */
+.card:hover,
+.account-card:hover,
+.entity-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.entity-card:hover {
+  border-color: var(--line-strong);
+}
+
+.card-head h2,
+.card-title h2 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.card-icon {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+[data-theme="dark"] .card-icon {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+/* ---- Page header ------------------------------------------------------ */
+
+.planner-screen-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 4px 18px;
+  padding: 6px 2px 0;
+}
+
+.planner-screen-head .eyebrow {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.planner-screen-head h1 {
+  margin: 2px 0 4px;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.planner-screen-head p {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.planner-screen-tabs {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+}
+
+.screen-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.screen-tabs button {
+  position: relative;
+  padding: 8px 12px 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.screen-tabs button:hover:not(:disabled) {
+  color: var(--ink);
+  transform: none;
+}
+
+.screen-tabs button.is-active {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.screen-tabs button.is-active::after {
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  content: "";
+}
+
+/* ---- Metric strip ----------------------------------------------------- */
+
+/* The headline figures of a page share one panel, split by hairlines, instead
+   of each sitting in its own oversized tile with an orphan on the next row. */
+.planner-metrics {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.planner-metrics > .metric-card {
+  min-height: 0;
+  padding: 14px 18px 15px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  gap: 3px;
+}
+
+.planner-metrics > .metric-card + .metric-card {
+  border-left: 1px solid var(--line);
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.metric-note {
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+@media (max-width: 720px) {
+  .planner-metrics {
+    grid-auto-flow: row;
+  }
+
+  .planner-metrics > .metric-card + .metric-card {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}
+
+/* ---- Entity rows (goals, cards, incomes) ------------------------------ */
+
+.entity-list {
+  gap: 8px;
+}
+
+.entity-card {
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.entity-card-credit,
+.entity-card-goal {
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.entity-icon {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--entity-color, var(--primary)) 14%, transparent);
+  color: var(--entity-color, var(--primary));
+}
+
+.entity-card h2 {
+  font-size: 13.5px;
+}
+
+/* ---- Controls --------------------------------------------------------- */
+
+button.primary {
+  box-shadow: none;
+}
+
+button.primary:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: var(--primary-strong);
+}
+
+/* ---- Top bar ---------------------------------------------------------- */
+
+.topbar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.title-row h1,
+.topbar h1 {
+  font-size: 20px;
+}
+
+/* ---- Sidebar ---------------------------------------------------------- */
+
+.sidebar-item-active {
+  box-shadow: none;
+}
+
+/* Two related panels side by side, so short cards do not each take a full row. */
+.planner-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .planner-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Ledger ----------------------------------------------------------- */
+
+/* A ledger is read in columns: tighter rows, one hairline between them. */
+.tx-list {
+  gap: 10px;
+}
+
+.tx-group {
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.tx-row {
+  grid-template-columns: 18px 28px minmax(0, 1fr) 150px 112px auto;
+  gap: 12px;
+  padding: 7px 14px;
+  border-bottom-color: var(--line);
+}
+
+.tx-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  font-size: 11.5px;
+}
+
+.tx-title {
+  font-size: 13px;
+}
+
+.tx-sub {
+  font-size: 11.5px;
+}
+
+.tx-category select,
+.tx-row select {
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 12px;
+}
+
+.tx-day-head {
+  padding: 0 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* ---- Blue theme: charts and meters ----------------------------------------
+ * Income and "free" amounts read as the brand blue, spending as red and
+ * committed or planned amounts as amber. Green stays only on --positive. */
+
+.flow-bar.in,
+.flow-swatch.in {
+  background: var(--primary);
+}
+
+.flow-bar.out,
+.flow-swatch.out {
+  background: var(--negative);
+  opacity: 0.85;
+}
+
+.flow-bar.out.planned,
+.flow-swatch.planned {
+  background: var(--warning);
+  opacity: 1;
+}
+
+.spark-up path {
+  stroke: var(--primary);
+}
+
+.composition-part.housing {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 60%, var(--surface)), var(--warning));
+}
+
+.composition-part.free {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, var(--surface)), var(--primary));
+}
+
+.composition-dot.housing {
+  background: var(--warning);
+}
+
+.composition-dot.free {
+  background: var(--primary);
+}
+
+.account-delta .delta-line:not(.down) {
+  color: var(--primary-strong);
+}
+
+.housing-card .card-figure .delta-line {
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+}
+
+.goals-card {
+  border-bottom-color: var(--primary);
+  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--primary) 6%, var(--surface)));
+}
+
+/* ---- Spacing and shell fixes ---------------------------------------------- */
+
+/* Air between the title bar and the month card. */
+.main {
+  padding-top: 14px;
+}
+
+/* The collapse button floats over the profile row instead of owning a row. */
+.sidebar-rail {
+  position: relative;
+}
+
+.sidebar-rail:not([data-collapsed="true"]) .sidebar-toggle {
+  position: absolute;
+  top: 17px;
+  right: 10px;
+}
+
+.sidebar-rail:not([data-collapsed="true"]) .sidebar-toggle + * {
+  padding-right: 38px;
+}
+
+/* Language buttons size to their label instead of clipping it. */
+.segmented.wide {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+}
+
+.segmented.wide button {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* ---- Review fixes ------------------------------------------------------- */
+
+/* Progress fills follow the brand blue; green stays on positive values only. */
+.meter-fill {
+  background: var(--primary);
+}
+
+.meter-fill.over {
+  background: var(--negative);
+}
+
+/* "!" stands in for the check when housing is over its ceiling. */
+.delta-line b {
+  font-weight: 700;
+}
+
+/* Bold link labels no longer lose their last letter to the ellipsis box. */
+.link.bill-name {
+  padding-right: 2px;
+  line-height: 1.5;
+  max-width: 100%;
+  text-align: left;
+}
+
+/* The two bill filters share one row when there is room. */
+.bills-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.bills-card .bills-filters .segmented + .segmented {
+  margin-top: 0;
+}
+
+/* Month tiles spread over the card height instead of leaving it half empty. */
+.card:has(> .kpi-grid) {
+  display: flex;
+  flex-direction: column;
+}
+
+.card > .kpi-grid {
+  flex: 1;
+  align-content: space-evenly;
+}
+
+.flow-summary {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Native selects match the other fields. */
+select:not([multiple]) {
+  appearance: none;
+  padding-right: 30px;
+  background-color: var(--surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2362665e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ---- Motion and polish: charts, icons, surfaces ---------------------------- */
+
+@keyframes grow-y { from { transform: scaleY(0); } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes draw-line { to { stroke-dashoffset: 0; } }
+@keyframes fade-in { from { opacity: 0; } }
+
+/* Bars: gridlines behind, rounded caps, the selected month stands out. */
+.flow-bars {
+  background-image: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent calc(25% - 1px),
+    color-mix(in srgb, var(--line) 70%, transparent) calc(25% - 1px),
+    color-mix(in srgb, var(--line) 70%, transparent) 25%
+  );
+  gap: 10px;
+}
+
+.flow-col {
+  border-radius: 10px;
+  padding: 4px 0 2px;
+  transition: background-color 160ms ease;
+}
+
+.flow-col:hover,
+.flow-col.current {
+  background: color-mix(in srgb, var(--primary-soft) 70%, transparent);
+}
+
+.flow-bar {
+  width: 14px;
+  border-radius: 7px 7px 3px 3px;
+  transform-origin: bottom;
+  animation: grow-y 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.flow-col:not(.current) .flow-bar {
+  opacity: 0.55;
+}
+
+.flow-col:hover .flow-bar,
+.flow-col.current .flow-bar {
+  opacity: 1;
+}
+
+.flow-col:hover .flow-bar {
+  filter: saturate(1.15) brightness(1.04);
+}
+
+.flow-col .flow-label {
+  transition: color 160ms ease;
+}
+
+.flow-col:hover .flow-label {
+  color: var(--ink);
+}
+
+.flow-swatch {
+  border-radius: 3px;
+}
+
+.flow-col:nth-child(1) .flow-bar { animation-delay: 0ms; }
+.flow-col:nth-child(2) .flow-bar { animation-delay: 55ms; }
+.flow-col:nth-child(3) .flow-bar { animation-delay: 110ms; }
+.flow-col:nth-child(4) .flow-bar { animation-delay: 165ms; }
+.flow-col:nth-child(5) .flow-bar { animation-delay: 220ms; }
+.flow-col:nth-child(6) .flow-bar { animation-delay: 275ms; }
+.flow-col:nth-child(7) .flow-bar { animation-delay: 330ms; }
+.flow-col:nth-child(8) .flow-bar { animation-delay: 385ms; }
+.flow-col:nth-child(9) .flow-bar { animation-delay: 440ms; }
+.flow-col:nth-child(10) .flow-bar { animation-delay: 495ms; }
+.flow-col:nth-child(11) .flow-bar { animation-delay: 550ms; }
+.flow-col:nth-child(12) .flow-bar { animation-delay: 605ms; }
+
+/* Fills and the forecast bar grow from the left when they appear. */
+.meter-fill,
+.composition-part {
+  transform-origin: left;
+  animation: grow-x 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.composition-part {
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.composition-track:hover .composition-part:hover {
+  filter: brightness(1.06);
+  transform: scaleY(1.25);
+}
+
+.composition-legend li {
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.composition-legend li:hover {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+/* Sparklines: soft area under the line, drawn in on arrival. */
+.spark {
+  color: var(--chart-line);
+  overflow: visible;
+}
+
+.spark-up { color: var(--primary); }
+.spark-down { color: var(--negative); }
+
+.spark path.spark-area {
+  fill: color-mix(in srgb, currentColor 8%, transparent);
+  stroke: none;
+  animation: fade-in 600ms ease 250ms both;
+}
+
+.spark path.spark-line {
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line 800ms cubic-bezier(0.3, 0.7, 0.2, 1) 100ms forwards;
+}
+
+/* Line charts follow the same rules. */
+.chart-line {
+  stroke-width: 2.25;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.chart-area {
+  animation: fade-in 700ms ease 200ms both;
+}
+
+/* Card title chips: a soft gradient and inner ring instead of a flat square. */
+.card-icon {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 18%, var(--surface)), var(--primary-soft));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+  transition: transform 180ms ease;
+}
+
+.card-icon svg {
+  stroke-width: 1.8;
+}
+
+.card:hover > .card-head .card-icon,
+.card:hover .card-title .card-icon {
+  transform: translateY(-1px) rotate(-4deg);
+}
+
+/* Icons in the rail and round buttons respond to the pointer. */
+.sidebar-rail svg,
+.round-button svg,
+.account-edit svg {
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.sidebar-rail a:hover svg,
+.sidebar-rail button:hover svg {
+  transform: scale(1.08);
+}
+
+.round-button:hover svg,
+.account-edit:hover svg {
+  transform: rotate(90deg);
+}
+
+.round-button,
+.account-edit {
+  transition: background-color 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+
+/* Cards lift their border on hover; buttons press in. */
+.card,
+.account-card {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.card:hover,
+.account-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.day-pill,
+.segmented button {
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-bar,
+  .meter-fill,
+  .composition-part,
+  .spark path,
+  .chart-area,
+  .card-icon,
+  .sidebar-rail svg,
+  .round-button svg {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .spark path.spark-line {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- Credit card art ------------------------------------------------------ */
+
+.credit-entity {
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+  padding: 18px 20px;
+}
+
+@media (max-width: 760px) {
+  .credit-entity {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.card-art-real {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 300px;
+  aspect-ratio: 1.586;
+  padding: 16px 18px;
+  overflow: hidden;
+  border-radius: 16px;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.28), transparent 55%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--card-color, #2b2b2d) 80%, white),
+      var(--card-color, #2b2b2d) 48%,
+      color-mix(in srgb, var(--card-color, #2b2b2d) 58%, black)
+    );
+  box-shadow:
+    0 16px 30px color-mix(in srgb, var(--card-color, #2b2b2d) 34%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 260ms ease;
+  user-select: none;
+}
+
+/* Two faint rings, like the engraved pattern on a printed card. */
+.card-art-real::before,
+.card-art-real::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.card-art-real::before {
+  width: 220px;
+  height: 220px;
+  right: -70px;
+  top: -90px;
+}
+
+.card-art-real::after {
+  width: 300px;
+  height: 300px;
+  right: -120px;
+  top: -130px;
+}
+
+.credit-entity:hover .card-art-real {
+  transform: perspective(800px) rotateX(3deg) rotateY(-5deg) translateY(-2px);
+  box-shadow:
+    0 22px 38px color-mix(in srgb, var(--card-color, #2b2b2d) 40%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.card-art-real > * {
+  position: relative;
+  z-index: 1;
+}
+
+.card-art-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-art-brand {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.card-art-chip {
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+
+.card-art-number {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.card-art-number i {
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.card-art-number b {
+  font-weight: 600;
+}
+
+.card-art-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-art-field em {
+  display: block;
+  max-width: 150px;
+  overflow: hidden;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.card-art-field.end {
+  display: grid;
+  text-align: right;
+}
+
+.card-art-field small {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  opacity: 0.82;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-art-real {
+    transition: none;
+  }
+
+  .credit-entity:hover .card-art-real {
+    transform: none;
+  }
+}
+
+/* The overview carousel shows the same card art; the button is just its frame. */
+.credit-card.credit-card-real {
+  flex: 0 0 min(100%, 280px);
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border-radius: 16px;
+  background: none;
+  box-shadow: none;
+  scroll-snap-align: start;
+}
+
+.credit-card.credit-card-real::after {
+  display: none;
+}
+
+.credit-card.credit-card-real:hover:not(:disabled) {
+  background: none;
+  box-shadow: none;
+}
+
+.credit-card-real .card-art-real {
+  max-width: none;
+}
+
+.credit-card-real:hover .card-art-real {
+  transform: perspective(800px) rotateX(3deg) rotateY(-5deg) translateY(-2px);
+}
+
+.cards-track.as-grid .credit-card.credit-card-real {
+  flex: 1 1 240px;
+}
+
+.card-art-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-art-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

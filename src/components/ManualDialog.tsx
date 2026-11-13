@@ -4,6 +4,7 @@ import { Icon } from "./Icons";
 import { parseCents } from "./PlannerDialogs";
 import type { Account, Category, ManualEdit, ManualInput, TransactionRow } from "../lib/api";
 import { todayIso } from "../lib/format";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 
 /**
@@ -109,7 +110,7 @@ export function ManualDialog({
             <option value="">{t("ledger.noCategory")}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {categoryName(t, category.name)}
               </option>
             ))}
           </select>

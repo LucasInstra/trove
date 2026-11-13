@@ -18,6 +18,7 @@ export function Sparkline({
   label: string;
 }) {
   if (values.length < 2) return null;
+  const line = linePath(values, width, height, 3);
   return (
     <svg
       className={`spark spark-${tone}`}
@@ -27,7 +28,8 @@ export function Sparkline({
       role="img"
       aria-label={label}
     >
-      <path d={linePath(values, width, height, 3)} />
+      <path className="spark-area" d={`${line} V ${height} H 3 Z`} />
+      <path className="spark-line" pathLength={1} d={line} />
     </svg>
   );
 }

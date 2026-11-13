@@ -237,7 +237,7 @@ export function CsvImport({ accounts, onImported }: { accounts: Account[]; onImp
             <select value={mapping.dateFormat} onChange={(event) => set("dateFormat", event.target.value)}>
               <option value="%d/%m/%Y">DD/MM/AAAA</option>
               <option value="%Y-%m-%d">AAAA-MM-DD</option>
-              <option value="%d-%m/%Y">DD-MM-AAAA</option>
+              <option value="%d-%m-%Y">DD-MM-AAAA</option>
               <option value="%m/%d/%Y">MM/DD/AAAA</option>
             </select>
           </label>

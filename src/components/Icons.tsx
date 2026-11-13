@@ -235,12 +235,12 @@ const ICONS: Record<IconName, ReactNode> = {
   // six hollow rings at 14px read as noise. The colour is still currentColor.
   grip: (
     <g fill="currentColor" stroke="none">
-      <circle cx="9.5" cy="7" r="1.35" />
-      <circle cx="14.5" cy="7" r="1.35" />
-      <circle cx="9.5" cy="12" r="1.35" />
-      <circle cx="14.5" cy="12" r="1.35" />
-      <circle cx="9.5" cy="17" r="1.35" />
-      <circle cx="14.5" cy="17" r="1.35" />
+      <circle cx="9.5" cy="7" r="1.65" />
+      <circle cx="14.5" cy="7" r="1.65" />
+      <circle cx="9.5" cy="12" r="1.65" />
+      <circle cx="14.5" cy="12" r="1.65" />
+      <circle cx="9.5" cy="17" r="1.65" />
+      <circle cx="14.5" cy="17" r="1.65" />
     </g>
   ),
   scale: (

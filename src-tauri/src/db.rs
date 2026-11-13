@@ -875,7 +875,8 @@ fn upsert_account(connection: &Connection, account: &ofx::OfxAccount) -> Result<
             "insert into accounts (name, kind, bank_id, acct_id, currency, created_at, uid, updated_at)
              values (?1, ?2, ?3, ?4, ?5, ?6, lower(hex(randomblob(16))), ?6)
              on conflict (bank_id, acct_id) do update
-                set currency = excluded.currency, updated_at = excluded.updated_at
+                set currency = excluded.currency, updated_at = excluded.updated_at,
+                    deleted_at = null
              returning id",
             params![
                 account_label(account),
@@ -888,6 +889,18 @@ fn upsert_account(connection: &Connection, account: &ofx::OfxAccount) -> Result<
             |row| row.get(0),
         )
         .map_err(|problem| problem.to_string())
+}
+
+/// Two real, identical purchases on the same day share a fingerprint. Within one
+/// file the second and later copies get an occurrence suffix, so they are kept,
+/// while re-importing the same file still maps each row onto the same key.
+fn occurrence_key(seen: &mut std::collections::HashMap<String, u32>, key: String) -> String {
+    if !key.starts_with("hash|") {
+        return key;
+    }
+    let count = seen.entry(key.clone()).or_insert(0);
+    *count += 1;
+    if *count == 1 { key } else { format!("{key}|#{count}") }
 }
 
 pub fn import_ofx(connection: &mut Connection, path: &Path) -> Result<ImportReport, String> {
@@ -905,14 +918,15 @@ pub fn import_ofx(connection: &mut Connection, path: &Path) -> Result<ImportRepo
     let mut inserted = 0i64;
     let mut duplicates = 0i64;
 
+    let mut seen = std::collections::HashMap::new();
     for entry in &statement.transactions {
-        let dedupe_key = ofx::dedupe_key(
+        let dedupe_key = occurrence_key(&mut seen, ofx::dedupe_key(
             &account_key,
             &entry.fitid,
             &entry.posted_on,
             entry.amount_cents,
             &entry.description,
-        );
+        ));
         let affected = transaction
             .execute(
                 "insert or ignore into transactions
@@ -1263,6 +1277,7 @@ pub struct CsvProfileInput {
     pub decimal_sep: String,
 }
 
+#[cfg(test)]
 impl CsvProfile {
     pub fn mapping(&self) -> crate::csv::CsvMapping {
         crate::csv::CsvMapping {
@@ -1392,7 +1407,10 @@ pub fn list_csv_profiles(connection: &Connection) -> Result<Vec<CsvProfile>, Str
                 encoding: row.get(3)?,
                 has_header: row.get::<_, i64>(4)? != 0,
                 date_col: row.get(5)?,
-                date_format: row.get(6)?,
+                date_format: {
+                    let format: String = row.get(6)?;
+                    if format == "%d-%m/%Y" { "%d-%m-%Y".to_string() } else { format }
+                },
                 description_col: row.get(7)?,
                 amount_col: row.get(8)?,
                 debit_col: row.get(9)?,
@@ -1736,11 +1754,16 @@ fn month_key_of(month: &str, delta: i32) -> Result<String, String> {
         .ok_or_else(|| "month out of range".to_string())
 }
 
+/// Key under which a spent map stores the month's total spending. `None` already
+/// means uncategorized spending, so the global budget needs its own slot.
+const TOTAL_SPENT_KEY: Option<i64> = Some(i64::MIN);
+
 fn spent_map_of(connection: &Connection, month: &str) -> Result<std::collections::HashMap<Option<i64>, i64>, String> {
     let mut map = std::collections::HashMap::new();
     for total in category_totals(connection, month)? {
         map.insert(total.category_id, total.total_cents);
     }
+    map.insert(TOTAL_SPENT_KEY, month_totals(connection, month)?.expense_cents);
     Ok(map)
 }
 
@@ -1755,7 +1778,8 @@ fn carry_into(
     spent: &std::collections::HashMap<String, std::collections::HashMap<Option<i64>, i64>>,
     depth: u32,
 ) -> Result<i64, String> {
-    if depth > 12 {
+    // budget_status loads spending for the twelve months before the current one.
+    if depth >= 12 {
         return Ok(0);
     }
     let previous = month_key_of(month, -1)?;
@@ -1772,7 +1796,7 @@ fn carry_into(
     }
     let previous_spent = spent
         .get(&previous)
-        .and_then(|map| map.get(&category_id))
+        .and_then(|map| map.get(&category_id.or(TOTAL_SPENT_KEY)))
         .copied()
         .unwrap_or(0);
     let previous_carry =
@@ -2017,14 +2041,15 @@ pub fn import_csv(
     let source = path.to_string_lossy().to_string();
     let mut inserted = 0i64;
     let mut duplicates = 0i64;
+    let mut seen = std::collections::HashMap::new();
     for row in &rows {
-        let dedupe_key = crate::ofx::dedupe_key(
+        let dedupe_key = occurrence_key(&mut seen, crate::ofx::dedupe_key(
             &account_key,
             "",
             &row.posted_on,
             row.amount_cents,
             &row.description,
-        );
+        ));
         let trntype = if row.amount_cents < 0 { "DEBIT" } else { "CREDIT" };
         let affected = transaction
             .execute(
@@ -2305,6 +2330,15 @@ pub fn bulk_set_category(
     let affected = statement
         .execute(values.as_slice())
         .map_err(|problem| problem.to_string())?;
+    // Refunds net against their original's category, so they follow it.
+    let refunds = format!(
+        "update transactions set category_id = ?1
+         where refund_of in ({}) and transfer_group is null and deleted_at is null",
+        placeholders(ids.len())
+    );
+    connection
+        .execute(&refunds, values.as_slice())
+        .map_err(|problem| problem.to_string())?;
     Ok(affected as i64)
 }
 
@@ -2460,14 +2494,20 @@ pub fn set_category(
     transaction_id: i64,
     category_id: Option<i64>,
 ) -> Result<(), String> {
-    let affected = connection
-        .execute(
-            "update transactions set category_id = ?1 where id = ?2",
-            params![category_id, transaction_id],
+    let exists: Option<i64> = connection
+        .query_row(
+            "select id from transactions where id = ?1 and deleted_at is null",
+            params![transaction_id],
+            |row| row.get(0),
         )
+        .optional()
         .map_err(|problem| problem.to_string())?;
-    if affected == 0 {
+    if exists.is_none() {
         return Err(format!("transaction {} does not exist", transaction_id));
+    }
+    let affected = bulk_set_category(connection, &[transaction_id], category_id)?;
+    if affected == 0 {
+        return Err(format!("transaction {} is a transfer and has no category", transaction_id));
     }
     Ok(())
 }
@@ -2482,6 +2522,7 @@ pub fn export_csv(
     search: Option<&str>,
     month: Option<&str>,
     account_id: Option<i64>,
+    tag_id: Option<i64>,
 ) -> Result<i64, String> {
     let pattern = search
         .map(|value| value.trim())
@@ -2502,9 +2543,15 @@ pub fn export_csv(
              where (?1 is null
                     or t.description like ?1 collate nocase
                     or t.merchant like ?1 collate nocase
-                    or c.name like ?1 collate nocase)
+                    or c.name like ?1 collate nocase
+                    or exists (select 1 from transaction_tags tt
+                               join tags tg on tg.id = tt.tag_id
+                               where tt.transaction_id = t.id and tg.name like ?1 collate nocase))
                and (?2 is null or t.posted_on like ?2)
                and (?3 is null or t.account_id = ?3)
+               and (?4 is null
+                    or exists (select 1 from transaction_tags tt
+                               where tt.transaction_id = t.id and tt.tag_id = ?4))
                and t.deleted_at is null
                and a.deleted_at is null
              order by t.posted_on asc, t.id asc",
@@ -2512,7 +2559,7 @@ pub fn export_csv(
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![pattern, month_pattern, account_id], |row| {
+        .query_map(params![pattern, month_pattern, account_id, tag_id], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -2570,17 +2617,28 @@ pub fn backup_to(connection: &Connection, dest: &Path) -> Result<(), String> {
     if dest.to_string_lossy().trim().is_empty() {
         return Err("backup destination must not be empty".to_string());
     }
-    let quoted = dest.to_string_lossy().replace('\'', "''");
-    connection
+    // VACUUM INTO refuses an existing file, so write next to it and swap in.
+    let mut temp_name = dest.file_name().unwrap_or_default().to_os_string();
+    temp_name.push(".tmp");
+    let temp = dest.with_file_name(temp_name);
+    let _ = std::fs::remove_file(&temp);
+    let quoted = temp.to_string_lossy().replace('\'', "''");
+    let result = connection
         .execute_batch(&format!("VACUUM INTO '{quoted}'"))
         .map_err(|problem| problem.to_string())
+        .and_then(|()| std::fs::rename(&temp, dest).map_err(|problem| problem.to_string()));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    result
 }
 
 /// Refuses anything that is not a trove database before it can replace the
 /// live file: the file must open, pass `integrity_check`, carry a schema
 /// version in range and contain the transactions table.
 pub fn validate_backup_source(path: &Path) -> Result<(), String> {
-    let connection = Connection::open(path).map_err(|_| "not a trove database".to_string())?;
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|_| "not a trove database".to_string())?;
     let check: String = connection
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
         .map_err(|_| "not a trove database".to_string())?;
@@ -2840,7 +2898,7 @@ pub fn delete_manual_transaction(connection: &Connection, id: i64) -> Result<(),
         .map_err(|problem| problem.to_string())?;
     let transfer_group = match found {
         None => return Err(format!("transaction {id} does not exist")),
-        Some((origin, group)) if origin != "manual" => {
+        Some((origin, _group)) if origin != "manual" => {
             return Err("only manual entries can be deleted".to_string())
         }
         Some((_, group)) => group,
@@ -3099,11 +3157,40 @@ pub fn clear_month(connection: &mut Connection, month: &str) -> Result<ClearRepo
         .transaction()
         .map_err(|problem| problem.to_string())?;
     let prefix = format!("{month}%");
+    let now = Utc::now().to_rfc3339();
+    let cleared = "select id from transactions
+                   where posted_on like ?1 and source = 'manual' and deleted_at is null";
+    // Manual refunds of a cleared purchase go with it; imported ones stay but
+    // lose the link, since there is no purchase left to net against.
+    transaction
+        .execute(
+            &format!(
+                "update transactions set deleted_at = ?2, updated_at = ?2
+                 where refund_of in ({cleared}) and source = 'manual' and deleted_at is null"
+            ),
+            params![prefix, now],
+        )
+        .map_err(|problem| problem.to_string())?;
+    transaction
+        .execute(
+            &format!(
+                "update transactions set refund_of = null, updated_at = ?2
+                 where refund_of in ({cleared}) and deleted_at is null"
+            ),
+            params![prefix, now],
+        )
+        .map_err(|problem| problem.to_string())?;
+    transaction
+        .execute(
+            &format!("delete from transaction_tags where transaction_id in ({cleared})"),
+            params![prefix],
+        )
+        .map_err(|problem| problem.to_string())?;
     let manual_deleted = transaction
         .execute(
-            "delete from transactions
+            "update transactions set deleted_at = ?2, updated_at = ?2
              where posted_on like ?1 and source = 'manual' and deleted_at is null",
-            params![prefix],
+            params![prefix, now],
         )
         .map_err(|problem| problem.to_string())?;
     let payments_cleared = transaction
@@ -3262,18 +3349,24 @@ pub fn category_month_series(
         .ok_or_else(|| "month window out of range".to_string())?;
     let mut statement = connection
         .prepare(
-            "select substr(t.posted_on, 1, 7) as month, c.id,
+            "with recursive roots(id, root_id) as (
+               select id, id from categories where parent_id is null
+               union all
+               select c.id, roots.root_id from categories c join roots on c.parent_id = roots.id
+             )
+             select substr(t.posted_on, 1, 7) as month, coalesce(c.id, t.category_id),
                     coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
                     max(0, sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end)
                           - sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end)) as total
              from transactions t
-             left join categories c on c.id = t.category_id
+             left join roots r on r.id = t.category_id
+             left join categories c on c.id = coalesce(r.root_id, t.category_id)
              where t.posted_on >= ?1 and substr(t.posted_on, 1, 7) <= ?2
                and t.transfer_group is null
                and ((t.amount_cents < 0 and t.refund_of is null)
                     or (t.amount_cents > 0 and t.refund_of is not null))
                and t.deleted_at is null
-             group by month, c.id
+             group by month, coalesce(c.id, t.category_id)
              order by month, total desc",
         )
         .map_err(|problem| problem.to_string())?;
@@ -3363,6 +3456,17 @@ pub fn month_series(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identical_rows_in_one_file_get_distinct_keys() {
+        let mut seen = std::collections::HashMap::new();
+        let first = occurrence_key(&mut seen, "hash|a|2024-03-05|-500|padaria".to_string());
+        let second = occurrence_key(&mut seen, "hash|a|2024-03-05|-500|padaria".to_string());
+        let fitid = occurrence_key(&mut seen, "fitid|a|1".to_string());
+        assert_eq!(first, "hash|a|2024-03-05|-500|padaria");
+        assert_eq!(second, "hash|a|2024-03-05|-500|padaria|#2");
+        assert_eq!(fitid, "fitid|a|1");
+    }
     use std::path::PathBuf;
 
     fn temporary_database(name: &str) -> PathBuf {
@@ -4371,7 +4475,7 @@ mod tests {
         assert_eq!(imported.inserted, 2);
 
         let count =
-            export_csv(&connection, &out, None, Some("2024-03"), Some(account)).expect("should export");
+            export_csv(&connection, &out, None, Some("2024-03"), Some(account), None).expect("should export");
         assert_eq!(count, 2);
         let text = std::fs::read_to_string(&out).expect("should read back");
         let mut lines = text.lines();
@@ -5029,7 +5133,7 @@ mod tests {
     #[test]
     fn daily_expense_covers_every_day_and_matches_the_totals() {
         let path = temporary_database("daily");
-        let mut connection = open(&path).expect("should open");
+        let connection = open(&path).expect("should open");
         let account = create_manual_account(&connection, "Carteira").expect("should create");
         let food = budget_category(&connection, "Comida");
         spend(&connection, account, food, "2024-03-05", -3000);
@@ -5266,7 +5370,7 @@ mod tests {
         let totals = month_totals(&connection, "2024-03").expect("should total");
         assert_eq!((totals.income_cents, totals.expense_cents), (150000, 7390));
 
-        let exported = export_csv(&connection, &out, None, Some("2024-03"), Some(wallet))
+        let exported = export_csv(&connection, &out, None, Some("2024-03"), Some(wallet), None)
             .expect("should export");
         assert_eq!(exported, 3);
         backup_to(&connection, &snapshot).expect("should back up");

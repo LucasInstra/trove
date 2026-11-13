@@ -13,7 +13,6 @@ interface TopBarProps {
   onImport: () => void;
   onLaunch: () => void;
   canLaunch: boolean;
-  userName: string | null;
   primaryLabel: string;
   showLayout: boolean;
   layoutEditing: boolean;
@@ -29,7 +28,6 @@ export function TopBar({
   onImport,
   onLaunch,
   canLaunch,
-  userName,
   primaryLabel,
   showLayout,
   layoutEditing,
@@ -37,14 +35,10 @@ export function TopBar({
 }: TopBarProps) {
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
-  const hour = new Date().getHours();
-  const part = hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : "evening";
-  const greeting = userName ? `${t(`greeting.${part}`)}, ${userName}` : t(`greeting.${part}`);
 
   return (
     <header className="topbar">
       <div>
-        <p className="eyebrow">{greeting}</p>
         <div className="title-row">
         <button
           type="button"

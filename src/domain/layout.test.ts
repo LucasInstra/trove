@@ -7,9 +7,11 @@ import {
   moveCardTo,
   nextMode,
   parseLayout,
+  resizeCard,
   serializeLayout,
   setMode,
   setSpan,
+  spanOptions,
   type LayoutCard,
 } from "./layout";
 
@@ -56,12 +58,13 @@ describe("parseLayout", () => {
       ]),
     );
     expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("full");
-    expect(layout.find((entry) => entry.id === "cards")?.mode).toBe("compact");
+    // The intermediate step is gone, so a stored one reads as a full card.
+    expect(layout.find((entry) => entry.id === "cards")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "housing")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "goals")?.mode).toBe("full");
   });
 
-  it("reads the old collapsed flag as a compact card", () => {
+  it("reads the old collapsed flag as the smallest step", () => {
     const layout = parseLayout(
       JSON.stringify([
         { id: "bills", span: 1, collapsed: true },
@@ -70,7 +73,7 @@ describe("parseLayout", () => {
         { id: "goals", span: 1, collapsed: null },
       ]),
     );
-    expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("compact");
+    expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("mini");
     expect(layout.find((entry) => entry.id === "cards")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "housing")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "goals")?.mode).toBe("full");
@@ -127,16 +130,15 @@ describe("moveCardTo", () => {
 });
 
 describe("nextMode", () => {
-  it("walks full, compact, mini and back", () => {
-    expect(nextMode("full")).toBe("compact");
-    expect(nextMode("compact")).toBe("mini");
+  it("walks full, mini and back", () => {
+    expect(nextMode("full")).toBe("mini");
     expect(nextMode("mini")).toBe("full");
   });
 
   it("drops the detail block first when the card has one", () => {
     expect(nextMode("full", true)).toBe("reduced");
-    expect(nextMode("reduced")).toBe("compact");
-    expect(nextMode("compact", true)).toBe("mini");
+    expect(nextMode("reduced")).toBe("mini");
+    expect(nextMode("reduced", true)).toBe("mini");
   });
 });
 
@@ -195,13 +197,22 @@ describe("hidden cards", () => {
 describe("setMode", () => {
   it("changes only the selected card without mutating the layout", () => {
     const layout = parseLayout(null);
-    const next = setMode(layout, "bills", "compact");
+    const next = setMode(layout, "bills", "mini");
     expect(next).not.toBe(layout);
-    expect(next.find((entry) => entry.id === "bills")?.mode).toBe("compact");
+    expect(next.find((entry) => entry.id === "bills")?.mode).toBe("mini");
     expect(next.find((entry) => entry.id === "forecast")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("full");
-    expect(setMode(next, "bills", "mini").find((entry) => entry.id === "bills")?.mode).toBe("mini");
     expect(setMode(next, "bills", "full").find((entry) => entry.id === "bills")?.mode).toBe("full");
+  });
+
+  it("fits a card to its content when its display mode changes", () => {
+    const resized = resizeCard(parseLayout(null), "bills", 2, 320);
+    const smallest = setMode(resized, "bills", "mini");
+    const bills = smallest.find((entry) => entry.id === "bills");
+
+    expect(bills?.mode).toBe("mini");
+    expect(bills?.span).toBe(2);
+    expect(bills?.height).toBeUndefined();
   });
 
   it("leaves an unknown card alone and keeps the same array", () => {
@@ -219,27 +230,72 @@ describe("setMode", () => {
 });
 
 describe("setSpan", () => {
+  const spanOf = (layout: LayoutCard[], id: LayoutCard["id"]) =>
+    layout.find((entry) => entry.id === id)?.span;
+
   it("sets the width the control asked for", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "bills", 3)[2].span).toBe(3);
-    expect(setSpan(layout, "forecast", 1)[1].span).toBe(1);
+    expect(spanOf(setSpan(layout, "bills", 2), "bills")).toBe(2);
+    expect(spanOf(setSpan(layout, "series", 2), "series")).toBe(2);
   });
 
-  it("clamps to the columns the grid has", () => {
+  it("clamps to the card's own range, not just to the grid", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "bills", 9)[2].span).toBe(3);
-    expect(setSpan(layout, "bills", 0)[2].span).toBe(1);
+    // A gauge has nothing to show in a wider box.
+    expect(spanOf(setSpan(layout, "score", 3), "score")).toBe(1);
+    // A single-column list cannot grow past two.
+    expect(spanOf(setSpan(layout, "bills", 3), "bills")).toBe(2);
+    // One column is the narrowest step, and the carousel accepts it.
+    expect(spanOf(setSpan(layout, "cards", 1), "cards")).toBe(1);
+    expect(spanOf(setSpan(layout, "bills", 0), "bills")).toBe(1);
   });
 
-  it("falls back to one column on a width it cannot read", () => {
+  it("falls back to the card's minimum on a width it cannot read", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "forecast", Number.NaN)[1].span).toBe(1);
+    expect(spanOf(setSpan(layout, "bills", Number.NaN), "bills")).toBe(1);
+    expect(spanOf(setSpan(layout, "series", Number.NaN), "series")).toBe(1);
   });
 
   it("returns the same layout when the width does not change", () => {
     const layout = parseLayout(null);
-    expect(setSpan(layout, "bills", 1)).toBe(layout);
+    expect(setSpan(layout, "kpis", 1)).toBe(layout);
     expect(setSpan(layout, "ghost" as LayoutCard["id"], 2)).toBe(layout);
+  });
+});
+
+describe("spanOptions", () => {
+  it("offers only the widths the card supports", () => {
+    expect(spanOptions("score")).toEqual([1]);
+    expect(spanOptions("bills")).toEqual([1, 2]);
+    expect(spanOptions("series")).toEqual([1, 2, 3]);
+    expect(spanOptions("inout")).toEqual([1, 2, 3]);
+  });
+});
+
+describe("resizeCard", () => {
+  it("snaps and clamps a mouse-resized card size", () => {
+    const layout = parseLayout(null);
+    const next = resizeCard(layout, "inout", 2, 213);
+    const inout = next.find((entry) => entry.id === "inout");
+
+    expect(inout?.span).toBe(2);
+    expect(inout?.height).toBe(216);
+    expect(resizeCard(next, "inout", 8, 20).find((entry) => entry.id === "inout")).toMatchObject({
+      span: 3,
+      height: 160,
+    });
+    expect(layout.find((entry) => entry.id === "inout")).toMatchObject({ span: 1 });
+  });
+
+  it("supports old auto-height layouts and resetting back to content height", () => {
+    const legacy = parseLayout(JSON.stringify([{ id: "bills", span: 2, mode: "full" }]));
+    expect(legacy.find((entry) => entry.id === "bills")?.height).toBeUndefined();
+
+    const resized = resizeCard(legacy, "bills", 2, 320);
+    const autoSized = resizeCard(resized, "bills", 2, null);
+    expect(autoSized.find((entry) => entry.id === "bills")?.height).toBeUndefined();
+    expect(parseLayout(serializeLayout(resized))).toEqual(resized);
+    expect(parseLayout(serializeLayout(autoSized))).toEqual(autoSized);
   });
 });
 

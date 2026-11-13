@@ -7,11 +7,16 @@ import { cn } from "@/lib/utils";
  * instead of one component that owns the layout. Colours come from the theme
  * tokens, so the light and dark switch keeps working untouched.
  */
-function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
+function Sidebar({
+  className,
+  collapsed = false,
+  ...props
+}: React.HTMLAttributes<HTMLElement> & { collapsed?: boolean }) {
   return (
     <aside
+      data-collapsed={collapsed ? "true" : undefined}
       className={cn(
-        "flex h-full min-h-0 w-52 shrink-0 flex-col gap-4 border-r border-line bg-surface px-3 pt-4 pb-3 2xl:w-60",
+        "sidebar-rail flex h-full min-h-0 shrink-0 flex-col gap-4 border-r border-line bg-surface px-2 pt-3 pb-3",
         className,
       )}
       {...props}
@@ -50,6 +55,7 @@ function SidebarProfile({
   color,
   onClick,
   className,
+  collapsed = false,
 }: {
   initials: string;
   name: string;
@@ -57,13 +63,14 @@ function SidebarProfile({
   color?: string | null;
   onClick: () => void;
   className?: string;
+  collapsed?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-[12px] border-0 bg-transparent px-1 py-1 text-left transition-colors hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
+        "sidebar-profile flex w-full items-center justify-start gap-2.5 rounded-[12px] border-0 bg-transparent px-1 py-1 text-left transition-colors hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
         className,
       )}
       title={name}
@@ -75,7 +82,12 @@ function SidebarProfile({
       >
         {initials}
       </span>
-      <span className="flex min-w-0 flex-col leading-tight">
+      <span
+        className={cn(
+          "sidebar-profile-copy min-w-0 flex-col leading-tight",
+          collapsed ? "hidden" : "flex",
+        )}
+      >
         <strong className="truncate text-[13px] font-semibold">{name}</strong>
         <span className="truncate text-2xs text-faint">{detail}</span>
       </span>
@@ -94,7 +106,7 @@ function SidebarGroup({
 }) {
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      <span className="px-2.5 pb-1 text-2xs font-semibold tracking-[0.09em] text-faint uppercase">
+      <span className="sidebar-group-label px-2.5 pb-1 text-2xs font-semibold tracking-[0.09em] text-faint uppercase">
         {label}
       </span>
       {children}

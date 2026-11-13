@@ -9,7 +9,7 @@ import { formatCents, monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 function Delta({ datum, prevLabel, invert = false }: { datum: KpiDatum; prevLabel: string | null; invert?: boolean }) {
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   if (datum.deltaPct === null || prevLabel === null) return null;
   // Spending up is bad news, so the tone flips for the expense tile.
   const good = invert ? datum.deltaPct <= 0 : datum.deltaPct >= 0;
@@ -20,7 +20,7 @@ function Delta({ datum, prevLabel, invert = false }: { datum: KpiDatum; prevLabe
   return (
     <span className={good ? "delta-line" : "delta-line down"}>
       {sign}
-      {pct.format(datum.deltaPct)}% · {prevLabel}
+      {pct.format(datum.deltaPct)}% · {t("kpi.vsPrev", { month: prevLabel })}
     </span>
   );
 }
@@ -32,6 +32,7 @@ function Tile({
   invert = false,
   spark = null,
   tone = "line",
+  hint,
 }: {
   label: string;
   datum: KpiDatum;
@@ -39,13 +40,14 @@ function Tile({
   invert?: boolean;
   spark?: number[] | null;
   tone?: "line" | "up" | "down";
+  hint?: string;
 }) {
   return (
-    <div className="kpi">
+    <div className="kpi" title={hint}>
       <span className="kpi-label">{label}</span>
       <Money cents={datum.valueCents} className="kpi-value" />
       <Delta datum={datum} prevLabel={prevLabel} invert={invert} />
-      {spark && spark.length > 1 ? <Sparkline values={spark} tone={tone} label={label} /> : null}
+      {spark && spark.length >= 4 ? <Sparkline values={spark} tone={tone} label={label} /> : null}
     </div>
   );
 }
@@ -59,11 +61,13 @@ export function KpisCard({
   series,
   month,
   compact = false,
+  span = 3,
 }: {
   plan: MonthPlan;
   series: MonthPoint[];
   month: string;
   compact?: boolean;
+  span?: number;
 }) {
   const { lang, t } = useLanguage();
   const kpis = computeKpis(plan, series, month);
@@ -99,11 +103,11 @@ export function KpisCard({
           <h2>{t("kpi.title")}</h2>
         </div>
       </header>
-      <div className="kpi-grid">
+      <div className={span < 3 ? "kpi-grid is-two" : "kpi-grid"}>
         <Tile label={t("kpi.income")} datum={kpis.income} prevLabel={prevLabel} spark={incomeSpark} tone="up" />
         <Tile label={t("kpi.expense")} datum={kpis.expense} prevLabel={prevLabel} invert spark={expenseSpark} tone="down" />
         <Tile label={t("kpi.balance")} datum={kpis.balance} prevLabel={prevLabel} spark={balanceSpark} />
-        <Tile label={t("kpi.freed")} datum={kpis.freed} prevLabel={null} />
+        <Tile label={t("kpi.freed")} datum={kpis.freed} prevLabel={null} hint={t("kpi.freedHint")} />
       </div>
     </article>
   );

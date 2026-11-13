@@ -448,12 +448,19 @@ export const api = {
   saveCsvProfile: (input: CsvProfileInput) =>
     invoke<number>("save_csv_profile", { input }),
   deleteCsvProfile: (id: number) => invoke<void>("delete_csv_profile", { id }),
-  exportCsv: (path: string, search?: string, month?: string, accountId?: number | null) =>
+  exportCsv: (
+    path: string,
+    search?: string,
+    month?: string,
+    accountId?: number | null,
+    tagId?: number | null,
+  ) =>
     invoke<number>("export_csv", {
       path,
       search: search ?? null,
       month: month ?? null,
       accountId: accountId ?? null,
+      tagId: tagId ?? null,
     }),
   accounts: () => invoke<Account[]>("list_accounts"),
   categories: () => invoke<Category[]>("list_categories"),

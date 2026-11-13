@@ -6,6 +6,7 @@ import "./styles.css";
 import "./styles/tailwind.css";
 import "./styles/charts.css";
 import "./design.css";
+import "./theme.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("root element is missing");

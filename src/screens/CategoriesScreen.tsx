@@ -4,6 +4,7 @@ import { Icon } from "../components/Icons";
 import { ScreenHeader } from "./PlannerScreens";
 import type { Category, CategoryInput, Rule, RuleInput } from "../lib/api";
 import { RulesManager } from "../components/RulesManager";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 
 const KINDS = ["expense", "income", "transfer"] as const;
@@ -90,7 +91,7 @@ function CategoryDialog({
               .filter((category) => !blocked.has(category.id))
               .map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.emoji ? `${category.emoji} ` : ""}{category.name}
+                  {category.emoji ? `${category.emoji} ` : ""}{categoryName(t, category.name)}
                 </option>
               ))}
           </select>
@@ -159,7 +160,7 @@ export function CategoriesScreen({
       <div className="installment-head">
         <span className="installment-name">
           <span className="dot" style={{ background: category.color }} />
-          {category.emoji ? `${category.emoji} ` : ""}{category.name}
+          {category.emoji ? `${category.emoji} ` : ""}{categoryName(t, category.name)}
         </span>
         <span className="muted small">{t(`categories.kind_${category.kind}` as const)}</span>
         <span className="tx-actions">
@@ -167,7 +168,7 @@ export function CategoriesScreen({
             type="button"
             className="icon-button"
             title={t("common.edit")}
-            aria-label={`${t("common.edit")}: ${category.name}`}
+            aria-label={`${t("common.edit")}: ${categoryName(t, category.name)}`}
             onClick={() => setDialog({ category })}
           >
             <Icon name="pencil" size={15} />
@@ -176,7 +177,7 @@ export function CategoriesScreen({
             type="button"
             className="icon-button"
             title={t("categories.archive")}
-            aria-label={`${t("categories.archive")}: ${category.name}`}
+            aria-label={`${t("categories.archive")}: ${categoryName(t, category.name)}`}
             onClick={() => onArchive(category.id, true)}
           >
             <Icon name="x" size={15} />
@@ -185,7 +186,7 @@ export function CategoriesScreen({
             type="button"
             className="icon-button danger"
             title={t("common.delete")}
-            aria-label={`${t("common.delete")}: ${category.name}`}
+            aria-label={`${t("common.delete")}: ${categoryName(t, category.name)}`}
             onClick={() => setConfirmDelete(category)}
           >
             <Icon name="trash" size={15} />
@@ -229,7 +230,7 @@ export function CategoriesScreen({
             {archived.map((category) => (
               <li key={category.id} className="installment">
                 <div className="installment-head">
-                  <span className="installment-name muted">{category.name}</span>
+                  <span className="installment-name muted">{categoryName(t, category.name)}</span>
                   <button
                     type="button"
                     className="outline-button small-button"

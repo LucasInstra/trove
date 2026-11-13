@@ -147,7 +147,7 @@ p {
   height: 17px;
   border-radius: 5px;
   background: var(--primary);
-  color: #1a1917;
+  color: var(--primary-foreground);
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
@@ -157,7 +157,7 @@ p {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  color: rgba(247, 244, 238, 0.9);
+  color: var(--ink);
 }
 
 .titlebar-controls {
@@ -625,54 +625,11 @@ button.primary:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
 }
 
-/* A card that takes more than one column gets more content, not a wider copy of
-   the same content. */
-/* The lean cards card: no upcoming invoices and no full size cards, just the
-   wallet in a row, which is all that is left to say about a card once the
-   month's invoice is already the figure above. */
-.cards-track.as-dense {
-  gap: 8px;
-  overflow: visible;
-  scroll-snap-type: none;
-}
-
-.cards-track.as-dense .credit-card {
-  flex: 0 0 132px;
-  width: 132px;
-  height: 78px;
-  padding: 9px 10px;
-  border-radius: 12px;
-}
-
-.cards-track.as-dense .credit-middle,
-.cards-track.as-dense .credit-foot,
-.cards-track.as-dense .credit-chip {
-  display: none;
-}
-
-.cards-track.as-dense .credit-top {
-  margin-bottom: auto;
-}
-
-.cards-track.as-dense .credit-brand {
-  font-size: 11px;
-}
-
-.cards-track.as-dense .credit-state {
-  padding: 1px 6px;
-  font-size: 9px;
-}
-
-.cards-track.as-dense .credit-foot {
-  display: none;
-}
-
-.cards-track.as-dense .credit-middle + * {
-  display: none;
-}
-
+/* A card that takes more than one column shows every credit card at once
+   instead of a carousel, each at the same full size. */
 .cards-track.as-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
   overflow: visible;
   scroll-snap-type: none;
@@ -682,7 +639,7 @@ button.primary:hover:not(:disabled) {
   flex: initial;
   width: auto;
   min-width: 0;
-  height: 170px;
+  height: 176px;
 }
 
 .goal-list.two-col {
@@ -2690,15 +2647,9 @@ select.tx-category {
   border: 1px solid var(--line);
 }
 
-@media (max-width: 1180px) {
-  .planner-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .span-2 {
-    grid-column: span 2;
-  }
-}
-
+/* Three columns stay three columns on desktop: the width control has three
+   levels, and 1 / 2 / 3 must mean a third, two thirds and the full row. Only a
+   single column falls back to one card per row. */
 @media (max-width: 820px) {
   .planner-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -3390,11 +3341,6 @@ select.tx-category {
   cursor: default;
 }
 
-@media (max-width: 1180px) {
-  .span-3 {
-    grid-column: span 2;
-  }
-}
 
 /* ---------- Window chrome and the floating sidebar ---------- */
 
@@ -3454,6 +3400,7 @@ select.tx-category {
   align-content: start;
   gap: 16px;
   padding: 0 0 4px;
+  padding-inline: clamp(20px, 2vw, 32px);
 }
 
 /* ---------- Top bar as a card ---------- */
@@ -3666,9 +3613,11 @@ select.tx-category {
   margin: -6px -6px 0;
 }
 
+/* The credit card keeps its full size; it only shrinks when the dashboard card
+   is narrower than the card itself. */
 .cards-track .credit-card {
-  flex-basis: 280px;
-  width: 280px;
+  flex: 0 0 min(280px, 100%);
+  width: min(280px, 100%);
   height: 176px;
 }
 
@@ -3769,27 +3718,23 @@ button.primary:hover:not(:disabled) {
 
 /* ---------- Dashboard layout editing ---------- */
 
+/* Rows are laid out in order and every cell in a row takes the same measured
+   span, so the cards line up at the bottom instead of forming a staircase. */
 .planner-grid {
-  align-items: start;
-  grid-auto-flow: dense;
+  align-items: stretch;
+  grid-auto-flow: row;
 }
 
 .grid-cell {
   position: relative;
   display: grid;
-  align-self: start;
   min-width: 0;
 }
 
 .grid-cell > * {
-  height: auto;
+  height: 100%;
   width: 100%;
   min-width: 0;
-}
-
-.grid-cell.natural > * {
-  height: auto;
-  align-self: start;
 }
 
 .layout-toggle.active {
@@ -3975,8 +3920,17 @@ button.primary:hover:not(:disabled) {
 .cell-tools button.cell-grip {
   display: grid;
   place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
   color: var(--muted);
   cursor: grab;
+}
+
+.cell-tools button.cell-grip:hover:not(:disabled) {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
 }
 
 .cell-tools button:active:not(:disabled),
@@ -3998,6 +3952,12 @@ button.primary:hover:not(:disabled) {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+/* Two columns of cards means two rows of tiles, not four crushed ones. */
+.kpi-grid.is-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
 }
 
 .kpi {
@@ -4246,26 +4206,64 @@ button.primary:hover:not(:disabled) {
   }
 }
 
-/* ---------- Packed rows ---------- */
+/* ---------- Dashboard rows ---------- */
 
-/* A 4px row means a card gets a height that fits it within 4px, instead of the
-   full height of the tallest card in its row. The space between two stacked
-   cards is baked into the span (see rowSpanFor), so the grid itself has no row
-   gap and the spacing stays even. Dense flow lets a short card move up into a
-   hole its neighbours left behind. */
-.planner-grid {
-  grid-auto-rows: 4px;
-  row-gap: 0;
-  grid-auto-flow: dense;
-}
-
-.grid-cell {
-  align-self: start;
-  height: auto;
-}
+/* Normal grid rows: every cell in a row is as tall as the tallest card in it,
+   so the cards line up at the bottom. No measurement pass is needed, and a
+   manual min-height on one cell raises its whole row. */
 
 .grid-cell > * {
-  height: auto;
+  height: 100%;
+}
+
+.grid-cell.is-resized > :first-child {
+  justify-content: space-between;
+}
+
+.grid-cell.is-resizing {
+  z-index: 4;
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+
+.cell-resize-handle {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  touch-action: none;
+}
+
+/* The right edge changes the width, the bottom edge the height. */
+.cell-resize-handle.is-right {
+  top: 50%;
+  right: -5px;
+  width: 10px;
+  height: 44px;
+  transform: translateY(-50%);
+  border-radius: 6px;
+  cursor: ew-resize;
+}
+
+.cell-resize-handle.is-bottom {
+  bottom: -5px;
+  left: 50%;
+  width: 44px;
+  height: 10px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  cursor: ns-resize;
+}
+
+.cell-resize-handle:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
 }
 
 /* A screen of its own, so the ledger can use the room the dashboard does. */
@@ -4299,17 +4297,16 @@ button.primary:hover:not(:disabled) {
 
 /* ---------- Wide screens ---------- */
 
-/* The dashboard was capped at three columns of 1240px, which on a 27 inch
-   monitor leaves half the window empty. The grid takes a fourth column from
-   1700 and the content grows with it; the spans the user stores (1 to 3) keep
-   their meaning, they just get wider. */
+/* The dashboard keeps three columns at every width. The stored spans add up to
+   three, so a fourth column would leave a permanent empty gap on wide monitors;
+   past 1360px the columns themselves get wider instead. */
 /* Grid items with auto margins shrink to their content, so the screen has to
    ask for the whole column or the extra width never reaches the cards. */
 .overview {
   width: 100%;
 }
 
-/* Between the laptop and the four column break, the content grows before the
+/* Between the laptop and the wide-screen break, the content grows before the
    grid does, so a 1500px window is not two empty margins. */
 @media (min-width: 1360px) {
   .overview,
@@ -4323,30 +4320,15 @@ button.primary:hover:not(:disabled) {
     padding: 32px 40px 52px;
   }
 
-  .overview {
-    max-width: 1720px;
-  }
-
-  .planner-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
+  .overview,
   .transactions {
-    max-width: 1720px;
+    max-width: 1600px;
   }
 }
 
-/* A fifth column does not pay for itself: the stored spans add up to a multiple
-   of four, so on five columns every row ends ragged. Past this point the four
-   columns simply get wider. */
 @media (min-width: 2100px) {
   .main {
     padding: 36px 48px 56px;
-  }
-
-  .overview,
-  .transactions {
-    max-width: 2280px;
   }
 }
 
@@ -4406,6 +4388,164 @@ button.primary:hover:not(:disabled) {
   .flow-bars,
   .bars {
     min-height: 120px;
+  }
+}
+
+/* Month pager in a card header. */
+.card-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-nav .icon-button {
+  width: 26px;
+  height: 26px;
+}
+
+/* ---------- Overview: income vs spending and latest entries ---------- */
+
+.overview-chart .flow-bars {
+  height: 150px;
+}
+
+.overview-chart .flow-bar {
+  width: 14px;
+}
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.recent-row {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  border-radius: 8px;
+}
+
+.recent-row:hover {
+  background: var(--surface-soft);
+}
+
+.recent-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.recent-title {
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-meta {
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-amount {
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recent-amount.in {
+  color: var(--positive);
+}
+
+.recent-amount.out {
+  color: var(--ink);
+}
+
+/* ---------- Sidebar rail and page transitions ---------- */
+
+.sidebar-rail {
+  width: 208px;
+  transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (min-width: 1536px) {
+  .sidebar-rail {
+    width: 240px;
+  }
+}
+
+.sidebar-rail[data-collapsed="true"] {
+  width: 64px;
+}
+
+.sidebar-rail[data-collapsed="true"] .sidebar-label,
+.sidebar-rail[data-collapsed="true"] .sidebar-group-label,
+.sidebar-rail[data-collapsed="true"] .sidebar-footer-meta,
+.sidebar-rail[data-collapsed="true"] .sidebar-update {
+  display: none;
+}
+
+.sidebar-toggle {
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.sidebar-rail[data-collapsed="true"] .sidebar-toggle {
+  align-self: center;
+}
+
+.route-view {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  animation: route-in 180ms ease-out both;
+}
+
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-rail {
+    transition: none;
+  }
+
+  .route-view {
+    animation: none;
   }
 }
 }

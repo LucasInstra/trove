@@ -4,6 +4,7 @@ import { Icon } from "./Icons";
 import { Dialog } from "./Dialog";
 import { dayLabel, formatCents, formatSignedCents, monthLabel } from "../lib/format";
 import { api } from "../lib/api";
+import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 import type { Account, Category, Tag, TransactionRow } from "../lib/api";
 
@@ -89,7 +90,7 @@ export function TransactionsPanel({
     });
     if (!dest) return;
     try {
-      const count = await api.exportCsv(dest, search, month, accountFilter);
+      const count = await api.exportCsv(dest, search, month, accountFilter, tagFilter);
       setExported(t("ledger.exported", { count }));
     } catch (problem) {
       setExportError(problem instanceof Error ? problem.message : String(problem));
@@ -183,7 +184,7 @@ export function TransactionsPanel({
               <option value="none">{t("ledger.noCategory")}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.name}
+                  {categoryName(t, category.name)}
                 </option>
               ))}
             </select>
@@ -341,7 +342,7 @@ export function TransactionsPanel({
                           {row.hasRefund ? <em className="pill-soft">{t("refund.refunded")}</em> : null}
                         </span>
                         <span className="tx-sub">
-                          {row.categoryName ?? t("ledger.noCategory")} · {row.accountName}
+                          {(row.categoryName ? categoryName(t, row.categoryName) : null) ?? t("ledger.noCategory")} · {row.accountName}
                         </span>
                         {row.tags.length > 0 ? (
                           <span className="tx-tags">
@@ -368,7 +369,7 @@ export function TransactionsPanel({
                         <option value="">{t("ledger.noCategory")}</option>
                         {categories.map((category) => (
                           <option key={category.id} value={category.id}>
-                            {category.name}
+                            {categoryName(t, category.name)}
                           </option>
                         ))}
                       </select>

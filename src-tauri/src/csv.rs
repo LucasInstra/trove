@@ -160,24 +160,31 @@ pub fn split_line(line: &str, sep: char) -> Vec<String> {
 fn parse_date(raw: &str, format: &str) -> Option<String> {
     let digits: Vec<&str> = raw.split(|character: char| !character.is_ascii_digit()).filter(|part| !part.is_empty()).collect();
     let (year, month, day) = match format {
-        "%d/%m/%Y" | "%d-%m/%Y" => {
-            if digits.len() != 3 {
+        // "%d-%m/%Y" is the typo 0.2.0 saved for DD-MM-YYYY profiles.
+        "%d/%m/%Y" | "%d-%m-%Y" | "%d-%m/%Y" => {
+            if digits.len() < 3 {
                 return None;
             }
             (digits[2], digits[1], digits[0])
         }
         "%Y-%m-%d" => {
-            if digits.len() != 3 {
+            if digits.len() < 3 {
                 return None;
             }
             (digits[0], digits[1], digits[2])
         }
         "%m/%d/%Y" => {
-            if digits.len() != 3 {
+            if digits.len() < 3 {
                 return None;
             }
             (digits[2], digits[0], digits[1])
         }
+        _ => return None,
+    };
+    // Extra groups are a time of day; a two-digit year is this century.
+    let year = match year.len() {
+        2 => format!("20{year}"),
+        4 => year.to_string(),
         _ => return None,
     };
     let pad = |part: &str| format!("{part:0>2}");
@@ -245,7 +252,10 @@ pub fn parse_csv(text: &str, mapping: &CsvMapping) -> Result<(Vec<CsvRow>, Vec<C
                 let debit = cell(debit);
                 let credit = cell(credit);
                 match (debit.trim().is_empty(), credit.trim().is_empty()) {
-                    (true, true) => None,
+                    (true, true) => {
+                        issues.push(fail("debit and credit are both empty"));
+                        continue;
+                    }
                     (false, true) => parse_csv_amount(debit, &mapping.decimal_sep).map(|value| -value.abs()),
                     (true, false) => parse_csv_amount(credit, &mapping.decimal_sep).map(|value| value.abs()),
                     (false, false) => {
@@ -278,6 +288,14 @@ pub fn parse_csv(text: &str, mapping: &CsvMapping) -> Result<(Vec<CsvRow>, Vec<C
 mod tests {
     use super::*;
 
+    #[test]
+    fn dates_accept_time_two_digit_years_and_the_old_typo() {
+        assert_eq!(parse_date("05/03/2024 10:22", "%d/%m/%Y").as_deref(), Some("2024-03-05"));
+        assert_eq!(parse_date("05/03/24", "%d/%m/%Y").as_deref(), Some("2024-03-05"));
+        assert_eq!(parse_date("05-03-2024", "%d-%m/%Y").as_deref(), Some("2024-03-05"));
+        assert_eq!(parse_date("05/03/202", "%d/%m/%Y"), None);
+    }
+
     fn mapping() -> CsvMapping {
         CsvMapping {
             separator: ";".to_string(),
@@ -304,6 +322,21 @@ mod tests {
         assert_eq!(rows[1].amount_cents, 150000);
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].line_no, 4);
+    }
+
+    #[test]
+    fn parses_day_month_year_with_hyphens() {
+        let mapping = CsvMapping {
+            date_format: "%d-%m-%Y".to_string(),
+            ..mapping()
+        };
+        let (rows, issues) = parse_csv("Data;Agencia;Descricao;Valor\n05-03-2024;123;PADARIA;-23,90\n", &mapping)
+            .expect("should parse");
+
+        assert!(issues.is_empty());
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].posted_on, "2024-03-05");
+        assert_eq!(rows[0].amount_cents, -2390);
     }
 
     #[test]

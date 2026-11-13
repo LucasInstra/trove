@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
-import { BillDialog, BudgetDialog, CardDialog, DepositDialog, GoalDialog, IncomeDialog } from "./components/PlannerDialogs";
+import {
+  BillDialog,
+  BudgetDialog,
+  CardDialog,
+  DepositDialog,
+  GoalDialog,
+  IncomeDialog,
+} from "./components/PlannerDialogs";
 import { ManualDialog } from "./components/ManualDialog";
 import { TransferDialog } from "./components/TransferDialog";
 import { DebtDialog } from "./components/DebtsCard";
@@ -21,7 +28,17 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { FlowScreen } from "./screens/FlowScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { CardsScreen, DebtsScreen, FlowsScreen, HealthScreen, HouseScreen, IncomeScreen, PatrimonyScreen, ReserveScreen, RetirementScreen } from "./screens/PlannerScreens";
+import {
+  CardsScreen,
+  DebtsScreen,
+  FlowsScreen,
+  HealthScreen,
+  HouseScreen,
+  PatrimonyScreen,
+  ScreenHeader,
+  ReserveScreen,
+  RetirementScreen,
+} from "./screens/PlannerScreens";
 import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
@@ -50,7 +67,6 @@ import type {
   DailyPoint,
   PlannerState,
   RecurrenceRow,
-  RefundInput,
   Rule,
   RuleInput,
   Tag,
@@ -65,55 +81,56 @@ import { invoiceWindow } from "./domain/invoice";
 import { planMonth } from "./domain/projection";
 import { buildNotifications } from "./domain/notifications";
 import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
+import { currentMonth, todayIso } from "./lib/format";
 import {
   moveCardTo,
   parseLayout,
+  resizeCard,
   setSpan,
   serializeLayout,
   setMode,
   type CardId,
   type CardMode,
   type LayoutCard,
+  type Span,
 } from "./domain/layout";
 import { BUILD_LABEL } from "./lib/build";
+import { SectionPage } from "./components/SectionPage";
 
 type Route =
   | "overview"
   | "transactions"
   | "flow"
   | "cards"
-  | "reserve"
   | "house"
-  | "income"
+  | "goals"
   | "patrimony"
-  | "flows"
-  | "health"
-  | "debts"
-  | "retirement"
-  | "debts"
   | "categories"
   | "import"
   | "settings";
 
+const ROUTES: readonly Route[] = [
+  "overview",
+  "transactions",
+  "flow",
+  "cards",
+  "house",
+  "goals",
+  "patrimony",
+  "categories",
+  "import",
+  "settings",
+];
+
+// One entry per question the app answers; related screens live behind tabs.
 const MENU: Array<{ route: Route; icon: IconName }> = [
   { route: "overview", icon: "grid" },
   { route: "transactions", icon: "ledger" },
   { route: "flow", icon: "arrow-left-right" },
-];
-
-const PLANNING: Array<{ route: Route; icon: IconName }> = [
   { route: "cards", icon: "card" },
-  { route: "reserve", icon: "target" },
   { route: "house", icon: "home" },
-  { route: "income", icon: "trend" },
-];
-
-const STRATEGY: Array<{ route: Route; icon: IconName }> = [
-  { route: "flows", icon: "swap" },
+  { route: "goals", icon: "target" },
   { route: "patrimony", icon: "bank" },
-  { route: "health", icon: "scale" },
-  { route: "debts", icon: "file-text" },
-  { route: "retirement", icon: "hourglass" },
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
@@ -129,19 +146,41 @@ type DialogState =
   | { kind: "goal"; goal: Goal | null }
   | { kind: "debt"; debt: Debt | null }
   | { kind: "deposit"; goal: Goal }
-  | { kind: "budget"; id: number; name: string; budget: number | null; monthly: number | null; carryover: boolean; overridden: boolean }
+  | {
+      kind: "budget";
+      id: number;
+      name: string;
+      budget: number | null;
+      monthly: number | null;
+      carryover: boolean;
+      overridden: boolean;
+    }
   | { kind: "manual"; entry: TransactionRow | null }
   | { kind: "transfer" }
   | { kind: "ceiling" }
   | null;
 
-const currentMonth = () => new Date().toISOString().slice(0, 7);
-
 export function App() {
   const { lang, setLang, t } = useLanguage();
-  const [route, setRoute] = useState<Route>("overview");
+  // The last tab picked inside each section, so coming back lands where you left.
+  const [tabs, setTabs] = useState<Record<string, string>>(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    const at = new URLSearchParams(window.location.search).get("route");
+    return requested && at ? { [at]: requested } : {};
+  });
+  const tabOf = <T extends string>(section: Route, fallback: T): T =>
+    (tabs[section] as T) ?? fallback;
+  const setTab = (section: Route, id: string) =>
+    setTabs((current) => ({ ...current, [section]: id }));
+
+  // `?route=` only exists in the browser preview, where it picks the screen to render.
+  const [route, setRoute] = useState<Route>(() => {
+    const requested = new URLSearchParams(window.location.search).get("route");
+    return ROUTES.includes(requested as Route) ? (requested as Route) : "overview";
+  });
   const [month, setMonth] = useState<string | null>(null);
   const [rows, setRows] = useState<TransactionRow[]>([]);
+  const [recentRows, setRecentRows] = useState<TransactionRow[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [totals, setTotals] = useState<MonthTotals | null>(null);
@@ -168,6 +207,7 @@ export function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const updater = useUpdater();
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
@@ -201,6 +241,20 @@ export function App() {
     void api.setSetting("lang", lang).catch(() => {});
   }, [lang]);
 
+  // The rail keeps its width between launches, like the theme and the layout.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getSetting("sidebar_collapsed")
+      .then((stored) => {
+        if (!cancelled) setSidebarCollapsed(stored === "1");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // The profile name lives with the other settings; TopBar greets with it.
   useEffect(() => {
     let cancelled = false;
@@ -217,9 +271,29 @@ export function App() {
 
   const reload = useCallback(
     async (term: string, at: string, accountId: number | null, tagId: number | null) => {
-    try {
-      const [nextRows, nextAccounts, nextCategories, nextTotals, nextByCategory, nextSeries, nextMatrix, nextPlanner, nextBudgetStatus, nextHistory, nextDaily, nextRules, nextTags, nextHoldings, housing, ceiling, scope, settled, storedLayout] =
-        await Promise.all([
+      try {
+        const [
+          nextRows,
+          nextAccounts,
+          nextCategories,
+          nextTotals,
+          nextByCategory,
+          nextSeries,
+          nextMatrix,
+          nextPlanner,
+          nextBudgetStatus,
+          nextHistory,
+          nextDaily,
+          nextRules,
+          nextTags,
+          nextHoldings,
+          housing,
+          ceiling,
+          scope,
+          settled,
+          storedLayout,
+          nextRecent,
+        ] = await Promise.all([
           api.transactions(term, at, accountId, 500, tagId),
           api.accounts(),
           api.categories(),
@@ -239,35 +313,63 @@ export function App() {
           api.getSetting("housing_scope").catch(() => null),
           api.getSetting(`split_settled_${at}`).catch(() => null),
           api.getSetting("dashboard_layout").catch(() => null),
+          api.transactions("", at, null, 5, null).catch(() => []),
         ]);
-      setRows(nextRows);
-      setAccounts(nextAccounts);
-      setCategories(nextCategories);
-      setTotals(nextTotals);
-      setByCategory(nextByCategory);
-      setSeries(nextSeries);
-      setMatrix(nextMatrix);
-      setPlanner(nextPlanner);
-      setBudgetStatus(nextBudgetStatus);
-      setRecurrence(nextHistory);
-      setDaily(nextDaily);
-      setRules(nextRules);
-      setTags(nextTags);
-      setHoldings(nextHoldings);
-      const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
-      const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
-      setHousingCategoryId(housing === "none" ? null : storedHousing ?? fallback?.id ?? null);
-      setCeilingPct(ceiling ? Number(ceiling) : 30);
-      setHousingScope(scope === "total" ? "total" : "primary");
-      setSplitSettled(settled === "1");
-      setLayout(parseLayout(storedLayout));
-      setError("");
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        setRows(nextRows);
+        setRecentRows(nextRecent);
+        setAccounts(nextAccounts);
+        setCategories(nextCategories);
+        setTotals(nextTotals);
+        setByCategory(nextByCategory);
+        setSeries(nextSeries);
+        setMatrix(nextMatrix);
+        setPlanner(nextPlanner);
+        setBudgetStatus(nextBudgetStatus);
+        setRecurrence(nextHistory);
+        setDaily(nextDaily);
+        setRules(nextRules);
+        setTags(nextTags);
+        setHoldings(nextHoldings);
+        const storedHousing = housing === "none" ? null : housing ? Number(housing) : null;
+        const fallback = nextCategories.find((category) => /housing|moradia/i.test(category.name));
+        setHousingCategoryId(housing === "none" ? null : (storedHousing ?? fallback?.id ?? null));
+        setCeilingPct(ceiling ? Number(ceiling) : 30);
+        setHousingScope(scope === "total" ? "total" : "primary");
+        setSplitSettled(settled === "1");
+        setLayout(parseLayout(storedLayout));
+        setError("");
+      } catch (problem) {
+        setError(problem instanceof Error ? problem.message : String(problem));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const refreshData = useCallback(
+    async (nextTagFilter: number | null = tagFilter) => {
+      if (!month) return;
+      await reload(search, month, accountFilter, nextTagFilter);
+    },
+    [month, search, accountFilter, tagFilter, reload],
+  );
+
+  const mutateAndRefresh = useCallback(
+    async (
+      operation: () => Promise<unknown>,
+      { closeDialog = false }: { closeDialog?: boolean } = {},
+    ) => {
+      try {
+        await operation();
+        if (closeDialog) setDialog(null);
+        await refreshData();
+      } catch (problem) {
+        setError(problem instanceof Error ? problem.message : String(problem));
+      }
+    },
+    [refreshData],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -285,8 +387,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (month) void reload(search, month, accountFilter, tagFilter);
-  }, [month, search, accountFilter, tagFilter, reload]);
+    void refreshData();
+  }, [refreshData]);
 
   // Card usage depends on the invoice window, which is calendar math, so it is
   // fetched per card after the planner state arrives.
@@ -343,7 +445,7 @@ export function App() {
       buildNotifications({
         plan,
         cards,
-        today: new Date().toISOString().slice(0, 10),
+        today: todayIso(),
         reads: planner.reads,
         hasIncome: planner.incomes.some((income) => income.active),
       }),
@@ -368,145 +470,68 @@ export function App() {
     setMonth(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
   };
 
-  const onCategory = async (transactionId: number, categoryId: number | null) => {
-    try {
-      await api.setCategory(transactionId, categoryId);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
+  const saveLayout = (next: LayoutCard[]) => {
+    setLayout(next);
+    void api.setSetting("dashboard_layout", serializeLayout(next));
   };
+
+  const onCategory = (transactionId: number, categoryId: number | null) =>
+    mutateAndRefresh(() => api.setCategory(transactionId, categoryId));
 
   const clearMonth = async () => {
     if (!month) return;
-    try {
-      await api.clearMonth(month);
-      await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
+    await mutateAndRefresh(() => api.clearMonth(month));
   };
 
-  const saveIncome = async (input: IncomeInput) => {
-    try {
-      await api.saveIncome(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveIncome = (input: IncomeInput) =>
+    mutateAndRefresh(() => api.saveIncome(input), { closeDialog: true });
 
-  const saveBill = async (input: BillInput) => {
-    try {
-      await api.saveBill(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveBill = (input: BillInput) =>
+    mutateAndRefresh(() => api.saveBill(input), { closeDialog: true });
 
   const removeBill = async (id: number) => {
     setDialog(null);
     await api.deleteBill(id);
-    if (month) await reload(search, month, accountFilter, tagFilter);
+    await refreshData();
   };
 
-  const saveDebt = async (input: DebtInput) => {
-    try {
-      await api.saveDebt(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveDebt = (input: DebtInput) =>
+    mutateAndRefresh(() => api.saveDebt(input), { closeDialog: true });
 
   const removeDebt = async (id: number) => {
     setDialog(null);
     await api.deleteDebt(id);
-    if (month) await reload(search, month, accountFilter, tagFilter);
+    await refreshData();
   };
 
-  const saveManual = async (input: ManualInput) => {
-    try {
-      await api.saveManual(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveManual = (input: ManualInput) =>
+    mutateAndRefresh(() => api.saveManual(input), { closeDialog: true });
 
-  const updateManual = async (input: ManualEdit) => {
-    try {
-      await api.updateManual(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const updateManual = (input: ManualEdit) =>
+    mutateAndRefresh(() => api.updateManual(input), { closeDialog: true });
 
-  const deleteManual = async (id: number) => {
-    try {
-      await api.deleteManual(id);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const deleteManual = (id: number) =>
+    mutateAndRefresh(() => api.deleteManual(id), { closeDialog: true });
 
-  const saveTransfer = async (input: TransferInput) => {
-    try {
-      await api.saveTransfer(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveTransfer = (input: TransferInput) =>
+    mutateAndRefresh(() => api.saveTransfer(input), { closeDialog: true });
 
-  const saveRefund = async (originalId: number) => {
-    try {
-      const input: RefundInput = { originalId };
-      await api.saveRefund(input);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveRefund = (originalId: number) => mutateAndRefresh(() => api.saveRefund({ originalId }));
 
-  const saveRule = async (input: RuleInput) => {
-    try {
-      await api.saveRule(input);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveRule = (input: RuleInput) => mutateAndRefresh(() => api.saveRule(input));
 
-  const deleteRule = async (id: number) => {
-    try {
-      await api.deleteRule(id);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const deleteRule = (id: number) => mutateAndRefresh(() => api.deleteRule(id));
 
   const applyRules = async (): Promise<number> => {
     const count = await api.applyRules();
-    if (month) await reload(search, month, accountFilter, tagFilter);
+    await refreshData();
     return count;
   };
 
   const saveTag = async (name: string): Promise<number | null> => {
     try {
       const id = await api.saveTag(name);
-      if (month) await reload(search, month, accountFilter, tagFilter);
+      await refreshData();
       return id;
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
@@ -518,84 +543,32 @@ export function App() {
     try {
       await api.deleteTag(id);
       if (tagFilter === id) setTagFilter(null);
-      if (month) await reload(search, month, accountFilter, tagFilter === id ? null : tagFilter);
+      await refreshData(tagFilter === id ? null : tagFilter);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
   };
 
-  const saveHolding = async (input: HoldingInput) => {
-    try {
-      await api.saveHolding(input);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveHolding = (input: HoldingInput) => mutateAndRefresh(() => api.saveHolding(input));
 
-  const deleteHolding = async (id: number) => {
-    try {
-      await api.deleteHolding(id);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const deleteHolding = (id: number) => mutateAndRefresh(() => api.deleteHolding(id));
 
-  const bulkSetCategory = async (ids: number[], categoryId: number | null) => {
-    try {
-      await api.bulkSetCategory(ids, categoryId);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const bulkSetCategory = (ids: number[], categoryId: number | null) =>
+    mutateAndRefresh(() => api.bulkSetCategory(ids, categoryId));
 
-  const bulkTag = async (ids: number[], tagId: number, assign: boolean) => {
-    try {
-      await api.bulkTag(ids, tagId, assign);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const bulkTag = (ids: number[], tagId: number, assign: boolean) =>
+    mutateAndRefresh(() => api.bulkTag(ids, tagId, assign));
 
-  const createManualAccount = async (name: string) => {
-    try {
-      await api.createManualAccount(name);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const createManualAccount = (name: string) =>
+    mutateAndRefresh(() => api.createManualAccount(name));
 
-  const renameManualAccount = async (id: number, name: string) => {
-    try {
-      await api.renameAccount(id, name);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const renameManualAccount = (id: number, name: string) =>
+    mutateAndRefresh(() => api.renameAccount(id, name));
 
-  const archiveAccount = async (id: number) => {
-    try {
-      await api.archiveAccount(id);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const archiveAccount = (id: number) => mutateAndRefresh(() => api.archiveAccount(id));
 
-  const saveDeposit = async (input: DepositInput) => {
-    try {
-      await api.saveDeposit(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveDeposit = (input: DepositInput) =>
+    mutateAndRefresh(() => api.saveDeposit(input), { closeDialog: true });
 
   const saveBudget = async (
     id: number,
@@ -604,20 +577,19 @@ export function App() {
     carryover: boolean,
   ) => {
     if (!month) return;
-    try {
-      await api.setCategoryBudget(id, budget);
-      const input: BudgetLimitInput = {
-        month,
-        categoryId: id,
-        limitCents: monthly,
-        carryover,
-      };
-      await api.saveBudgetLimit(input);
-      setDialog(null);
-      await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
+    const input: BudgetLimitInput = {
+      month,
+      categoryId: id,
+      limitCents: monthly,
+      carryover,
+    };
+    await mutateAndRefresh(
+      async () => {
+        await api.setCategoryBudget(id, budget);
+        await api.saveBudgetLimit(input);
+      },
+      { closeDialog: true },
+    );
   };
 
   const openBudgetDialog = (category: { id: number; name: string; budget: number | null }) => {
@@ -633,81 +605,34 @@ export function App() {
 
   const saveGlobalBudget = async (limit: number | null, carryover: boolean) => {
     if (!month) return;
-    try {
-      await api.saveBudgetLimit({ month, categoryId: null, limitCents: limit, carryover });
-      await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
+    await mutateAndRefresh(() =>
+      api.saveBudgetLimit({ month, categoryId: null, limitCents: limit, carryover }),
+    );
   };
 
-  const saveCategory = async (input: CategoryInput) => {
-    try {
-      await api.saveCategory(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveCategory = (input: CategoryInput) =>
+    mutateAndRefresh(() => api.saveCategory(input), { closeDialog: true });
 
-  const deleteCategory = async (id: number) => {
-    try {
-      await api.deleteCategory(id);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const deleteCategory = (id: number) => mutateAndRefresh(() => api.deleteCategory(id));
 
-  const archiveCategory = async (id: number, archived: boolean) => {
-    try {
-      await api.archiveCategory(id, archived);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const archiveCategory = (id: number, archived: boolean) =>
+    mutateAndRefresh(() => api.archiveCategory(id, archived));
 
   const toggleDebt = async (id: number, settled: boolean) => {
     if (!month) return;
-    try {
-      await api.setDebtSettled(id, settled);
-      await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
+    await mutateAndRefresh(() => api.setDebtSettled(id, settled));
   };
 
   const toggleBill = async (billId: number, paid: boolean) => {
     if (!month) return;
-    try {
-      await api.setBillPaid(billId, month, paid);
-      await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
+    await mutateAndRefresh(() => api.setBillPaid(billId, month, paid));
   };
 
-  const saveCard = async (input: CardInput) => {
-    try {
-      await api.saveCard(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveCard = (input: CardInput) =>
+    mutateAndRefresh(() => api.saveCard(input), { closeDialog: true });
 
-  const saveGoal = async (input: GoalInput) => {
-    try {
-      await api.saveGoal(input);
-      setDialog(null);
-      if (month) await reload(search, month, accountFilter, tagFilter);
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    }
-  };
+  const saveGoal = (input: GoalInput) =>
+    mutateAndRefresh(() => api.saveGoal(input), { closeDialog: true });
 
   const saveCeiling = async (value: number) => {
     setDialog(null);
@@ -719,7 +644,7 @@ export function App() {
     setHousingCategoryId(categoryId);
     try {
       await api.setSetting("housing_category", categoryId === null ? "none" : String(categoryId));
-      if (month) await reload(search, month, accountFilter, tagFilter);
+      await refreshData();
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -727,74 +652,74 @@ export function App() {
 
   const housingCategory = categories.find((category) => category.id === housingCategoryId);
   const selfPerson = planner.people.find((person) => person.isSelf) ?? planner.people[0] ?? null;
+  const profileName = userName?.trim() || t("split.you");
+
+  const toggleSidebar = () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    void api.setSetting("sidebar_collapsed", next ? "1" : "0");
+  };
+
+  // A collapsed rail shows only the icon, so the label becomes its tooltip and
+  // its accessible name.
+  const navItem = (item: { route: Route; icon: IconName }) => {
+    const label = t(`nav.${item.route}`);
+    return (
+      <SidebarItem
+        key={item.route}
+        active={route === item.route}
+        onClick={() => setRoute(item.route)}
+        className={sidebarCollapsed ? "justify-center px-0" : undefined}
+        title={sidebarCollapsed ? label : undefined}
+        aria-label={sidebarCollapsed ? label : undefined}
+      >
+        <Icon name={item.icon} size={17} />
+        <span className="sidebar-label">{label}</span>
+      </SidebarItem>
+    );
+  };
 
   return (
     <div className="app">
       <TitleBar />
 
       <div className="flex min-h-0 flex-1">
-        <Sidebar className="hidden md:flex">
+        <Sidebar className="hidden md:flex" collapsed={sidebarCollapsed}>
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={toggleSidebar}
+            title={t(sidebarCollapsed ? "sidebar.expand" : "sidebar.collapse")}
+            aria-label={t(sidebarCollapsed ? "sidebar.expand" : "sidebar.collapse")}
+            aria-expanded={!sidebarCollapsed}
+          >
+            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={15} />
+          </button>
+
           <SidebarProfile
-            name={selfPerson?.name ?? t("split.you")}
+            name={profileName}
             detail={t("app.tagline")}
-            initials={(selfPerson?.name ?? t("split.you")).slice(0, 2).toUpperCase()}
+            initials={profileName.slice(0, 2).toUpperCase()}
             color={selfPerson?.color}
             onClick={() => setRoute("settings")}
+            collapsed={sidebarCollapsed}
+            className={sidebarCollapsed ? "justify-center px-0" : undefined}
           />
 
-          <nav aria-label={t("nav.primary")} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-            <SidebarGroup label={t("nav.menu")}>
-              {MENU.map((item) => (
-                <SidebarItem
-                  key={item.route}
-                  active={route === item.route}
-                  onClick={() => setRoute(item.route)}
-                >
-                  <Icon name={item.icon} size={17} />
-                  {t(`nav.${item.route}`)}
-                </SidebarItem>
-              ))}
-            </SidebarGroup>
-            <SidebarGroup label={t("nav.planningGroup")}>
-              {PLANNING.map((item) => (
-                <SidebarItem
-                  key={item.route}
-                  active={route === item.route}
-                  onClick={() => setRoute(item.route)}
-                >
-                  <Icon name={item.icon} size={17} />
-                  {t(`nav.${item.route}`)}
-                </SidebarItem>
-              ))}
-            </SidebarGroup>
-            <SidebarGroup label={t("nav.strategyGroup")}>
-              {STRATEGY.map((item) => (
-                <SidebarItem
-                  key={item.route}
-                  active={route === item.route}
-                  onClick={() => setRoute(item.route)}
-                >
-                  <Icon name={item.icon} size={17} />
-                  {t(`nav.${item.route}`)}
-                </SidebarItem>
-              ))}
-            </SidebarGroup>
-            <SidebarGroup label={t("nav.settingsGroup")}>
-              {ADJUST.map((item) => (
-                <SidebarItem
-                  key={item.route}
-                  active={route === item.route}
-                  onClick={() => setRoute(item.route)}
-                >
-                  <Icon name={item.icon} size={17} />
-                  {t(`nav.${item.route}`)}
-                </SidebarItem>
-              ))}
-            </SidebarGroup>
+          <nav
+            aria-label={t("nav.primary")}
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+          >
+            <SidebarGroup label={t("nav.menu")}>{MENU.map(navItem)}</SidebarGroup>
+            <div className="mt-auto">
+              <SidebarGroup label={t("nav.settingsGroup")}>{ADJUST.map(navItem)}</SidebarGroup>
+            </div>
           </nav>
 
           <SidebarFooter>
-            <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
+            <div className="sidebar-update">
+              <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
+            </div>
 
             <div className="flex items-center justify-between gap-2 px-1">
               <button
@@ -809,25 +734,29 @@ export function App() {
                 aria-pressed={theme === "dark"}
               >
                 <span
-                  className={
-                    theme === "light"
-                      ? "grid size-6 place-items-center rounded-full bg-surface text-ink shadow-tile"
-                      : "grid size-6 place-items-center rounded-full text-faint"
-                  }
+                  className={[
+                    "grid size-6 place-items-center rounded-full",
+                    theme === "light" ? "bg-surface text-ink shadow-tile" : "text-faint",
+                    sidebarCollapsed && theme !== "light" ? "hidden" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
                   <Icon name="sun" size={14} />
                 </span>
                 <span
-                  className={
-                    theme === "dark"
-                      ? "grid size-6 place-items-center rounded-full bg-surface text-ink shadow-tile"
-                      : "grid size-6 place-items-center rounded-full text-faint"
-                  }
+                  className={[
+                    "grid size-6 place-items-center rounded-full",
+                    theme === "dark" ? "bg-surface text-ink shadow-tile" : "text-faint",
+                    sidebarCollapsed && theme !== "dark" ? "hidden" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
                   <Icon name="moon" size={14} />
                 </span>
               </button>
-              <span className="truncate text-2xs text-faint">
+              <span className="sidebar-footer-meta truncate text-2xs text-faint">
                 {t("common.version", { value: updater.currentVersion || "0.1.0" })} · {BUILD_LABEL}
               </span>
             </div>
@@ -849,13 +778,12 @@ export function App() {
               notifications={notifications}
               onReadAll={() => {
                 void api.markNotificationsRead(notifications.map((item) => item.key)).then(() => {
-                  if (month) void reload(search, month, accountFilter, tagFilter);
+                  void refreshData();
                 });
               }}
               onImport={() => setRoute("import")}
               onLaunch={() => setDialog({ kind: "manual", entry: null })}
               canLaunch={accounts.length > 0}
-              userName={userName}
               primaryLabel={t("ledger.import")}
               showLayout={route === "overview"}
               layoutEditing={layoutEditing}
@@ -863,248 +791,291 @@ export function App() {
             />
           ) : null}
 
-          {route === "overview" ? (
-            <OverviewScreen
-              plan={plan}
-              cards={cards}
-              byCategory={byCategory}
-              series={series}
-              matrix={matrix}
-              month={month ?? currentMonth()}
-              onSelectMonth={setMonth}
-              onToggleBill={(id, paid) => void toggleBill(id, paid)}
-              onAddBill={() => setDialog({ kind: "bill", bill: null })}
-              onEditBill={(bill) => setDialog({ kind: "bill", bill })}
-              onAddCard={() => setDialog({ kind: "card", card: null })}
-              onEditCard={(card) => setDialog({ kind: "card", card })}
-              onAddGoal={() => setDialog({ kind: "goal", goal: null })}
-              onEditHousing={() => setDialog({ kind: "ceiling" })}
-              housingScope={housingScope}
-              onHousingScope={(scope) => {
-                setHousingScope(scope);
-                void api.setSetting("housing_scope", scope);
-              }}
-              people={planner.people}
-              shares={planner.shares}
-              debts={planner.debts}
-              splitSettled={splitSettled}
-              onAddDebt={() => setDialog({ kind: "debt", debt: null })}
-              onToggleDebt={(id, settled) => void toggleDebt(id, settled)}
-              layout={layout}
-              layoutEditing={layoutEditing}
-              onLayoutMoveTo={(id: CardId, targetId: CardId) => {
-                const next = moveCardTo(layout, id, targetId);
-                setLayout(next);
-                void api.setSetting("dashboard_layout", serializeLayout(next));
-              }}
-              onLayoutSpan={(id: CardId, span: number) => {
-                const next = setSpan(layout, id, span);
-                setLayout(next);
-                void api.setSetting("dashboard_layout", serializeLayout(next));
-              }}
-              onLayoutMode={(id: CardId, mode: CardMode) => {
-                const next = setMode(layout, id, mode);
-                setLayout(next);
-                void api.setSetting("dashboard_layout", serializeLayout(next));
-              }}
-              onLayoutReset={() => {
-                const next = parseLayout(null);
-                setLayout(next);
-                void api.setSetting("dashboard_layout", serializeLayout(next));
-              }}
-              onLayoutDone={() => setLayoutEditing(false)}
-              onAssignShare={(billId, personId) => {
-                void api.setShare({ billId, personId }).then(() => {
-                  if (month) void reload(search, month, accountFilter, tagFilter);
-                });
-              }}
-              onSettle={() => {
-                if (!month) return;
-                setSplitSettled(true);
-                void api.setSetting(`split_settled_${month}`, "1");
-              }}
-              onEditIncome={() => setDialog({ kind: "income", income: planner.incomes[0] ?? null })}
-              onEditBudget={(category) => openBudgetDialog(category)}
-              housingCategoryId={housingCategoryId}
-            />
-          ) : null}
+          <div className="route-view" key={route}>
+            {route === "overview" ? (
+              <OverviewScreen
+                plan={plan}
+                cards={cards}
+                byCategory={byCategory}
+                series={series}
+                matrix={matrix}
+                rows={recentRows}
+                month={month ?? currentMonth()}
+                onSelectMonth={setMonth}
+                onToggleBill={(id, paid) => void toggleBill(id, paid)}
+                onAddBill={() => setDialog({ kind: "bill", bill: null })}
+                onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+                onAddCard={() => setDialog({ kind: "card", card: null })}
+                onEditCard={(card) => setDialog({ kind: "card", card })}
+                onAddGoal={() => setDialog({ kind: "goal", goal: null })}
+                onEditHousing={() => setDialog({ kind: "ceiling" })}
+                housingScope={housingScope}
+                onHousingScope={(scope) => {
+                  setHousingScope(scope);
+                  void api.setSetting("housing_scope", scope);
+                }}
+                people={planner.people}
+                shares={planner.shares}
+                debts={planner.debts}
+                splitSettled={splitSettled}
+                onAddDebt={() => setDialog({ kind: "debt", debt: null })}
+                onToggleDebt={(id, settled) => void toggleDebt(id, settled)}
+                layout={layout}
+                layoutEditing={layoutEditing}
+                onLayoutMoveTo={(id: CardId, targetId: CardId) => {
+                  saveLayout(moveCardTo(layout, id, targetId));
+                }}
+                onLayoutResize={(id: CardId, span: Span, height: number | null) => {
+                  saveLayout(resizeCard(layout, id, span, height));
+                }}
+                onLayoutSpan={(id: CardId, span: number) => {
+                  saveLayout(setSpan(layout, id, span));
+                }}
+                onLayoutMode={(id: CardId, mode: CardMode) => {
+                  saveLayout(setMode(layout, id, mode));
+                }}
+                onLayoutReset={() => {
+                  saveLayout(parseLayout(null));
+                }}
+                onLayoutDone={() => setLayoutEditing(false)}
+                onAssignShare={(billId, personId) => {
+                  void api.setShare({ billId, personId }).then(() => {
+                    void refreshData();
+                  });
+                }}
+                onSettle={() => {
+                  if (!month) return;
+                  setSplitSettled(true);
+                  void api.setSetting(`split_settled_${month}`, "1");
+                }}
+                onEditIncome={() =>
+                  setDialog({ kind: "income", income: planner.incomes[0] ?? null })
+                }
+                onEditBudget={(category) => openBudgetDialog(category)}
+                housingCategoryId={housingCategoryId}
+              />
+            ) : null}
 
-          {route === "transactions" ? (
-            <TransactionsScreen
-              rows={rows}
-              categories={categories}
-              tags={tags}
-              search={search}
-              loading={loading}
-              onSearch={setSearch}
-              onCategory={(id, categoryId) => void onCategory(id, categoryId)}
-              onImport={() => setRoute("import")}
-              onClearMonth={() => void clearMonth()}
-              onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
-              onDeleteEntry={(id) => void deleteManual(id)}
-              onRefund={(id) => void saveRefund(id)}
-              onNewTransfer={() => setDialog({ kind: "transfer" })}
-              onBulkCategory={(ids, categoryId) => void bulkSetCategory(ids, categoryId)}
-              onBulkTag={(ids, tagId, assign) => void bulkTag(ids, tagId, assign)}
-              onNewTag={(name) => saveTag(name)}
-              onDeleteTag={(id) => void deleteTag(id)}
-              month={month ?? currentMonth()}
-              groups={groups}
-              accounts={accounts}
-              accountFilter={accountFilter}
-              onAccountFilter={setAccountFilter}
-              tagFilter={tagFilter}
-              onTagFilter={setTagFilter}
-            />
-          ) : null}
+            {route === "transactions" ? (
+              <TransactionsScreen
+                rows={rows}
+                categories={categories}
+                tags={tags}
+                search={search}
+                loading={loading}
+                onSearch={setSearch}
+                onCategory={(id, categoryId) => void onCategory(id, categoryId)}
+                onImport={() => setRoute("import")}
+                onClearMonth={() => void clearMonth()}
+                onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
+                onDeleteEntry={(id) => void deleteManual(id)}
+                onRefund={(id) => void saveRefund(id)}
+                onNewTransfer={() => setDialog({ kind: "transfer" })}
+                onBulkCategory={(ids, categoryId) => void bulkSetCategory(ids, categoryId)}
+                onBulkTag={(ids, tagId, assign) => void bulkTag(ids, tagId, assign)}
+                onNewTag={(name) => saveTag(name)}
+                onDeleteTag={(id) => void deleteTag(id)}
+                month={month ?? currentMonth()}
+                groups={groups}
+                accounts={accounts}
+                accountFilter={accountFilter}
+                onAccountFilter={setAccountFilter}
+                tagFilter={tagFilter}
+                onTagFilter={setTagFilter}
+              />
+            ) : null}
 
-          {route === "flow" ? (
-            <FlowScreen
-              series={series}
-              daily={daily}
-              paceCents={budgetStatus?.global?.effectiveCents ?? null}
-              plan={plan}
-              month={month ?? currentMonth()}
-              onSelectMonth={setMonth}
-            />
-          ) : null}
+            {route === "flow" ? (
+              <SectionPage
+                eyebrow={t("nav.flow")}
+                tabs={[
+                  { id: "summary", label: t("tab.flowSummary") },
+                  { id: "trends", label: t("tab.flowTrends") },
+                ]}
+                active={tabOf("flow", "summary")}
+                onTab={(id) => setTab("flow", id)}
+              >
+                {tabOf("flow", "summary") === "summary" ? (
+                  <FlowsScreen
+                    incomes={planner.incomes}
+                    totals={totals}
+                    byCategory={byCategory}
+                    month={month ?? currentMonth()}
+                    status={budgetStatus}
+                    onAddIncome={() => setDialog({ kind: "income", income: null })}
+                    onEditIncome={(income) => setDialog({ kind: "income", income })}
+                    onEditBudget={(category) => openBudgetDialog(category)}
+                    onSaveGlobal={(limit, carryover) => void saveGlobalBudget(limit, carryover)}
+                  />
+                ) : (
+                  <section className="screen planner-screen">
+                    <ScreenHeader
+                      eyebrow={t("nav.flow")}
+                      title={t("tab.flowTrends")}
+                      description={t("flow.trendsDescription")}
+                    />
+                    <FlowScreen
+                      series={series}
+                      daily={daily}
+                      paceCents={budgetStatus?.global?.effectiveCents ?? null}
+                      plan={plan}
+                      month={month ?? currentMonth()}
+                      onSelectMonth={setMonth}
+                    />
+                  </section>
+                )}
+              </SectionPage>
+            ) : null}
 
-          {route === "cards" ? (
-            <CardsScreen
-              cards={cards}
-              month={month ?? currentMonth()}
-              onAdd={() => setDialog({ kind: "card", card: null })}
-              onEdit={(card) => setDialog({ kind: "card", card })}
-            />
-          ) : null}
+            {route === "cards" ? (
+              <SectionPage
+                eyebrow={t("nav.cards")}
+                tabs={[
+                  { id: "cards", label: t("tab.cards") },
+                  { id: "debts", label: t("tab.installments") },
+                ]}
+                active={tabOf("cards", "cards")}
+                onTab={(id) => setTab("cards", id)}
+              >
+                {tabOf("cards", "cards") === "cards" ? (
+                  <CardsScreen
+                    cards={cards}
+                    month={month ?? currentMonth()}
+                    onAdd={() => setDialog({ kind: "card", card: null })}
+                    onEdit={(card) => setDialog({ kind: "card", card })}
+                  />
+                ) : (
+                  <DebtsScreen
+                    plan={plan}
+                    cards={cards}
+                    month={month ?? currentMonth()}
+                    history={recurrence}
+                    onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+                  />
+                )}
+              </SectionPage>
+            ) : null}
 
-          {route === "reserve" ? (
-            <ReserveScreen
-              plan={plan}
-              onAdd={() => setDialog({ kind: "goal", goal: null })}
-              onEdit={(goal) => setDialog({ kind: "goal", goal })}
-              onDeposit={(goal) => setDialog({ kind: "deposit", goal })}
-            />
-          ) : null}
+            {route === "goals" ? (
+              <SectionPage
+                eyebrow={t("nav.goals")}
+                tabs={[
+                  { id: "goals", label: t("tab.goals") },
+                  { id: "retirement", label: t("nav.retirement") },
+                ]}
+                active={tabOf("goals", "goals")}
+                onTab={(id) => setTab("goals", id)}
+              >
+                {tabOf("goals", "goals") === "goals" ? (
+                  <ReserveScreen
+                    plan={plan}
+                    onAdd={() => setDialog({ kind: "goal", goal: null })}
+                    onEdit={(goal) => setDialog({ kind: "goal", goal })}
+                    onDeposit={(goal) => setDialog({ kind: "deposit", goal })}
+                  />
+                ) : (
+                  <RetirementScreen plan={plan} />
+                )}
+              </SectionPage>
+            ) : null}
 
-          {route === "patrimony" ? (
-            <PatrimonyScreen
-              plan={plan}
-              series={series}
-              month={month ?? currentMonth()}
-              holdings={holdings}
-              onSaveHolding={(input) => void saveHolding(input)}
-              onDeleteHolding={(id) => void deleteHolding(id)}
-            />
-          ) : null}
+            {route === "patrimony" ? (
+              <SectionPage
+                eyebrow={t("nav.patrimony")}
+                tabs={[
+                  { id: "wealth", label: t("tab.wealth") },
+                  { id: "health", label: t("nav.health") },
+                ]}
+                active={tabOf("patrimony", "wealth")}
+                onTab={(id) => setTab("patrimony", id)}
+              >
+                {tabOf("patrimony", "wealth") === "wealth" ? (
+                  <PatrimonyScreen
+                    plan={plan}
+                    series={series}
+                    month={month ?? currentMonth()}
+                    holdings={holdings}
+                    onSaveHolding={(input) => void saveHolding(input)}
+                    onDeleteHolding={(id) => void deleteHolding(id)}
+                  />
+                ) : (
+                  <HealthScreen
+                    plan={plan}
+                    byCategory={byCategory}
+                    totals={totals}
+                    month={month ?? currentMonth()}
+                    status={budgetStatus}
+                    history={recurrence}
+                  />
+                )}
+              </SectionPage>
+            ) : null}
 
-          {route === "flows" ? (
-            <FlowsScreen
-              incomes={planner.incomes}
-              totals={totals}
-              byCategory={byCategory}
-              month={month ?? currentMonth()}
-              status={budgetStatus}
-              onAddIncome={() => setDialog({ kind: "income", income: null })}
-              onEditIncome={(income) => setDialog({ kind: "income", income })}
-              onEditBudget={(category) => openBudgetDialog(category)}
-              onSaveGlobal={(limit, carryover) => void saveGlobalBudget(limit, carryover)}
-            />
-          ) : null}
+            {route === "house" ? (
+              <SectionPage eyebrow={t("nav.house")} tabs={[]} active="" onTab={() => {}}>
+                <HouseScreen
+                  plan={plan}
+                  categories={categories}
+                  housingCategoryId={housingCategoryId}
+                  housingScope={housingScope}
+                  people={planner.people}
+                  shares={planner.shares}
+                  splitSettled={splitSettled}
+                  onCategory={(categoryId) => void saveHousingCategory(categoryId)}
+                  onScope={(scope) => {
+                    setHousingScope(scope);
+                    void api.setSetting("housing_scope", scope);
+                  }}
+                  onEditCeiling={() => setDialog({ kind: "ceiling" })}
+                  onAddBill={() => setDialog({ kind: "bill", bill: null })}
+                  onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+                  onAssign={(billId, personId) => {
+                    void api.setShare({ billId, personId }).then(() => {
+                      void refreshData();
+                    });
+                  }}
+                  onSettle={() => {
+                    if (!month) return;
+                    setSplitSettled(true);
+                    void api.setSetting(`split_settled_${month}`, "1");
+                  }}
+                />
+              </SectionPage>
+            ) : null}
 
-          {route === "health" ? (
-            <HealthScreen
-              plan={plan}
-              byCategory={byCategory}
-              totals={totals}
-              month={month ?? currentMonth()}
-              status={budgetStatus}
-              history={recurrence}
-            />
-          ) : null}
+            {route === "import" ? (
+              <ImportScreen
+                onImported={() => {
+                  void refreshData();
+                  setRoute("overview");
+                }}
+              />
+            ) : null}
 
-          {route === "debts" ? (
-            <DebtsScreen
-              plan={plan}
-              cards={cards}
-              month={month ?? currentMonth()}
-              history={recurrence}
-              onEditBill={(bill) => setDialog({ kind: "bill", bill })}
-            />
-          ) : null}
+            {route === "categories" ? (
+              <CategoriesScreen
+                categories={categories}
+                rules={rules}
+                onSave={(input) => void saveCategory(input)}
+                onDelete={(id) => void deleteCategory(id)}
+                onArchive={(id, archived) => void archiveCategory(id, archived)}
+                onSaveRule={(input) => void saveRule(input)}
+                onDeleteRule={(id) => void deleteRule(id)}
+                onApplyRules={() => applyRules()}
+              />
+            ) : null}
 
-          {route === "retirement" ? <RetirementScreen plan={plan} /> : null}
-
-          {route === "house" ? (
-            <HouseScreen
-              plan={plan}
-              categories={categories}
-              housingCategoryId={housingCategoryId}
-              housingScope={housingScope}
-              people={planner.people}
-              shares={planner.shares}
-              splitSettled={splitSettled}
-              onCategory={(categoryId) => void saveHousingCategory(categoryId)}
-              onScope={(scope) => {
-                setHousingScope(scope);
-                void api.setSetting("housing_scope", scope);
-              }}
-              onEditCeiling={() => setDialog({ kind: "ceiling" })}
-              onAddBill={() => setDialog({ kind: "bill", bill: null })}
-              onEditBill={(bill) => setDialog({ kind: "bill", bill })}
-              onAssign={(billId, personId) => {
-                void api.setShare({ billId, personId }).then(() => {
-                  if (month) void reload(search, month, accountFilter, tagFilter);
-                });
-              }}
-              onSettle={() => {
-                if (!month) return;
-                setSplitSettled(true);
-                void api.setSetting(`split_settled_${month}`, "1");
-              }}
-            />
-          ) : null}
-
-          {route === "income" ? (
-            <IncomeScreen
-              incomes={planner.incomes}
-              plan={plan}
-              onAdd={() => setDialog({ kind: "income", income: null })}
-              onEdit={(income) => setDialog({ kind: "income", income })}
-            />
-          ) : null}
-
-          {route === "import" ? (
-            <ImportScreen
-              onImported={() => {
-                if (month) void reload(search, month, accountFilter, tagFilter);
-                setRoute("overview");
-              }}
-            />
-          ) : null}
-
-          {route === "categories" ? (
-            <CategoriesScreen
-              categories={categories}
-              rules={rules}
-              onSave={(input) => void saveCategory(input)}
-              onDelete={(id) => void deleteCategory(id)}
-              onArchive={(id, archived) => void archiveCategory(id, archived)}
-              onSaveRule={(input) => void saveRule(input)}
-              onDeleteRule={(id) => void deleteRule(id)}
-              onApplyRules={() => applyRules()}
-            />
-          ) : null}
-
-          {route === "settings" ? (
-          <SettingsScreen
-            updater={updater}
-            accounts={accounts}
-            onCreateAccount={(name) => void createManualAccount(name)}
-            onRenameAccount={(id, name) => void renameManualAccount(id, name)}
-            onArchiveAccount={(id) => void archiveAccount(id)}
-          />
-        ) : null}
+            {route === "settings" ? (
+              <SettingsScreen
+                updater={updater}
+                accounts={accounts}
+                onSaveUserName={setUserName}
+                onCreateAccount={(name) => void createManualAccount(name)}
+                onRenameAccount={(id, name) => void renameManualAccount(id, name)}
+                onArchiveAccount={(id) => void archiveAccount(id)}
+              />
+            ) : null}
+          </div>
         </main>
       </div>
 
@@ -1112,20 +1083,6 @@ export function App() {
         label={t("nav.primary")}
         items={[
           ...MENU.map((item) => ({
-            key: item.route,
-            label: t(`nav.${item.route}`),
-            icon: <Icon name={item.icon} size={19} />,
-            active: route === item.route,
-            onSelect: () => setRoute(item.route),
-          })),
-          ...PLANNING.map((item) => ({
-            key: item.route,
-            label: t(`nav.${item.route}`),
-            icon: <Icon name={item.icon} size={19} />,
-            active: route === item.route,
-            onSelect: () => setRoute(item.route),
-          })),
-          ...STRATEGY.map((item) => ({
             key: item.route,
             label: t(`nav.${item.route}`),
             icon: <Icon name={item.icon} size={19} />,

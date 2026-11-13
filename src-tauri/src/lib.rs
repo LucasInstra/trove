@@ -76,6 +76,7 @@ fn export_csv(
     search: Option<String>,
     month: Option<String>,
     account_id: Option<i64>,
+    tag_id: Option<i64>,
 ) -> Result<i64, String> {
     let connection = connection(&app)?;
     db::export_csv(
@@ -84,6 +85,7 @@ fn export_csv(
         search.as_deref(),
         month.as_deref(),
         account_id,
+        tag_id,
     )
 }
 
@@ -548,10 +550,19 @@ pub fn run() {
                 // against the local one is what makes build 3 reach build 2.
                 // Anything without the suffix is a real version, decided the
                 // usual way.
+                // The build number only breaks ties within one version: it
+                // restarts at 1 on every release, so the base version decides first.
                 .default_version_comparator(|current, remote| {
-                    match build_from_prerelease(remote.version.pre.as_str()) {
-                        Some(offered) => offered > local_build(),
-                        None => remote.version > current,
+                    let offered_base = (remote.version.major, remote.version.minor, remote.version.patch);
+                    match offered_base.cmp(&(current.major, current.minor, current.patch)) {
+                        std::cmp::Ordering::Greater => true,
+                        std::cmp::Ordering::Less => false,
+                        std::cmp::Ordering::Equal => {
+                            match build_from_prerelease(remote.version.pre.as_str()) {
+                                Some(offered) => offered > local_build(),
+                                None => remote.version > current,
+                            }
+                        }
                     }
                 })
                 .build(),
