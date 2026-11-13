@@ -11,3 +11,6 @@ latest.json
 test-results
 playwright-report
 release
+
+.claude/
+handoff-*.md
