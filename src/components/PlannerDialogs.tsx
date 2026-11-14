@@ -160,7 +160,7 @@ export function BillDialog({
  * either takes an account that has none yet or asks for a fresh one (id 0).
  * Offering an account that already has a card would replace that card.
  */
-export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave }: { card: CardMeta | null; accounts: { id: number; name: string }[]; takenAccountIds: number[]; onClose: () => void; onSave: (input: CardInput) => void }) {
+export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, onDelete }: { card: CardMeta | null; accounts: { id: number; name: string }[]; takenAccountIds: number[]; onClose: () => void; onSave: (input: CardInput) => void; onDelete?: (id: number) => void }) {
   const { t } = useLanguage();
   const choices = card ? accounts : accounts.filter((account) => !takenAccountIds.includes(account.id));
   const [accountId, setAccountId] = useState(card?.accountId ?? 0);
@@ -217,6 +217,11 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave }:
           <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
         </Field>
         <div className="dialog-actions">
+          {card && onDelete ? (
+            <button type="button" className="ghost danger" onClick={() => onDelete(card.id)}>
+              {t("common.delete")}
+            </button>
+          ) : null}
           <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" className="primary">{t("common.save")}</button>
         </div>

@@ -262,6 +262,10 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   ],
   list_csv_profiles: () => [],
   card_usage: () => 412300,
+  delete_card: (args) => {
+    planner.cards = planner.cards.filter((card) => card.id !== (args.id as number));
+    return null;
+  },
   reorder_cards: (args) => {
     const ids = args.ids as number[];
     planner.cards.sort((left, right) => ids.indexOf(left.id) - ids.indexOf(right.id));

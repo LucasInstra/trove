@@ -637,6 +637,12 @@ export function App() {
     void mutateAndRefresh(() => api.reorderCards(ids));
   };
 
+  const removeCard = async (id: number) => {
+    setDialog(null);
+    await api.deleteCard(id);
+    await refreshData();
+  };
+
   const saveCard = (input: CardInput) =>
     mutateAndRefresh(
       async () => {
@@ -1149,6 +1155,7 @@ export function App() {
           takenAccountIds={planner.cards.map((meta) => meta.accountId)}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveCard(input)}
+          onDelete={(id) => void removeCard(id)}
         />
       ) : null}
 

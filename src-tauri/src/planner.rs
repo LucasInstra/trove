@@ -493,6 +493,19 @@ pub fn list_cards(connection: &Connection) -> Result<Vec<CardMeta>, String> {
         .map_err(|problem| problem.to_string())
 }
 
+/// Removes a card from the lists. The account and its transactions stay, so a
+/// statement imported later still has somewhere to land.
+pub fn delete_card(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = now();
+    connection
+        .execute(
+            "update cards set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
 /// Stores the order the user chose: each card gets the index of its id in `ids`.
 /// A card missing from the list keeps its place after the listed ones.
 pub fn reorder_cards(connection: &Connection, ids: &[i64]) -> Result<(), String> {
@@ -559,7 +572,8 @@ pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, Stri
                             limit_cents = excluded.limit_cents,
                             closing_day = excluded.closing_day, due_day = excluded.due_day,
                             color = excluded.color, texture = excluded.texture,
-                            updated_at = excluded.updated_at",
+                            updated_at = excluded.updated_at, deleted_at = null,
+                            position = excluded.position",
                     params![
                         input.account_id,
                         input.brand,
@@ -1111,6 +1125,26 @@ mod tests {
         let account = db::create_manual_account(&connection, "Novo").expect("account");
         save_card(&connection, &card_input(account, "Novo")).expect("card");
         assert_eq!(brands(&connection), ["Meio", "Zeta", "Alfa", "Novo"]);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn a_deleted_card_leaves_the_list_and_its_account_can_take_a_card_again() {
+        let path = temporary_database("card-delete");
+        let connection = db::open(&path).expect("should open");
+        let account = db::create_manual_account(&connection, "Nubank").expect("account");
+        let other = db::create_manual_account(&connection, "Itaú").expect("account");
+        let id = save_card(&connection, &card_input(account, "mastercard")).expect("card");
+        save_card(&connection, &card_input(other, "visa")).expect("card");
+
+        delete_card(&connection, id).expect("delete");
+        let brands = |connection: &Connection| -> Vec<String> {
+            list_cards(connection).expect("list").into_iter().map(|card| card.brand).collect()
+        };
+        assert_eq!(brands(&connection), ["visa"]);
+
+        save_card(&connection, &card_input(account, "elo")).expect("card again");
+        assert_eq!(brands(&connection), ["visa", "elo"]);
         let _ = std::fs::remove_file(&path);
     }
 
