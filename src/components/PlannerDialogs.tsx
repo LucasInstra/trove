@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CARD_DESIGNS, designOf } from "../domain/cardDesigns";
+import { BANKS, CARD_DESIGNS, bankByTexture, designForName, designOf } from "../domain/cardDesigns";
+import { BankMark } from "./CreditCardArt";
 import { Dialog } from "./Dialog";
 import { GoalIconPicker } from "./GoalIcon";
 import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
@@ -174,6 +175,9 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
   const [color, setColor] = useState(card?.color ?? "#2b2b2d");
   const [texture, setTexture] = useState(card?.texture ?? "plain");
   const chosen = designOf(color, texture);
+  const bank = bankByTexture(texture);
+  // A new card takes the look of the bank its name points at, until a look is picked by hand.
+  const [picked, setPicked] = useState(card !== null);
 
   return (
     <Dialog title={t("planner.cardTitle")} onClose={onClose}>
@@ -203,7 +207,17 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
           </select>
         </Field>
         <Field label={t("planner.brand")}>
-          <input value={brand} onChange={(event) => setBrand(event.target.value)} />
+          <input
+            value={brand}
+            onChange={(event) => {
+              setBrand(event.target.value);
+              const suggestion = picked ? null : designForName(event.target.value);
+              if (suggestion) {
+                setColor(suggestion.color);
+                setTexture(suggestion.texture);
+              }
+            }}
+          />
         </Field>
         <Field label={t("planner.last4")}>
           <input value={last4} onChange={(event) => setLast4(event.target.value)} maxLength={4} inputMode="numeric" />
@@ -217,6 +231,57 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
         <Field label={t("planner.dueDay")}>
           <input type="number" min={1} max={31} value={dueDay} onChange={(event) => setDueDay(Number(event.target.value))} />
         </Field>
+        <Field label={t("planner.bank")}>
+          <div className="design-picker" role="radiogroup">
+            {BANKS.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                role="radio"
+                aria-checked={bank?.id === entry.id}
+                aria-label={entry.name}
+                title={entry.name}
+                className={bank?.id === entry.id ? "design-swatch bank-chip is-active" : "design-swatch bank-chip"}
+                data-texture={entry.variants[0].texture}
+                style={{ "--card-color": entry.variants[0].color } as React.CSSProperties}
+                onClick={() => {
+                  setPicked(true);
+                  setColor(entry.variants[0].color);
+                  setTexture(entry.variants[0].texture);
+                }}
+              >
+                <BankMark bank={entry} />
+              </button>
+            ))}
+          </div>
+        </Field>
+        {bank ? (
+          <Field label={t("planner.bankVersion", { bank: bank.name })}>
+            <div className="version-picker" role="radiogroup">
+              {bank.variants.map((variant) => (
+                <button
+                  key={variant.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={chosen === variant.id}
+                  className="version-tile"
+                  onClick={() => {
+                    setPicked(true);
+                    setColor(variant.color);
+                    setTexture(variant.texture);
+                  }}
+                >
+                  <span
+                    className="design-swatch"
+                    data-texture={variant.texture}
+                    style={{ "--card-color": variant.color } as React.CSSProperties}
+                  />
+                  {variant.name}
+                </button>
+              ))}
+            </div>
+          </Field>
+        ) : null}
         <Field label={t("planner.design")}>
           <div className="design-picker" role="radiogroup">
             {CARD_DESIGNS.map((design) => (
@@ -231,6 +296,7 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
                 data-texture={design.texture}
                 style={{ "--card-color": design.color } as React.CSSProperties}
                 onClick={() => {
+                  setPicked(true);
                   setColor(design.color);
                   setTexture(design.texture);
                 }}
