@@ -6,7 +6,6 @@ import {
   moveCardTo,
   nextMode,
   parseLayout,
-  resizeCard,
   serializeLayout,
   setMode,
   setSpan,
@@ -189,14 +188,12 @@ describe("setMode", () => {
     expect(setMode(next, "bills", "full").find((entry) => entry.id === "bills")?.mode).toBe("full");
   });
 
-  it("fits a card to its content when its display mode changes", () => {
-    const resized = resizeCard(parseLayout(null), "bills", 2, 320);
-    const smallest = setMode(resized, "bills", "mini");
+  it("keeps the width when the display mode changes", () => {
+    const smallest = setMode(setSpan(parseLayout(null), "bills", 2), "bills", "mini");
     const bills = smallest.find((entry) => entry.id === "bills");
 
     expect(bills?.mode).toBe("mini");
     expect(bills?.span).toBe(2);
-    expect(bills?.height).toBeUndefined();
   });
 
   it("leaves an unknown card alone and keeps the same array", () => {
@@ -256,30 +253,11 @@ describe("spanOptions", () => {
   });
 });
 
-describe("resizeCard", () => {
-  it("snaps and clamps a mouse-resized card size", () => {
-    const layout = parseLayout(null);
-    const next = resizeCard(layout, "inout", 2, 213);
-    const inout = next.find((entry) => entry.id === "inout");
-
-    expect(inout?.span).toBe(2);
-    expect(inout?.height).toBe(216);
-    expect(resizeCard(next, "inout", 8, 20).find((entry) => entry.id === "inout")).toMatchObject({
-      span: 3,
-      height: 160,
-    });
-    expect(layout.find((entry) => entry.id === "inout")).toMatchObject({ span: 1 });
-  });
-
-  it("supports old auto-height layouts and resetting back to content height", () => {
-    const legacy = parseLayout(JSON.stringify([{ id: "bills", span: 2, mode: "full" }]));
-    expect(legacy.find((entry) => entry.id === "bills")?.height).toBeUndefined();
-
-    const resized = resizeCard(legacy, "bills", 2, 320);
-    const autoSized = resizeCard(resized, "bills", 2, null);
-    expect(autoSized.find((entry) => entry.id === "bills")?.height).toBeUndefined();
-    expect(parseLayout(serializeLayout(resized))).toEqual(resized);
-    expect(parseLayout(serializeLayout(autoSized))).toEqual(autoSized);
+describe("saved heights", () => {
+  it("drops a height saved by an older version and never writes one", () => {
+    const legacy = parseLayout(JSON.stringify([{ id: "bills", span: 2, mode: "full", height: 320 }]));
+    expect(legacy.find((entry) => entry.id === "bills")).toEqual({ id: "bills", span: 2, mode: "full" });
+    expect(serializeLayout(legacy)).not.toContain("height");
   });
 });
 

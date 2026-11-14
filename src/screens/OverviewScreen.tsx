@@ -14,11 +14,9 @@ import type { InvoiceWindow } from "../domain/invoice";
 import {
   isCardAvailable,
   moveCardTo,
+  setSpan,
   nextMode,
   CARD_SPANS,
-  MIN_CARD_HEIGHT,
-  normalizeHeight,
-  resizeCard,
   spanOptions,
   type CardId,
   type CardMode,
@@ -65,21 +63,34 @@ function cardAt(
 interface CardResizeState {
   id: CardId;
   pointerId: number;
-  /** Which edge started the resize: the right edge or the bottom edge. */
-  axis: "width" | "height";
-  startX: number;
-  startY: number;
-  startWidth: number;
-  startHeight: number;
-  startSpan: Span;
-  initialHeight: number | null;
-  span: Span;
-  height: number;
-  heightChanged: boolean;
+  /** Left edge of the card, so the width follows the pointer wherever the drag started. */
+  cellLeft: number;
   columnWidth: number;
   columnGap: number;
+  minSpan: number;
   maxSpan: number;
+  span: Span;
   changed: boolean;
+}
+
+/**
+ * The width a drag asks for, in columns. The span only changes once the edge is
+ * 40% into the next column (or 40% back into the one it left), so a card does not
+ * flicker between two widths while the pointer rests near the boundary.
+ */
+function spanForEdge(
+  edge: number,
+  current: number,
+  columnWidth: number,
+  columnGap: number,
+  min: number,
+  max: number,
+): number {
+  const columns = (edge + columnGap) / (columnWidth + columnGap);
+  let span = current;
+  while (span < max && columns >= span + 0.4) span += 1;
+  while (span > min && columns <= span - 0.4) span -= 1;
+  return span;
 }
 
 interface OverviewProps {
@@ -112,7 +123,7 @@ interface OverviewProps {
   layout: LayoutCard[];
   layoutEditing: boolean;
   onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
-  onLayoutResize: (id: CardId, span: Span, height: number | null) => void;
+  onLayoutResize: (id: CardId, span: Span) => void;
   onLayoutSpan: (id: CardId, span: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
   onLayoutReset: () => void;
@@ -745,6 +756,7 @@ export function OverviewScreen({
   } | null>(null);
   const resize = useRef<CardResizeState | null>(null);
   const [resizingId, setResizingId] = useState<CardId | null>(null);
+  const [resizeColumns, setResizeColumns] = useState(3);
 
   const snapshotDragCells = () =>
     Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-card]") ?? []).map((cell) => ({
@@ -752,13 +764,9 @@ export function OverviewScreen({
       rect: cell.getBoundingClientRect(),
     }));
 
-  // One pointer drag feeds two handles: the right edge changes the width, the
-  // bottom edge the minimum height.
-  const beginResize = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    id: CardId,
-    axis: CardResizeState["axis"],
-  ) => {
+  // The handle on the right edge changes the width. The height is not set by
+  // hand: a card is as tall as what it has to show.
+  const beginResize = (event: React.PointerEvent<HTMLButtonElement>, id: CardId) => {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -776,28 +784,19 @@ export function OverviewScreen({
     const columnWidth = (gridWidth - columnGap * (columns - 1)) / columns;
     if (columnWidth <= 0) return;
 
-    const startHeight = normalizeHeight(
-      Math.max(item.height ?? MIN_CARD_HEIGHT, cell.getBoundingClientRect().height),
-    );
     resize.current = {
       id,
       pointerId: event.pointerId,
-      axis,
-      startX: event.clientX,
-      startY: event.clientY,
-      startWidth: cell.getBoundingClientRect().width,
-      startHeight,
-      startSpan: item.span,
-      initialHeight: item.height ?? null,
-      span: item.span,
-      height: startHeight,
-      heightChanged: false,
+      cellLeft: cell.getBoundingClientRect().left,
       columnWidth,
       columnGap,
+      minSpan: CARD_SPANS[id].min,
       maxSpan: Math.min(CARD_SPANS[id].max, columns),
+      span: item.span,
       changed: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
+    setResizeColumns(columns);
     setResizingId(id);
   };
 
@@ -805,35 +804,18 @@ export function OverviewScreen({
     const state = resize.current;
     if (!state || state.pointerId !== event.pointerId) return;
     event.preventDefault();
-
-    const deltaX = event.clientX - state.startX;
-    const deltaY = event.clientY - state.startY;
-    const span =
-      state.axis === "height" || Math.abs(deltaX) < 5
-        ? state.span
-        : (Math.min(
-            state.maxSpan,
-            Math.max(
-              1,
-              Math.round(
-                (state.startWidth + deltaX + state.columnGap) /
-                  (state.columnWidth + state.columnGap),
-              ),
-            ),
-          ) as Span);
-    const height =
-      state.axis === "width"
-        ? state.height
-        : normalizeHeight(state.startHeight + deltaY);
-    if (span === state.span && height === state.height) return;
-
+    const span = spanForEdge(
+      event.clientX - state.cellLeft,
+      state.span,
+      state.columnWidth,
+      state.columnGap,
+      state.minSpan,
+      state.maxSpan,
+    ) as Span;
+    if (span === state.span) return;
     state.span = span;
-    state.height = height;
-    state.heightChanged = height !== state.startHeight;
     state.changed = true;
-    setPreview(
-      resizeCard(layout, state.id, span, state.heightChanged ? height : state.initialHeight),
-    );
+    setPreview(setSpan(layout, state.id, span));
   };
 
   const endResize = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -841,9 +823,7 @@ export function OverviewScreen({
     const state = resize.current;
     resize.current = null;
     if (!state || state.pointerId !== event.pointerId) return;
-    if (state.changed) {
-      onLayoutResize(state.id, state.span, state.heightChanged ? state.height : state.initialHeight);
-    }
+    if (state.changed) onLayoutResize(state.id, state.span);
     setResizingId(null);
     setPreview(null);
   };
@@ -870,7 +850,7 @@ export function OverviewScreen({
   }, [dragId, resizingId]);
 
   const layoutPositionKey = visible
-    .map(({ id, span, mode, height }) => `${id}:${span}:${mode}:${height ?? "auto"}`)
+    .map(({ id, span, mode }) => `${id}:${span}:${mode}`)
     .join("|");
 
   useLayoutEffect(() => {
@@ -956,6 +936,13 @@ export function OverviewScreen({
         ref={gridRef}
         onPointerLeave={() => setDropId(null)}
       >
+        {resizingId ? (
+          <div className="resize-guides" aria-hidden="true">
+            {Array.from({ length: resizeColumns }, (_, column) => (
+              <span key={column} />
+            ))}
+          </div>
+        ) : null}
         {visible.map((item, index) => {
           // Only the smallest step becomes a one-line chip. The compact card is
           // still a card and shows its figures.
@@ -963,12 +950,10 @@ export function OverviewScreen({
           // The width belongs to the card, not to how much of it is shown: a
           // minimised card keeps the columns the user chose.
           const span = item.span;
-          const manualHeight = chip ? undefined : item.height;
           const target = nextMode(item.mode);
           const cellClass = [
             "grid-cell",
             `span-${span}`,
-            manualHeight != null ? "is-resized" : "",
             dragId === item.id ? "is-dragging" : "",
             resizingId === item.id ? "is-resizing" : "",
             dropId === item.id ? "is-drop-target" : "",
@@ -1035,9 +1020,6 @@ export function OverviewScreen({
               setDropId(null);
               setResizingId(null);
               setPreview(null);
-            }}
-            style={{
-              minHeight: manualHeight == null ? undefined : `${manualHeight}px`,
             }}
           >
             {chip ? (
@@ -1138,35 +1120,23 @@ export function OverviewScreen({
                 </button>
               </div>
             ) : null}
-            {layoutEditing && !chip ? (
-              <>
-                <button
-                  type="button"
-                  className="cell-resize-handle is-right"
-                  aria-label={t("layout.resizeWidth", { name: cardName(item.id) })}
-                  title={t("layout.resizeWidth", { name: cardName(item.id) })}
-                  onPointerDown={(event) => beginResize(event, item.id, "width")}
-                  onPointerMove={moveResize}
-                  onPointerUp={endResize}
-                  onPointerCancel={cancelResize}
-                />
-                <button
-                  type="button"
-                  className="cell-resize-handle is-bottom"
-                  aria-label={t("layout.resizeHeight", { name: cardName(item.id) })}
-                  title={t(item.height == null ? "layout.resizeHeight" : "layout.fitContent", {
-                    name: cardName(item.id),
-                  })}
-                  onPointerDown={(event) => beginResize(event, item.id, "height")}
-                  onPointerMove={moveResize}
-                  onPointerUp={endResize}
-                  onPointerCancel={cancelResize}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation();
-                    if (item.height != null) onLayoutResize(item.id, item.span, null);
-                  }}
-                />
-              </>
+            {layoutEditing && !chip && spanOptions(item.id).length > 1 ? (
+              <button
+                type="button"
+                className="cell-resize-handle is-right"
+                aria-label={t("layout.resizeWidth", { name: cardName(item.id) })}
+                title={t("layout.resizeWidth", { name: cardName(item.id) })}
+                onPointerDown={(event) => beginResize(event, item.id)}
+                onPointerMove={moveResize}
+                onPointerUp={endResize}
+                onPointerCancel={cancelResize}
+              >
+                {resizingId === item.id ? (
+                  <span className="resize-badge">
+                    {span}/{resizeColumns}
+                  </span>
+                ) : null}
+              </button>
             ) : null}
           </div>
           );

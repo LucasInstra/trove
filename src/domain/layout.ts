@@ -66,16 +66,10 @@ export function spanOptions(id: CardId): Span[] {
 export const CARD_MODES = ["hidden", "full", "mini"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
-export const MIN_CARD_HEIGHT = 160;
-export const MAX_CARD_HEIGHT = 1200;
-export const CARD_HEIGHT_STEP = 8;
-
 export interface LayoutCard {
   id: CardId;
   span: Span;
   mode: CardMode;
-  /** Minimum height in CSS pixels; omitted means size to content. */
-  height?: number;
 }
 
 /**
@@ -124,15 +118,6 @@ const clampSpanFor = (id: CardId, value: unknown, fallback: Span): Span => {
   return Math.min(max, Math.max(min, clampSpan(value, fallback))) as Span;
 };
 
-/** Snaps a height to the step and clamps it to the supported range. */
-export function normalizeHeight(value: number): number;
-export function normalizeHeight(value: unknown): number | undefined;
-export function normalizeHeight(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
-  const snapped = Math.round(value / CARD_HEIGHT_STEP) * CARD_HEIGHT_STEP;
-  return Math.min(MAX_CARD_HEIGHT, Math.max(MIN_CARD_HEIGHT, snapped));
-}
-
 const isCardId = (value: unknown): value is CardId =>
   typeof value === "string" && (CARD_IDS as readonly string[]).includes(value);
 
@@ -169,13 +154,12 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
     const id = typeof entry === "object" && entry !== null ? (entry as { id?: unknown }).id : null;
     if (!isCardId(id) || seen.has(id)) continue;
     seen.add(id);
-    const card = entry as { span?: unknown; mode?: unknown; collapsed?: unknown; height?: unknown };
-    const height = normalizeHeight(card.height);
+    // A height saved by an older version is dropped: cards size to their content.
+    const card = entry as { span?: unknown; mode?: unknown; collapsed?: unknown };
     layout.push({
       id,
       span: clampSpanFor(id, card.span, defaultSpan(id)),
       mode: modeOf(card),
-      ...(height === undefined ? {} : { height }),
     });
   }
 
@@ -214,30 +198,6 @@ export function setSpan(layout: LayoutCard[], id: CardId, span: number): LayoutC
   return layout.map((entry) => (entry.id === id ? { ...entry, span: next } : entry));
 }
 
-/** Applies the width and minimum height selected by the resize handle. */
-export function resizeCard(
-  layout: LayoutCard[],
-  id: CardId,
-  span: number,
-  height: number | null,
-): LayoutCard[] {
-  const range = CARD_SPANS[id];
-  if (!range) return layout;
-  const nextSpan = clampSpanFor(id, span, range.min);
-  const nextHeight = normalizeHeight(height ?? undefined);
-  const current = layout.find((entry) => entry.id === id);
-  if (!current || (current.span === nextSpan && current.height === nextHeight)) return layout;
-  return layout.map((entry) => {
-    if (entry.id !== id) return entry;
-    if (nextHeight === undefined) {
-      const autoSized = { ...entry };
-      delete autoSized.height;
-      return { ...autoSized, span: nextSpan };
-    }
-    return { ...entry, span: nextSpan, height: nextHeight };
-  });
-}
-
 /** The step a card takes when its size control is pressed. */
 export function nextMode(mode: CardMode): CardMode {
   return mode === "full" ? "mini" : "full";
@@ -246,21 +206,11 @@ export function nextMode(mode: CardMode): CardMode {
 export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {
   const next = isMode(mode) ? mode : "full";
   if (!layout.some((entry) => entry.id === id && entry.mode !== next)) return layout;
-  return layout.map((entry) => {
-    if (entry.id !== id) return entry;
-    const changed = { ...entry, mode: next };
-    delete changed.height;
-    return changed;
-  });
+  return layout.map((entry) => (entry.id === id ? { ...entry, mode: next } : entry));
 }
 
 export function serializeLayout(layout: LayoutCard[]): string {
   return JSON.stringify(
-    layout.map(({ id, span, mode, height }) => ({
-      id,
-      span,
-      mode,
-      ...(height === undefined ? {} : { height }),
-    })),
+    layout.map(({ id, span, mode }) => ({ id, span, mode })),
   );
 }

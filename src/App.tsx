@@ -85,7 +85,6 @@ import { currentMonth, todayIso } from "./lib/format";
 import {
   moveCardTo,
   parseLayout,
-  resizeCard,
   setSpan,
   serializeLayout,
   setMode,
@@ -825,8 +824,8 @@ export function App() {
                 onLayoutMoveTo={(id: CardId, targetId: CardId) => {
                   saveLayout(moveCardTo(layout, id, targetId));
                 }}
-                onLayoutResize={(id: CardId, span: Span, height: number | null) => {
-                  saveLayout(resizeCard(layout, id, span, height));
+                onLayoutResize={(id: CardId, span: Span) => {
+                  saveLayout(setSpan(layout, id, span));
                 }}
                 onLayoutSpan={(id: CardId, span: number) => {
                   saveLayout(setSpan(layout, id, span));

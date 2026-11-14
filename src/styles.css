@@ -4199,10 +4199,6 @@ button.primary:hover:not(:disabled) {
   height: 100%;
 }
 
-.grid-cell.is-resized > :first-child {
-  justify-content: space-between;
-}
-
 .grid-cell.is-resizing {
   z-index: 4;
   outline: 2px solid var(--primary);
@@ -4231,16 +4227,6 @@ button.primary:hover:not(:disabled) {
   transform: translateY(-50%);
   border-radius: 6px;
   cursor: ew-resize;
-}
-
-.cell-resize-handle.is-bottom {
-  bottom: -5px;
-  left: 50%;
-  width: 44px;
-  height: 10px;
-  transform: translateX(-50%);
-  border-radius: 6px;
-  cursor: ns-resize;
 }
 
 .cell-resize-handle:hover:not(:disabled) {
