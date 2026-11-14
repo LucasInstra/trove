@@ -1,0 +1,68 @@
+---
+import { getImage } from "astro:assets";
+import "../styles/app-tokens.css";
+import "../styles/site.css";
+import interUrl from "../assets/fonts/inter-latin-wght-normal.woff2?url";
+import displayUrl from "../assets/fonts/bricolage-grotesque-latin-wght-normal.woff2?url";
+import og from "../assets/shots/overview-light.png";
+import { pt } from "../i18n/pt";
+import { en } from "../i18n/en";
+import type { Strings } from "../i18n/pt";
+import { pageUrl } from "../lib/urls";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  t: Strings;
+  page: keyof Strings["paths"];
+  title: string;
+  description: string;
+  jsonld?: object;
+}
+const { t, page, title, description, jsonld } = Astro.props;
+
+const site = Astro.site!.origin;
+const self = site + pageUrl(t, page);
+const alt = {
+  pt: site + pageUrl(pt, page),
+  en: site + pageUrl(en, page),
+};
+// The social card is the real overview screen, cropped to 1200x630.
+const card = await getImage({ src: og, width: 1200, height: 630, fit: "cover", position: "top", format: "png" });
+const cardUrl = site + card.src;
+---
+
+<!doctype html>
+<html lang={t.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={self} />
+    <link rel="alternate" hreflang="pt-BR" href={alt.pt} />
+    <link rel="alternate" hreflang="en" href={alt.en} />
+    <link rel="alternate" hreflang="x-default" href={alt.pt} />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+    <link rel="preload" href={interUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={displayUrl} as="font" type="font/woff2" crossorigin />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Trove" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={self} />
+    <meta property="og:image" content={cardUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    {jsonld && <script type="application/ld+json" set:html={JSON.stringify(jsonld)} />}
+  </head>
+  <body>
+    <a class="skip" href="#main">{t.skip}</a>
+    <Nav t={t} page={page} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer t={t} />
+  </body>
+</html>

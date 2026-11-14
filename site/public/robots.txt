@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lucasinstra.github.io/trove/sitemap-index.xml

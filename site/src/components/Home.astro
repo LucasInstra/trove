@@ -1,0 +1,250 @@
+---
+import { Picture, Image } from "astro:assets";
+import type { Strings } from "../i18n/pt";
+import { pageUrl } from "../lib/urls";
+import { REPO_URL } from "../lib/github";
+import overview from "../assets/shots/overview-light.png";
+import transactions from "../assets/shots/transactions-light.png";
+import flow from "../assets/shots/flow-light.png";
+import cards from "../assets/shots/cards-light.png";
+import piggy from "../assets/icons3d/piggy.png";
+import checklist from "../assets/icons3d/checklist.png";
+import coins from "../assets/icons3d/coins.png";
+import safe from "../assets/icons3d/safe.png";
+import phone from "../assets/icons3d/phone.png";
+
+interface Props {
+  t: Strings;
+  stars: number | null;
+  version: string | null;
+}
+const { t, stars, version } = Astro.props;
+const shots: Record<string, ImageMetadata> = { transactions, flow, cards };
+const dl = pageUrl(t, "download");
+const check = "M5 12.5l4.5 4.5L19 7.5";
+---
+
+<section class="hero">
+  <div class="wrap wide">
+    <p class="eyebrow">{t.hero.eyebrow}</p>
+    <h1>{t.hero.h1}</h1>
+    <p class="sub">{t.hero.sub}</p>
+    <div class="cta-row">
+      <a class="btn" href={dl}>{t.hero.cta}</a>
+      <a class="btn ghost" href="#product">{t.hero.ctaSecondary}</a>
+    </div>
+    <p class="micro">{t.hero.proof}</p>
+    <div class="shot-stage">
+      <div class="frame">
+        <Picture
+          src={overview}
+          alt={t.hero.alt}
+          formats={["avif", "webp"]}
+          widths={[900, 1800]}
+          sizes="(min-width: 948px) 900px, 100vw"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
+      </div>
+      <div class="tags" aria-hidden="true">
+        <span class="tag imported">{t.hero.tagImported}</span>
+        <span class="tag">{t.hero.tagManual}</span>
+      </div>
+      <span class="float a"><Image src={piggy} alt="" width={72} height={72} /></span>
+      <span class="float b"><Image src={checklist} alt="" width={72} height={72} /></span>
+      <span class="float c"><Image src={coins} alt="" width={72} height={72} /></span>
+    </div>
+  </div>
+</section>
+
+<section class="promises" aria-label="Trove">
+  <div class="wrap wide">
+    <ul>
+      {
+        t.promises.map((p) => (
+          <li>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d={check} />
+            </svg>
+            <strong>{p.title}</strong>
+            <span>{p.text}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<section class="problem">
+  <div class="wrap">
+    <p class="eyebrow">{t.problem.eyebrow}</p>
+    <h2>{t.problem.h2}</h2>
+    <div class="cards3">
+      {
+        t.problem.cards.map((c) => (
+          <div class="card">
+            <h3>{c.title}</h3>
+            <p>{c.text}</p>
+          </div>
+        ))
+      }
+    </div>
+    <p class="close">{t.problem.close}</p>
+  </div>
+</section>
+
+<section class="how" id="product">
+  <div class="wrap">
+    <p class="eyebrow">{t.how.eyebrow}</p>
+    <h2>{t.how.h2}</h2>
+    <ol class="steps">
+      {
+        t.how.steps.map((s, i) => (
+          <li>
+            <span class="step-n" aria-hidden="true">{i + 1}</span>
+            <h3>{s.title}</h3>
+            <p>{s.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+    <p class="close" style="margin-top:36px">{t.how.close}</p>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <p class="eyebrow">{t.features.eyebrow}</p>
+    <h2>{t.features.h2}</h2>
+    <div class="bento">
+      {
+        t.features.items.map((f) => (
+          <div class:list={["bento-card", { solid: f.solid }]}>
+            <h3>{f.title}</h3>
+            <p>{f.text}</p>
+          </div>
+        ))
+      }
+    </div>
+    <ul class="small-list">
+      {t.features.small.map((s) => <li>{s}</li>)}
+    </ul>
+  </div>
+</section>
+
+<div class="band-dark" id="security" data-theme="dark">
+  <div class="band-dark-in">
+    <p class="eyebrow">{t.data.eyebrow}</p>
+    <h2>{t.data.h2}</h2>
+    <div class="dcols">
+      {
+        t.data.cols.map((c) => (
+          <div>
+            <h3>{c.title}</h3>
+            <p>{c.text}</p>
+            {c.code && <code>{c.code}</code>}
+          </div>
+        ))
+      }
+    </div>
+    <svg class="diagram" viewBox="0 0 760 200" role="img" aria-label={`${t.data.diagram.db} – ${t.data.diagram.app} – ${t.data.diagram.you}; ${t.data.diagram.app} → ${t.data.diagram.github} (${t.data.diagram.only})`}>
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="8" y="20" width="170" height="64" rx="14" />
+        <rect x="295" y="20" width="170" height="64" rx="14" />
+        <rect x="582" y="20" width="170" height="64" rx="14" />
+        <path d="M178 52h117M465 52h117" />
+        <path d="M380 84v52" stroke-dasharray="5 5" />
+        <rect x="295" y="136" width="170" height="52" rx="14" stroke-dasharray="5 5" />
+      </g>
+      <g fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="17" font-weight="600" text-anchor="middle">
+        <text x="93" y="58">{t.data.diagram.db}</text>
+        <text x="380" y="58">{t.data.diagram.app}</text>
+        <text x="667" y="58">{t.data.diagram.you}</text>
+        <text x="380" y="168">{t.data.diagram.github}</text>
+      </g>
+      <text x="392" y="116" fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="14" opacity="0.8">{t.data.diagram.only}</text>
+    </svg>
+    <p class="close" style="margin-top:36px">{t.data.close}</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">{t.proof.eyebrow}</p>
+    <h2>{t.proof.h2}</h2>
+    <div class="proof-items">
+      {
+        t.proof.items.map((p) => (
+          <div class="card">
+            <h3>{p.title}</h3>
+            <p>{p.text}</p>
+          </div>
+        ))
+      }
+    </div>
+    <div class="strip" role="region" aria-label={t.proof.eyebrow} tabindex="0">
+      {
+        t.proof.shots.map((s) => (
+          <figure>
+            <div class="frame">
+              <Picture src={shots[s.key]} alt={s.alt} formats={["avif", "webp"]} widths={[560, 1120]} sizes="560px" loading="lazy" decoding="async" />
+            </div>
+            <figcaption>{s.label}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+    <p class="proof-links">
+      {stars !== null && stars > 0 && <span>{t.proof.stars(stars)}</span>}
+      {version && <span>{t.proof.version(version)}</span>}
+      <a href={REPO_URL}>{t.proof.repo}</a>
+    </p>
+  </div>
+</section>
+
+<section class="who" style="padding-top:0">
+  <div class="wrap">
+    <p class="eyebrow">{t.who.eyebrow}</p>
+    <h2>{t.who.h2}</h2>
+    <div class="who-grid">
+      <div class="who-card yes">
+        <Image src={safe} alt="" width={72} height={72} />
+        <h3>{t.who.yesTitle}</h3>
+        <ul>{t.who.yes.map((x) => <li>{x}</li>)}</ul>
+      </div>
+      <div class="who-card no">
+        <Image src={phone} alt="" width={72} height={72} />
+        <h3>{t.who.noTitle}</h3>
+        <ul>{t.who.no.map((x) => <li>{x}</li>)}</ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <p class="eyebrow">{t.faq.eyebrow}</p>
+    <h2>{t.faq.h2}</h2>
+    <div class="faq-list">
+      {
+        t.faq.items.map((f) => (
+          <details>
+            <summary>{f.q}</summary>
+            <p>{f.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>{t.cta.h2}</h2>
+    <div class="cta-row">
+      <a class="btn" href={dl}>{t.cta.button}</a>
+    </div>
+    <p class="micro">{t.cta.micro}</p>
+  </div>
+</section>

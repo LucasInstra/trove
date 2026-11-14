@@ -1,0 +1,37 @@
+---
+import type { Strings } from "../i18n/pt";
+import { pt } from "../i18n/pt";
+import { en } from "../i18n/en";
+import { pageUrl, link } from "../lib/urls";
+import { REPO_URL } from "../lib/github";
+
+interface Props {
+  t: Strings;
+  page: keyof Strings["paths"];
+}
+const { t, page } = Astro.props;
+const otherT = t.code === "en" ? pt : en;
+---
+
+<header class="nav">
+  <div class="wrap wide">
+    <a class="brand" href={pageUrl(t, "home")} aria-label="Trove">
+      <span class="brand-mark" aria-hidden="true">t</span>
+      Trove
+    </a>
+    <nav class="nav-links" aria-label={t.nav.label}>
+      <a href={link(t, "#product")}>{t.nav.product}</a>
+      <a href={link(t, "#features")}>{t.nav.features}</a>
+      <a href={link(t, "#security")}>{t.nav.security}</a>
+      <a href={link(t, "#faq")}>{t.nav.faq}</a>
+      <a href={pageUrl(t, "changelog")}>{t.nav.changelog}</a>
+      <a href={REPO_URL}>{t.nav.github}</a>
+    </nav>
+    <div class="nav-end">
+      <a class="lang" href={pageUrl(otherT, page)} hreflang={otherT.lang} lang={otherT.lang}>
+        {t.other.label}
+      </a>
+      <a class="btn small" href={pageUrl(t, "download")}>{t.nav.download}</a>
+    </div>
+  </div>
+</header>

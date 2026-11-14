@@ -1,0 +1,28 @@
+---
+import Layout from "../layouts/Layout.astro";
+import type { Strings } from "../i18n/pt";
+
+interface Props {
+  t: Strings;
+}
+const { t } = Astro.props;
+const p = t.privacy;
+---
+
+<Layout t={t} page="privacy" title={p.title} description={p.description}>
+  <div class="page">
+    <div class="wrap">
+      <h1>{p.h1}</h1>
+      <div class="prose">
+        {
+          p.blocks.map((b) => (
+            <>
+              <h2>{b.h}</h2>
+              <p>{b.p}</p>
+            </>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</Layout>

@@ -1,0 +1,20 @@
+{
+  "name": "trove-site",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "predev": "node scripts/sync.mjs",
+    "prebuild": "node scripts/sync.mjs",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check:budget": "node scripts/budget.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.5",
+    "astro": "^7.4.12",
+    "sharp": "^0.35.5"
+  }
+}

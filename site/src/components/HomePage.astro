@@ -1,0 +1,30 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Home from "./Home.astro";
+import type { Strings } from "../i18n/pt";
+import { latestRelease, stars, REPO_URL, RELEASES_URL } from "../lib/github";
+
+interface Props {
+  t: Strings;
+}
+const { t } = Astro.props;
+const [release, starCount] = await Promise.all([latestRelease(), stars()]);
+
+const jsonld = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Trove",
+  description: t.meta.description,
+  operatingSystem: "Windows",
+  applicationCategory: "FinanceApplication",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
+  license: "https://opensource.org/licenses/MIT",
+  downloadUrl: RELEASES_URL,
+  codeRepository: REPO_URL,
+  ...(release ? { softwareVersion: release.version } : {}),
+};
+---
+
+<Layout t={t} page="home" title={t.meta.title} description={t.meta.description} jsonld={jsonld}>
+  <Home t={t} stars={starCount} version={release?.version ?? null} />
+</Layout>

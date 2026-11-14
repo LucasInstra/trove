@@ -1,0 +1,34 @@
+---
+import type { Strings } from "../i18n/pt";
+import { link } from "../lib/urls";
+
+interface Props {
+  t: Strings;
+}
+const { t } = Astro.props;
+---
+
+<footer class="footer">
+  <div class="wrap wide">
+    <div class="fcols">
+      {
+        t.footer.cols.map((c) => (
+          <div>
+            <h2>{c.title}</h2>
+            <ul>
+              {c.links.map((l) => (
+                <li>
+                  <a href={link(t, l.href)}>{l.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+    <div class="flegal">
+      <span>{t.footer.legal}</span>
+      <span>{t.footer.disclaimer}</span>
+    </div>
+  </div>
+</footer>

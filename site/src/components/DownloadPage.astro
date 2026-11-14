@@ -1,0 +1,60 @@
+---
+import Layout from "../layouts/Layout.astro";
+import type { Strings } from "../i18n/pt";
+import { pageUrl } from "../lib/urls";
+import { latestRelease, RELEASES_URL } from "../lib/github";
+
+interface Props {
+  t: Strings;
+}
+const { t } = Astro.props;
+const d = t.download;
+const release = await latestRelease();
+---
+
+<Layout t={t} page="download" title={d.title} description={d.description}>
+  <div class="page">
+    <div class="wrap">
+      <h1>{d.h1}</h1>
+      <p class="sub">{d.lead}</p>
+      {release && <p class="micro">{d.latest(release.version, t.fmtDate(release.date))}</p>}
+      <p class="micro"><strong>{d.reqTitle}:</strong> {d.req}</p>
+
+      {
+        release ? (
+          <ul class="dl-list">
+            {release.files.map((f) => (
+              <li class="dl-item">
+                <div>
+                  <strong>{d.files[f.file].name}</strong>
+                  <span>{d.files[f.file].text} · {t.fmtSize(f.size)}</span>
+                </div>
+                <a class:list={["btn", { ghost: f.file !== "trove-setup.msi" }]} href={f.url}>
+                  {d.button}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="notice">
+            <h2>{d.fallbackTitle}</h2>
+            <p>{d.fallback}</p>
+            <p style="margin-top:16px"><a class="btn" href={RELEASES_URL}>{d.fallbackLink}</a></p>
+          </div>
+        )
+      }
+
+      <div class="notice">
+        <h2>{d.smartTitle}</h2>
+        <ol>{d.smart.map((s) => <li>{s}</li>)}</ol>
+      </div>
+
+      <div class="notice">
+        <h2>{d.afterTitle}</h2>
+        <p>{d.after}</p>
+      </div>
+
+      <p style="margin-top:32px"><a href={pageUrl(t, "home")}>{d.back}</a></p>
+    </div>
+  </div>
+</Layout>

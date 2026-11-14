@@ -14,3 +14,10 @@ release
 
 .claude/
 handoff-*.md
+
+site/node_modules
+site/dist
+site/.astro
+site/src/styles/app-tokens.css
+site/src/assets/fonts
+site/src/assets/icons3d
