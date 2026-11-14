@@ -79,6 +79,7 @@ export const HEIGHT_CARDS: readonly CardId[] = [
   "installments",
   "debts",
   "kpis",
+  "forecast",
 ];
 export const MIN_CARD_HEIGHT = 200;
 export const MAX_CARD_HEIGHT = 1200;

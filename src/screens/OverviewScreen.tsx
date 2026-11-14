@@ -890,11 +890,28 @@ export function OverviewScreen({
   const resize = useRef<CardResizeState | null>(null);
   const [resizingId, setResizingId] = useState<CardId | null>(null);
 
+  // Last known scroll position of the page: by the time the packed grid
+  // is measured the browser may already have clamped the live value.
+  const lastScroll = useRef(0);
+  useEffect(() => {
+    const scroller = gridRef.current?.closest<HTMLElement>("main");
+    if (!scroller) return;
+    const onScroll = () => {
+      lastScroll.current = scroller.scrollTop;
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, []);
+
   useLayoutEffect(() => {
     const grid = gridRef.current;
     if (!grid || !packed) return;
     const GAP = 14;
     const cells = Array.from(grid.querySelectorAll<HTMLElement>(":scope > .grid-cell"));
+    // Measuring while the rows are still one pixel tall would shrink the page and
+    // clamp the scroll position to the top, so the position is put back.
+    const scroller = grid.closest<HTMLElement>("main");
+    const top = lastScroll.current;
     const fit = (cell: HTMLElement) => {
       cell.style.gridRowEnd = `span ${Math.ceil(cell.offsetHeight + GAP)}`;
     };
@@ -905,6 +922,7 @@ export function OverviewScreen({
       fit(cell);
       observer.observe(cell);
     }
+    if (scroller) scroller.scrollTop = top;
     return () => {
       observer.disconnect();
       for (const cell of cells) cell.style.gridRowEnd = "";
@@ -931,6 +949,8 @@ export function OverviewScreen({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    document.body.classList.add("is-layout-resizing");
+    window.getSelection()?.removeAllRanges();
     const grid = gridRef.current;
     const cell = event.currentTarget.closest<HTMLElement>("[data-card]");
     const item = shown.find((entry) => entry.id === id);
@@ -996,6 +1016,8 @@ export function OverviewScreen({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    document.body.classList.add("is-layout-resizing");
+    window.getSelection()?.removeAllRanges();
     const cell = event.currentTarget.closest<HTMLElement>("[data-card]");
     if (!cell) return;
     const startHeight = cell.getBoundingClientRect().height;
@@ -1324,6 +1346,7 @@ export function OverviewScreen({
                 className="cell-resize-handle is-bottom"
                 aria-label={t("layout.resizeHeight", { name: cardName(item.id) })}
                 title={t("layout.resizeHeightHint")}
+                onMouseDown={(event) => event.preventDefault()}
                 onPointerDown={(event) => beginHeight(event, item.id)}
                 onPointerMove={moveHeight}
                 onPointerUp={endHeight}
@@ -1341,6 +1364,7 @@ export function OverviewScreen({
                 className="cell-resize-handle is-right"
                 aria-label={t("layout.resizeWidth", { name: cardName(item.id) })}
                 title={t("layout.resizeWidth", { name: cardName(item.id) })}
+                onMouseDown={(event) => event.preventDefault()}
                 onPointerDown={(event) => beginResize(event, item.id)}
                 onPointerMove={moveResize}
                 onPointerUp={endResize}

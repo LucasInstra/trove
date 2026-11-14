@@ -339,7 +339,7 @@ select.payer-select:hover {
 .planner-grid.is-packed > .grid-cell {
   align-self: start;
 }
-.planner-grid.is-packed > .grid-cell:not(.has-height) > * {
+.planner-grid.is-packed > .grid-cell:not(.has-height) > :is(article, .card, .account-card) {
   height: auto;
 }
 

@@ -267,11 +267,11 @@ describe("saved heights", () => {
     const stored = parseLayout(
       JSON.stringify([
         { id: "bills", span: 2, mode: "full", height: 320 },
-        { id: "forecast", span: 1, mode: "full", height: 320 },
+        { id: "score", span: 1, mode: "full", height: 320 },
       ]),
     );
     expect(stored.find((entry) => entry.id === "bills")).toEqual({ id: "bills", span: 2, mode: "full", height: 320 });
-    expect(stored.find((entry) => entry.id === "forecast")).toEqual({ id: "forecast", span: 1, mode: "full" });
+    expect(stored.find((entry) => entry.id === "score")).toEqual({ id: "score", span: 1, mode: "full" });
   });
 });
 
@@ -280,7 +280,7 @@ describe("card height", () => {
     expect(clampHeight("bills", 50)).toBe(200);
     expect(clampHeight("bills", 5000)).toBe(1200);
     expect(clampHeight("bills", 333.4)).toBe(333);
-    expect(clampHeight("forecast", 400)).toBeUndefined();
+    expect(clampHeight("score", 400)).toBeUndefined();
     expect(clampHeight("bills", "tall")).toBeUndefined();
   });
 
@@ -293,7 +293,7 @@ describe("card height", () => {
     expect(JSON.parse(stored).find((card: { id: string }) => card.id === "recent").height).toBeUndefined();
     const cleared = setHeight(tall, "bills", null);
     expect(cleared.find((card) => card.id === "bills")?.height).toBeUndefined();
-    expect(setHeight(base, "forecast", 400)).toBe(base);
+    expect(setHeight(base, "score", 400)).toBe(base);
   });
 });
 
