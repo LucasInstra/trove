@@ -892,7 +892,7 @@ input[type="month"]:focus-visible,
 
 .composition-part.housing,
 .composition-dot.housing {
-  background: var(--chart-violet);
+  background: var(--chart-housing);
   opacity: 1;
 }
 
@@ -1338,4 +1338,28 @@ input[type="month"]:focus-visible,
 
 .composition-legend .composition-value em {
   white-space: nowrap;
+}
+
+/* Every card is the same white; none carries a tint. */
+.cards-card,
+.goals-card,
+[data-theme="dark"] .cards-card,
+[data-theme="dark"] .goals-card {
+  background: var(--surface);
+}
+
+/* Hover: a pale blue border. */
+.card:hover,
+.account-card:hover,
+.entity-card:hover,
+[data-theme="dark"] .card:hover,
+:root:not([data-theme="dark"]) .card:hover,
+:root:not([data-theme="dark"]) .account-card:hover,
+:root:not([data-theme="dark"]) .entity-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.goals-card,
+.cards-card {
+  border-bottom-width: 1px;
 }
