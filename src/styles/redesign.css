@@ -885,9 +885,14 @@ input[type="month"]:focus-visible,
 }
 
 .flow-bar.out.planned,
-.flow-swatch.planned,
-.composition-part.housing {
+.flow-swatch.planned {
   background: var(--chart-planned);
+  opacity: 1;
+}
+
+.composition-part.housing,
+.composition-dot.housing {
+  background: var(--chart-violet);
   opacity: 1;
 }
 
