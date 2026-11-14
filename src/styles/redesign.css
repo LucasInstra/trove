@@ -264,10 +264,8 @@ button.primary:hover:not(:disabled),
 .titlebar-mark {
   width: 20px;
   height: 20px;
-  border-radius: 8px;
-  font-family: var(--ff-display);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 0;
+  background: none;
 }
 
 .titlebar-drag {

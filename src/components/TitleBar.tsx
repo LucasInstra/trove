@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import appIcon from "../assets/app-icon.svg";
 import { useLanguage } from "../lib/language";
 
 function appWindow() {
@@ -43,7 +44,7 @@ export function TitleBar() {
         data-tauri-drag-region
         onDoubleClick={() => void appWindow()?.toggleMaximize()}
       >
-        <span className="titlebar-mark">t</span>
+        <img className="titlebar-mark" src={appIcon} alt="" draggable={false} />
         <span className="titlebar-name">trove</span>
       </div>
 
