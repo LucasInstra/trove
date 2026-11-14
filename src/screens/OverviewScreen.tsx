@@ -191,7 +191,7 @@ export function OverviewScreen({
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
   // Biggest first, and the tail becomes one slice: a legend of twelve rows is a
   // list, not a chart. A wider card has room for more rows.
-  const legendLimit = spanOf("donut") >= 2 ? 8 : 3;
+  const legendLimit = spanOf("donut") >= 2 ? 10 : 6;
   const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
   const topCategories = ranked.slice(0, legendLimit);
   const restCents = ranked.slice(legendLimit).reduce((total, item) => total + item.totalCents, 0);
@@ -227,8 +227,8 @@ export function OverviewScreen({
   const inoutNet = (currentPoint?.incomeCents ?? 0) - (currentPoint?.expenseCents ?? 0);
 
   // The ledger arrives newest first; sort defensively and keep the head. The
-  // narrow card shows three entries, the wide one five.
-  const recentLimit = spanOf("recent") >= 2 ? 5 : 3;
+  // narrow card shows six entries, the wide one ten.
+  const recentLimit = spanOf("recent") >= 2 ? 10 : 6;
   const recent = [...rows]
     .sort((left, right) =>
       left.postedOn === right.postedOn ? right.id - left.id : left.postedOn < right.postedOn ? 1 : -1,

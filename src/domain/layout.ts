@@ -35,26 +35,27 @@ export type CardId = (typeof CARD_IDS)[number];
 export type Span = 1 | 2 | 3;
 
 /**
- * The widths that make sense for each card. A single gauge has nothing to gain
- * from three columns, so the grid only
- * offers the range that carries content. Growing past it would stretch the same
- * thing over a wider box, which is exactly the empty space this avoids.
+ * The widths that make sense for each card. A card only grows to a width where
+ * it has more to show: the cards card adds the upcoming invoices and then the
+ * invoice lines, the charts add months, the lists add rows. A card whose
+ * content would just stretch over a wider box stays one column, which is
+ * exactly the empty space this avoids.
  */
 export const CARD_SPANS: Record<CardId, { min: Span; max: Span }> = {
   kpis: { min: 1, max: 3 },
-  forecast: { min: 1, max: 3 },
+  forecast: { min: 1, max: 1 },
   bills: { min: 1, max: 2 },
   inout: { min: 1, max: 3 },
   recent: { min: 1, max: 2 },
   donut: { min: 1, max: 2 },
   series: { min: 1, max: 3 },
   cards: { min: 1, max: 3 },
-  installments: { min: 1, max: 2 },
+  installments: { min: 1, max: 1 },
   housing: { min: 1, max: 2 },
   goals: { min: 1, max: 2 },
   score: { min: 1, max: 1 },
-  split: { min: 1, max: 3 },
-  debts: { min: 1, max: 2 },
+  split: { min: 1, max: 1 },
+  debts: { min: 1, max: 1 },
 };
 
 export function spanOptions(id: CardId): Span[] {

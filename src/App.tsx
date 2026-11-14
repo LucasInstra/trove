@@ -312,7 +312,7 @@ export function App() {
           api.getSetting("housing_scope").catch(() => null),
           api.getSetting(`split_settled_${at}`).catch(() => null),
           api.getSetting("dashboard_layout").catch(() => null),
-          api.transactions("", at, null, 5, null).catch(() => []),
+          api.transactions("", at, null, 10, null).catch(() => []),
         ]);
         setRows(nextRows);
         setRecentRows(nextRecent);

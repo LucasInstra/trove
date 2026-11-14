@@ -25,10 +25,10 @@ describe("parseLayout", () => {
     const stored = JSON.stringify([
       { id: "bills", span: 2 },
       { id: "ghost", span: 1 },
-      { id: "forecast", span: 3 },
+      { id: "inout", span: 3 },
     ]);
     const layout = parseLayout(stored);
-    expect(layout.slice(0, 3).map((entry) => entry.id)).toEqual(["bills", "forecast", "kpis"]);
+    expect(layout.slice(0, 3).map((entry) => entry.id)).toEqual(["bills", "inout", "kpis"]);
     expect(layout[0].span).toBe(2);
     expect(layout[1].span).toBe(3);
     expect(layout.some((entry) => (entry.id as string) === "ghost")).toBe(false);
@@ -165,10 +165,10 @@ describe("hidden cards", () => {
   });
 
   it("puts a card back as a full card", () => {
-    const layout = parseLayout(JSON.stringify([{ id: "split", span: 2, mode: "hidden" }]));
-    const back = setMode(layout, "split", "full");
-    expect(back.find((entry) => entry.id === "split")?.mode).toBe("full");
-    expect(back.find((entry) => entry.id === "split")?.span).toBe(2);
+    const layout = parseLayout(JSON.stringify([{ id: "housing", span: 2, mode: "hidden" }]));
+    const back = setMode(layout, "housing", "full");
+    expect(back.find((entry) => entry.id === "housing")?.mode).toBe("full");
+    expect(back.find((entry) => entry.id === "housing")?.span).toBe(2);
   });
 
   it("round trips a shelf of hidden cards", () => {
@@ -250,6 +250,16 @@ describe("spanOptions", () => {
     expect(spanOptions("bills")).toEqual([1, 2]);
     expect(spanOptions("series")).toEqual([1, 2, 3]);
     expect(spanOptions("inout")).toEqual([1, 2, 3]);
+  });
+});
+
+describe("card widths", () => {
+  it("only lets a card grow where it has more to show", () => {
+    for (const id of ["forecast", "installments", "debts", "split", "score"] as const) {
+      expect(spanOptions(id)).toEqual([1]);
+    }
+    expect(spanOptions("cards")).toEqual([1, 2, 3]);
+    expect(parseLayout(JSON.stringify([{ id: "forecast", span: 3 }]))[0].span).toBe(1);
   });
 });
 

@@ -1229,3 +1229,8 @@ button:active:not(:disabled) {
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
+
+/* Cards of different widths fill the holes the others leave instead of stranding a gap. */
+.planner-grid {
+  grid-auto-flow: row dense;
+}
