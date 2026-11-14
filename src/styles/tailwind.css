@@ -2,7 +2,7 @@
  * Tailwind v4 for the new components.
  *
  * The preflight is deliberately not imported: the app still carries its own
- * reset in `styles.css`, which loads in the `base` layer, below the theme and
+ * reset in `base.css`, which loads in the `base` layer, below the theme and
  * the utilities, so a utility class always wins over an old rule.
  *
  * Every token here points at a CSS variable from `tokens.css`, which is what
