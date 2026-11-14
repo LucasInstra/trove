@@ -6,14 +6,6 @@ import piggy from "@/assets/icons3d/piggy.png";
 import receipt from "@/assets/icons3d/receipt.png";
 import scale from "@/assets/icons3d/scale.png";
 import target from "@/assets/icons3d/target.png";
-import chainCoin from "@/assets/icons3d/set2/chain-coin.png";
-import coinSteps from "@/assets/icons3d/set2/coin-steps.png";
-import trophy from "@/assets/icons3d/set2/trophy.png";
-import people from "@/assets/icons3d/set2/people.png";
-import houseKey from "@/assets/icons3d/set2/house-key.png";
-import bars from "@/assets/icons3d/set2/bars.png";
-import growth from "@/assets/icons3d/set2/growth.png";
-import box from "@/assets/icons3d/set2/box.png";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,14 +26,6 @@ const ICONS = {
   receipt,
   scale,
   target,
-  "chain-coin": chainCoin,
-  "coin-steps": coinSteps,
-  "trophy": trophy,
-  "people": people,
-  "house-key": houseKey,
-  "bars": bars,
-  "growth": growth,
-  "box": box,
 } as const;
 
 export type Icon3DName = keyof typeof ICONS;

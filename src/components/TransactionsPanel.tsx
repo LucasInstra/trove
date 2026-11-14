@@ -1,4 +1,3 @@
-import { Icon3D } from "./Icon3D";
 import { useRef, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Icon } from "./Icons";
@@ -342,7 +341,6 @@ export function TransactionsPanel({
 
       {!loading && rows.length === 0 ? (
         <div className="empty">
-          <Icon3D name="box" size={72} />
           <h2>{t("ledger.emptyTitle")}</h2>
           <p className="muted">{t("ledger.emptyDesc")}</p>
           <button type="button" className="primary" onClick={onImport}>

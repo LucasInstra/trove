@@ -513,7 +513,7 @@ export function HousingCard({
     return (
       <article className="card card-compact">
         <div className="compact-head">
-          <Icon3D name="house-key" size={22} />
+          <Icon3D name="house" size={22} />
           <span className="compact-title">{t("planner.housing")}</span>
           <span className="compact-value">{formatCents(plan.housingCents)}</span>
         </div>
@@ -541,7 +541,7 @@ export function HousingCard({
         <button type="button" className="round-button" onClick={onEdit} aria-label={t("planner.housingCeiling")}>
           <Icon name="settings" size={15} />
         </button>
-        <Icon3D name="house-key" className="card-art" />
+        <Icon3D name="house" className="card-art" />
       </header>
 
       <div className="card-figure">
@@ -707,7 +707,7 @@ export function SplitCard({
     return (
       <article className="card card-compact">
         <div className="compact-head">
-          <Icon3D name="people" size={22} />
+          <Icon3D name="scale" size={22} />
           <span className="compact-title">{t("split.title")}</span>
           <span className="compact-value">
             {people.length > 1 ? formatCents(split.totalCents) : "—"}
@@ -751,7 +751,7 @@ export function SplitCard({
         <div className="card-title">
           <h2>{t("split.title")}</h2>
         </div>
-        <Icon3D name="people" size={30} />
+        <Icon3D name="scale" size={30} />
       </header>
 
       <div className="card-figure">

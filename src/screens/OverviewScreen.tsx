@@ -528,7 +528,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <Icon3D name="growth" size={30} />
+            <Icon3D name="chart-up" size={30} />
             <h2>{isWide("series") ? t("ledger.lastTwelve") : t("ledger.lastSix")}</h2>
           </div>
           <div className="card-nav">
@@ -682,7 +682,7 @@ export function OverviewScreen({
       <article className="card overview-chart">
         <header className="card-head">
           <div className="card-title">
-            <Icon3D name="bars" size={30} />
+            <Icon3D name="chart-up" size={30} />
             <h2>{t("overview.inout")}</h2>
           </div>
           <span className="muted">

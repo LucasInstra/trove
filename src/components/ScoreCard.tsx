@@ -29,7 +29,7 @@ export function ScoreCard({ plan, compact = false }: { plan: MonthPlan; compact?
     return (
       <article className="card card-compact">
         <div className="compact-head">
-          <Icon3D name="trophy" size={22} />
+          <Icon3D name="chart-up" size={22} />
           <span className="compact-title">{t("score.title")}</span>
           <span className="compact-value">{score.total}/100</span>
         </div>
@@ -47,7 +47,7 @@ export function ScoreCard({ plan, compact = false }: { plan: MonthPlan; compact?
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <Icon3D name="trophy" size={30} />
+          <Icon3D name="chart-up" size={30} />
           <h2>{t("score.title")}</h2>
         </div>
       </header>
