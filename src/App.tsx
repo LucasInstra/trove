@@ -628,7 +628,21 @@ export function App() {
   };
 
   const saveCard = (input: CardInput) =>
-    mutateAndRefresh(() => api.saveCard(input), { closeDialog: true });
+    mutateAndRefresh(
+      async () => {
+        // Account 0 is "a new account for this card": every card has its own.
+        const accountId =
+          input.accountId > 0
+            ? input.accountId
+            : await api.createManualAccount(
+                [input.brand || t("planner.card"), input.last4 ? `•••• ${input.last4}` : ""]
+                  .filter(Boolean)
+                  .join(" "),
+              );
+        return api.saveCard({ ...input, accountId });
+      },
+      { closeDialog: true },
+    );
 
   const saveGoal = (input: GoalInput) =>
     mutateAndRefresh(() => api.saveGoal(input), { closeDialog: true });
@@ -1121,6 +1135,7 @@ export function App() {
         <CardDialog
           card={dialog.card}
           accounts={accounts}
+          takenAccountIds={planner.cards.map((meta) => meta.accountId)}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveCard(input)}
         />

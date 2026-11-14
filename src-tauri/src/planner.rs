@@ -520,6 +520,18 @@ pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, Stri
             Ok(id)
         }
         None => {
+            // One card per account: saving a new card over an account that already
+            // has one would silently replace it, so that is refused instead.
+            let existing: i64 = connection
+                .query_row(
+                    "select count(*) from cards where account_id = ?1 and deleted_at is null",
+                    params![input.account_id],
+                    |row| row.get(0),
+                )
+                .map_err(|problem| problem.to_string())?;
+            if existing > 0 {
+                return Err("this account already has a card".to_string());
+            }
             connection
                 .execute(
                     "insert into cards
@@ -1025,6 +1037,41 @@ mod tests {
             installments_total: None,
             active: true,
         }
+    }
+
+    fn card_input(account_id: i64, brand: &str) -> CardInput {
+        CardInput {
+            id: None,
+            account_id,
+            brand: brand.into(),
+            last4: "1234".into(),
+            limit_cents: 100_000,
+            closing_day: 5,
+            due_day: 12,
+            color: "#2b2b2d".into(),
+            texture: "plain".into(),
+        }
+    }
+
+    #[test]
+    fn a_second_card_never_replaces_the_card_of_the_same_account() {
+        let path = temporary_database("cards");
+        let connection = db::open(&path).expect("should open");
+        let first_account = db::create_manual_account(&connection, "Nubank").expect("account");
+        let second_account = db::create_manual_account(&connection, "Itaú").expect("account");
+
+        save_card(&connection, &card_input(first_account, "mastercard")).expect("first card");
+        assert!(save_card(&connection, &card_input(first_account, "visa")).is_err());
+        save_card(&connection, &card_input(second_account, "visa")).expect("second card");
+
+        let brands: Vec<String> = list_cards(&connection)
+            .expect("should list")
+            .into_iter()
+            .map(|card| card.brand)
+            .collect();
+        assert_eq!(brands.len(), 2);
+        assert!(brands.contains(&"mastercard".to_string()));
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

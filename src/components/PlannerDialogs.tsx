@@ -155,9 +155,15 @@ export function BillDialog({
   );
 }
 
-export function CardDialog({ card, accounts, onClose, onSave }: { card: CardMeta | null; accounts: { id: number; name: string }[]; onClose: () => void; onSave: (input: CardInput) => void }) {
+/**
+ * A card belongs to one account and an account holds one card, so a new card
+ * either takes an account that has none yet or asks for a fresh one (id 0).
+ * Offering an account that already has a card would replace that card.
+ */
+export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave }: { card: CardMeta | null; accounts: { id: number; name: string }[]; takenAccountIds: number[]; onClose: () => void; onSave: (input: CardInput) => void }) {
   const { t } = useLanguage();
-  const [accountId, setAccountId] = useState(card?.accountId ?? accounts[0]?.id ?? 0);
+  const choices = card ? accounts : accounts.filter((account) => !takenAccountIds.includes(account.id));
+  const [accountId, setAccountId] = useState(card?.accountId ?? 0);
   const [brand, setBrand] = useState(card?.brand ?? "");
   const [last4, setLast4] = useState(card?.last4 ?? "");
   const [limit, setLimit] = useState(card ? (card.limitCents / 100).toFixed(2) : "");
@@ -186,7 +192,8 @@ export function CardDialog({ card, accounts, onClose, onSave }: { card: CardMeta
       >
         <Field label={t("planner.account")}>
           <select value={accountId} onChange={(event) => setAccountId(Number(event.target.value))}>
-            {accounts.map((account) => (
+            {card ? null : <option value={0}>{t("planner.newCardAccount")}</option>}
+            {choices.map((account) => (
               <option key={account.id} value={account.id}>{account.name}</option>
             ))}
           </select>
