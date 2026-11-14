@@ -250,14 +250,9 @@ section {
   text-decoration: none;
 }
 .brand-mark {
-  display: grid;
+  display: block;
   width: 30px;
   height: 30px;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--primary);
-  color: #fff;
-  font: 700 18px/1 var(--display);
 }
 .nav-links {
   display: flex;
