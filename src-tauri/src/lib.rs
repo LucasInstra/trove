@@ -1,5 +1,6 @@
 mod csv;
 mod db;
+mod demo;
 mod ofx;
 mod planner;
 
@@ -442,6 +443,18 @@ fn delete_card(app: tauri::AppHandle, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn load_demo_data(app: tauri::AppHandle) -> Result<(), String> {
+    let connection = connection(&app)?;
+    demo::load(&connection)
+}
+
+#[tauri::command]
+fn demo_loaded(app: tauri::AppHandle) -> Result<bool, String> {
+    let connection = connection(&app)?;
+    demo::is_loaded(&connection)
+}
+
+#[tauri::command]
 fn reorder_cards(app: tauri::AppHandle, ids: Vec<i64>) -> Result<(), String> {
     let connection = connection(&app)?;
     planner::reorder_cards(&connection, &ids)
@@ -643,6 +656,8 @@ pub fn run() {
             set_bill_paid,
             save_card,
             reorder_cards,
+            load_demo_data,
+            demo_loaded,
             delete_card,
             save_goal,
             card_usage,

@@ -597,6 +597,10 @@ const en: Dictionary = {
   "settings.aboutDesc":
     "This app reads OFX statements and stores everything in SQLite on your computer. No financial data leaves the machine, and there is no login. The only network call is the update check against GitHub.",
   "settings.language": "Language",
+  "settings.demo": "Sample data",
+  "settings.demoDesc": "Fills all of 2026 with example accounts, transactions, bills, cards, goals and debts, so you can try every screen. Use it on a test database: it cannot be undone from here.",
+  "settings.demoLoad": "Load sample data",
+  "settings.demoDone": "Sample data is loaded.",
   "settings.languageDesc": "Choose the language of the interface.",
   "settings.profile": "Profile",
   "settings.userName": "Your name",
@@ -1209,6 +1213,10 @@ const pt: Dictionary = {
   "settings.aboutDesc":
     "Este app lê extratos OFX e guarda tudo em SQLite no seu computador. Nenhum dado financeiro sai da máquina, e não existe login. A única chamada de rede é a verificação de atualização no GitHub.",
   "settings.language": "Idioma",
+  "settings.demo": "Dados de exemplo",
+  "settings.demoDesc": "Preenche 2026 inteiro com contas, transações, contas a pagar, cartões, metas e dívidas de exemplo, para você testar todas as telas. Use em um banco de teste: não dá para desfazer por aqui.",
+  "settings.demoLoad": "Carregar dados de exemplo",
+  "settings.demoDone": "Dados de exemplo carregados.",
   "settings.languageDesc": "Escolha o idioma da interface.",
   "settings.profile": "Perfil",
   "settings.userName": "Seu nome",

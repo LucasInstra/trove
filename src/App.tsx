@@ -564,6 +564,11 @@ export function App() {
   const renameManualAccount = (id: number, name: string) =>
     mutateAndRefresh(() => api.renameAccount(id, name));
 
+  const loadDemo = async () => {
+    await mutateAndRefresh(() => api.loadDemoData());
+    setMonth("2026-12");
+  };
+
   const archiveAccount = (id: number) => mutateAndRefresh(() => api.archiveAccount(id));
 
   const saveDeposit = (input: DepositInput) =>
@@ -1100,6 +1105,7 @@ export function App() {
                 updater={updater}
                 accounts={accounts}
                 onSaveUserName={setUserName}
+                onLoadDemo={loadDemo}
                 onCreateAccount={(name) => void createManualAccount(name)}
                 onRenameAccount={(id, name) => void renameManualAccount(id, name)}
                 onArchiveAccount={(id) => void archiveAccount(id)}

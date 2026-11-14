@@ -38,6 +38,7 @@ export function SettingsScreen({
   onRenameAccount,
   onArchiveAccount,
   onSaveUserName,
+  onLoadDemo,
 }: {
   updater: UpdaterState;
   accounts: Account[];
@@ -45,6 +46,7 @@ export function SettingsScreen({
   onRenameAccount: (id: number, name: string) => void;
   onArchiveAccount: (id: number) => void;
   onSaveUserName: (name: string | null) => void;
+  onLoadDemo: () => Promise<void>;
 }) {
   const { lang, setLang, t } = useLanguage();
   const [databasePath, setDatabasePath] = useState("");
@@ -53,12 +55,18 @@ export function SettingsScreen({
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [demoLoaded, setDemoLoaded] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
 
   useEffect(() => {
     api
       .databaseLocation()
       .then(setDatabasePath)
       .catch(() => setDatabasePath(""));
+    api
+      .demoLoaded()
+      .then(setDemoLoaded)
+      .catch(() => {});
     api
       .getSetting("user_name")
       .then((stored) => {
@@ -152,6 +160,29 @@ export function SettingsScreen({
           <h1>{t("settings.title")}</h1>
         </div>
       </header>
+
+      <article className="card">
+        <header className="card-head">
+          <h2>{t("settings.demo")}</h2>
+        </header>
+        <p className="muted">{t("settings.demoDesc")}</p>
+        <button
+          type="button"
+          className="primary"
+          disabled={demoLoaded || demoBusy}
+          onClick={async () => {
+            setDemoBusy(true);
+            try {
+              await onLoadDemo();
+              setDemoLoaded(true);
+            } finally {
+              setDemoBusy(false);
+            }
+          }}
+        >
+          {demoLoaded ? t("settings.demoDone") : t("settings.demoLoad")}
+        </button>
+      </article>
 
       <article className="card">
         <header className="card-head">

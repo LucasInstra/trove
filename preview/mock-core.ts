@@ -289,6 +289,8 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     { id: 2, path: "C:\\Users\\demo\\Downloads\\fatura-nubank-nov2026.csv", accountName: "Nubank", importedAt: `${MONTH}-12T09:00:00Z`, inserted: 31, duplicates: 0 },
   ],
   list_csv_profiles: () => [],
+  demo_loaded: () => true,
+  load_demo_data: () => null,
   card_usage: () => 412300,
   delete_card: (args) => {
     planner.cards = planner.cards.filter((card) => card.id !== (args.id as number));
