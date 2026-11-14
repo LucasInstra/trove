@@ -389,3 +389,329 @@ body.is-layout-resizing, body.is-layout-resizing * {
     grid-column: var(--col, auto) / span var(--span, 1);
   }
 }
+
+/* ---------- Small motions: eye, month, bell, theme ---------- */
+.eye-swap {
+  display: inline-grid;
+  place-items: center;
+  animation: eye-blink 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes eye-blink {
+  0% { transform: scaleY(0.1) scale(0.8); opacity: 0.2; }
+  60% { transform: scaleY(1.15) scale(1.08); opacity: 1; }
+  100% { transform: none; }
+}
+
+.month-title.month-next { animation: month-from-right 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.month-title.month-prev { animation: month-from-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes month-from-right { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes month-from-left { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+
+.bell-panel {
+  transform-origin: top right;
+  animation: bell-open 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes bell-open {
+  from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.bell.ringing svg {
+  transform-origin: 50% 10%;
+  animation: bell-ring 520ms ease-in-out;
+}
+@keyframes bell-ring {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(16deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+  100% { transform: rotate(0); }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 320ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eye-swap,
+  .month-title,
+  .bell-panel,
+  .bell.ringing svg {
+    animation: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}
+
+/* Import: the OFX / CSV switch is the first choice on the screen, so it is larger. */
+.segmented.import-switch {
+  padding: 4px;
+}
+.segmented.import-switch button {
+  min-width: 112px;
+  min-height: 44px;
+  padding: 0 24px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* A dialog taller than the window (the rule editor on a short screen) scrolls inside itself
+   instead of running past the bottom edge. */
+.dialog-sheet {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Hiding or showing the figures: a quick dissolve, shorter than the theme change. */
+html.vt-privacy::view-transition-old(root),
+html.vt-privacy::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: ease-in-out;
+}
+
+/* The OFX / CSV switch keeps its two buttons inside the pill and never shrinks. */
+.segmented.import-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(112px, auto));
+  flex: none;
+  width: max-content;
+}
+.segmented.import-switch button {
+  overflow: visible;
+}
+
+/* Thin slices of the monthly stack: the stack no longer clips them to its own rounded box
+   (that cut the small end pieces into slivers); each slice keeps a height it can round in (4px). */
+.spend-bars .bar-stack {
+  overflow: visible;
+  border-radius: 0;
+}
+.spend-bars .bar-segment {
+  min-height: 4px;
+}
+
+/* ---------- Bank-inspired card looks ----------
+   Colour and pattern only: shapes drawn here, no logos. Each bank has one pattern that reads
+   its colours from --g1..--g3 (and --c for its accent); a version of the card only sets those.
+   The ring pseudo-elements of the base card are not used by these looks. */
+.card-art-real:is([data-texture^="nubank"], [data-texture^="itau"], [data-texture^="santander"], [data-texture^="bradesco"], [data-texture^="caixa"], [data-texture^="inter"], [data-texture^="picpay"], [data-texture^="c6"], [data-texture^="bb"], [data-texture^="mp"], [data-texture^="xp"])::before,
+.card-art-real:is([data-texture^="nubank"], [data-texture^="itau"], [data-texture^="santander"], [data-texture^="bradesco"], [data-texture^="caixa"], [data-texture^="inter"], [data-texture^="picpay"], [data-texture^="c6"], [data-texture^="bb"], [data-texture^="mp"], [data-texture^="xp"])::after {
+  border-color: transparent;
+}
+
+/* Nubank: violet with a soft light from the top. */
+:is(.card-art-real, .design-swatch)[data-texture^="nubank"] {
+  background-image:
+    radial-gradient(80% 70% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+    radial-gradient(70% 60% at 0% 100%, rgba(0, 0, 0, 0.28), transparent 65%),
+    linear-gradient(160deg, var(--g1), var(--g2) 45%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="nubank"] { --g1: #9b2ee6; --g2: #820ad1; --g3: #5c0699; }
+:is(.card-art-real, .design-swatch)[data-texture="nubank-ultra"] { --g1: #3a3a42; --g2: #17171b; --g3: #050507; }
+
+/* Itaú: a corner cut in a second colour. */
+:is(.card-art-real, .design-swatch)[data-texture^="itau"] {
+  background-image:
+    linear-gradient(118deg, transparent 0 62%, var(--c) 62% 100%),
+    radial-gradient(90% 80% at 15% 0%, rgba(255, 255, 255, 0.3), transparent 60%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="itau"] { --g1: #ff8a1f; --g2: #ec7000; --g3: #c95b00; --c: #0b2e83; }
+:is(.card-art-real, .design-swatch)[data-texture="itau-platinum"] { --g1: #dde1e6; --g2: #aeb4bc; --g3: #7d848d; --c: #0b2e83; }
+:is(.card-art-real, .design-swatch)[data-texture="itau-black"] { --g1: #2a2a2d; --g2: #121212; --g3: #000; --c: #ec7000; }
+
+/* Santander: a pale swoosh across the lower half. */
+:is(.card-art-real, .design-swatch)[data-texture^="santander"] {
+  background-image:
+    radial-gradient(120% 60% at 20% 118%, rgba(255, 255, 255, 0.3) 0 38%, transparent 39%),
+    radial-gradient(100% 90% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    linear-gradient(150deg, var(--g1), var(--g2) 50%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="santander"] { --g1: #ff2a2a; --g2: #ec0000; --g3: #b80000; }
+:is(.card-art-real, .design-swatch)[data-texture="santander-silver"] { --g1: #d6dae0; --g2: #b9bec6; --g3: #8d939c; }
+:is(.card-art-real, .design-swatch)[data-texture="santander-black"] { --g1: #2c2c2f; --g2: #121212; --g3: #000; }
+
+/* Bradesco: a darker wave at the bottom right. */
+:is(.card-art-real, .design-swatch)[data-texture^="bradesco"] {
+  background-image:
+    radial-gradient(140% 70% at 100% 115%, rgba(0, 0, 0, 0.3) 0 46%, transparent 47%),
+    radial-gradient(90% 80% at 0% 0%, rgba(255, 255, 255, 0.2), transparent 60%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="bradesco"] { --g1: #e0153f; --g2: #cc092f; --g3: #9e0623; }
+:is(.card-art-real, .design-swatch)[data-texture="bradesco-prime"] { --g1: #34343a; --g2: #1c1c20; --g3: #08080a; }
+
+/* Caixa: a diagonal band in a second colour. */
+:is(.card-art-real, .design-swatch)[data-texture^="caixa"] {
+  background-image:
+    linear-gradient(122deg, transparent 0 66%, var(--c) 66% 74%, transparent 74% 100%),
+    radial-gradient(90% 80% at 10% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="caixa"] { --g1: #1678c4; --g2: #005ca9; --g3: #00427a; --c: #f39200; }
+:is(.card-art-real, .design-swatch)[data-texture="caixa-graphite"] { --g1: #444b54; --g2: #2c3138; --g3: #14171b; --c: #f39200; }
+
+/* Inter: a large soft disc on the right. */
+:is(.card-art-real, .design-swatch)[data-texture^="inter"] {
+  background-image:
+    radial-gradient(62% 90% at 92% 55%, rgba(255, 255, 255, 0.22) 0 60%, transparent 61%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="inter"] { --g1: #ff9a2e; --g2: #ff7a00; --g3: #e85d00; }
+:is(.card-art-real, .design-swatch)[data-texture="inter-black"] { --g1: #2d2d2d; --g2: #151515; --g3: #000; }
+
+/* PicPay: darker curves at the bottom left. */
+:is(.card-art-real, .design-swatch)[data-texture^="picpay"] {
+  background-image:
+    radial-gradient(110% 70% at 0% 112%, rgba(0, 70, 36, 0.4) 0 48%, transparent 49%),
+    radial-gradient(90% 80% at 100% 0%, rgba(255, 255, 255, 0.24), transparent 58%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="picpay"] { --g1: #36e08b; --g2: #11c76f; --g3: #0a9a54; }
+:is(.card-art-real, .design-swatch)[data-texture="picpay-black"] { --g1: #2b332f; --g2: #141816; --g3: #050706; }
+
+/* C6: a fine weave, dark or silver. */
+:is(.card-art-real, .design-swatch)[data-texture^="c6"] {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 6px),
+    linear-gradient(160deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="c6"] { --g1: #3a3a3e; --g2: #1b1b1d; --g3: #000; }
+:is(.card-art-real, .design-swatch)[data-texture="c6-platinum"] { --g1: #d4d8de; --g2: #a7adb5; --g3: #6f7680; }
+
+/* Banco do Brasil: a corner cut in a second colour. */
+:is(.card-art-real, .design-swatch)[data-texture^="bb"] {
+  background-image:
+    linear-gradient(118deg, transparent 0 68%, var(--c) 68% 100%),
+    radial-gradient(90% 80% at 15% 0%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="bb"] { --g1: #fff06a; --g2: #fae128; --g3: #e0c300; --c: #0038a8; }
+:is(.card-art-real, .design-swatch)[data-texture="bb-infinite"] { --g1: #1a46b5; --g2: #0a2a73; --g3: #04163e; --c: #fae128; }
+
+/* Mercado Pago: light waves at the bottom left. */
+:is(.card-art-real, .design-swatch)[data-texture^="mp"] {
+  background-image:
+    radial-gradient(130% 60% at 0% 115%, rgba(255, 255, 255, 0.26) 0 44%, transparent 45%),
+    radial-gradient(100% 80% at 100% 0%, rgba(255, 255, 255, 0.28), transparent 58%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="mp"] { --g1: #34b9f2; --g2: #009ee3; --g3: #0079b0; }
+:is(.card-art-real, .design-swatch)[data-texture="mp-black"] { --g1: #2b333a; --g2: #151a1f; --g3: #050709; }
+
+/* XP: near black with a fine gold edge line. */
+:is(.card-art-real, .design-swatch)[data-texture="xp"] {
+  background-image:
+    linear-gradient(118deg, transparent 0 70%, rgba(212, 175, 90, 0.9) 70% 71.2%, transparent 71.2% 100%),
+    radial-gradient(90% 80% at 85% 0%, rgba(255, 255, 255, 0.12), transparent 58%),
+    linear-gradient(160deg, #2a2a2c, #111111 60%, #000);
+}
+
+/* The light versions (yellow, silver) take dark text. */
+.card-art-real:is([data-texture="bb"], [data-texture="itau-platinum"], [data-texture="santander-silver"], [data-texture="c6-platinum"]) {
+  color: #14213d;
+}
+.card-art-real:is([data-texture="bb"], [data-texture="itau-platinum"], [data-texture="santander-silver"], [data-texture="c6-platinum"]) :is(.card-art-brand, .card-art-number, .bank-mark, .network-mark:not(svg), .card-art-field) {
+  text-shadow: none;
+  filter: none;
+}
+.card-art-real[data-texture="bb"] .card-art-bottom { color: #fff; }
+.card-art-real[data-texture="bb"] .bank-mark.bank-bb { color: #fae128; }
+.card-art-real[data-texture="xp"] .card-art-brand,
+.card-art-real[data-texture="xp"] .bank-mark.bank-xp { color: #e6c877; }
+
+/* The picker: one chip per bank, one tile per version of its card. */
+.bank-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 96px;
+  height: 44px;
+  overflow: hidden;
+}
+.bank-chip .bank-mark { zoom: 0.78; }
+.bank-chip:is([data-texture="bb"], [data-texture="itau-platinum"]) { color: #14213d; }
+.bank-chip:not(:is([data-texture="bb"])) { color: #fff; }
+.version-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.version-tile {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.version-tile .design-swatch { width: 84px; height: 52px; }
+.version-tile[aria-checked="true"] { color: var(--ink); font-weight: 600; }
+.version-tile[aria-checked="true"] .design-swatch {
+  box-shadow: 0 0 0 2px var(--surface, #fff), 0 0 0 4px var(--primary);
+}
+
+/* ---------- Bank and network marks on the card art ---------- */
+.card-art-field small {
+  display: block;
+  margin-top: 2px;
+}
+.bank-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  white-space: nowrap;
+}
+.bank-mark.bank-nubank { font-size: 19px; text-transform: lowercase; letter-spacing: -0.03em; }
+.bank-mark.bank-itau {
+  padding: 3px 6px 4px;
+  border-radius: 6px;
+  background: #fff;
+  color: #0b2e83;
+  font-size: 14px;
+  text-shadow: none;
+}
+.bank-mark.bank-santander { gap: 6px; }
+.bank-mark.bank-caixa { letter-spacing: 0.08em; font-size: 14px; }
+.bank-mark.bank-inter { font-size: 18px; letter-spacing: -0.03em; }
+.bank-mark.bank-picpay { font-size: 16px; }
+.bank-mark.bank-c6 { letter-spacing: 0.14em; font-size: 12px; }
+.bank-mark.bank-bb {
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #0038a8;
+  color: #fae128;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  text-shadow: none;
+}
+.bank-mark.bank-mp { font-size: 11px; text-transform: lowercase; letter-spacing: 0; }
+.bank-mark.bank-xp { color: #e6c877; font-size: 18px; letter-spacing: -0.03em; }
+.card-art-real[data-texture="bb"] .bank-mark.bank-bb { color: #fae128; }
+
+.network-mark {
+  flex: none;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+.network-mark.network-visa { font-size: 20px; font-style: italic; letter-spacing: -0.02em; text-transform: uppercase; font-family: Georgia, "Times New Roman", serif; }
+.network-mark.network-elo { font-size: 20px; letter-spacing: -0.04em; text-transform: lowercase; }
+.network-mark.network-amex { font-size: 11px; letter-spacing: 0.06em; padding: 4px 6px; border: 1.5px solid currentColor; border-radius: 4px; }
+.network-mark.network-hipercard { font-size: 13px; font-style: italic; }
+.card-art-real[data-texture="bb"] .network-mark:not(svg) { color: #10215a; filter: none; }

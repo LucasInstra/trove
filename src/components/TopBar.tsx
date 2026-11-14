@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { PlanNotification } from "../domain/notifications";
 import { monthName } from "../lib/format";
 import { BrushUnderline } from "./editorial";
@@ -40,6 +41,25 @@ export function TopBar({
   const [open, setOpen] = useState(false);
 
   const hidden = usePrivacy();
+
+  // Changing the month: the title slides in from the side the month came from and the
+  // page fades up, so the change reads as movement. Skipped on first render and for reduced motion.
+  const previousMonth = useRef(month);
+  const [direction, setDirection] = useState<"next" | "prev">("next");
+  useEffect(() => {
+    if (previousMonth.current === month) return;
+    setDirection(month > previousMonth.current ? "next" : "prev");
+    previousMonth.current = month;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    document.querySelector<HTMLElement>("main .screen")?.animate(
+      [
+        { opacity: 0.35, transform: "translateY(8px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+    );
+  }, [month]);
+
   return (
     <header className="topbar floating-bar">
       <div>
@@ -52,7 +72,7 @@ export function TopBar({
         >
           <Icon name="chevron-left" size={18} />
         </button>
-        <h1>
+        <h1 key={month} className={`month-title month-${direction}`}>
           <BrushUnderline>{monthName(month, lang)}</BrushUnderline>
           <span className="title-year">{month.slice(0, 4)}</span>
         </h1>
@@ -72,17 +92,32 @@ export function TopBar({
         <button
           type="button"
           className="icon-button"
-          onClick={() => setPrivate(!hidden)}
+          onClick={() => {
+            const next = !hidden;
+            // The figures dissolve into the dots (and back): a window cross-fade, where supported.
+            if (
+              typeof document.startViewTransition === "function" &&
+              !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ) {
+              document.documentElement.classList.add("vt-privacy");
+              const transition = document.startViewTransition(() => flushSync(() => setPrivate(next)));
+              void transition.finished.finally(() => document.documentElement.classList.remove("vt-privacy"));
+            } else {
+              setPrivate(next);
+            }
+          }}
           aria-label={t(hidden ? "privacy.show" : "privacy.hide")}
           aria-pressed={hidden}
           title={t(hidden ? "privacy.show" : "privacy.hide")}
         >
-          <Icon name={hidden ? "eye-off" : "eye"} size={17} />
+          <span key={hidden ? "off" : "on"} className="eye-swap">
+            <Icon name={hidden ? "eye-off" : "eye"} size={17} />
+          </span>
         </button>
         <div className="bell-wrap">
           <button
             type="button"
-            className="icon-button bell"
+            className={open ? "icon-button bell ringing" : "icon-button bell"}
             onClick={() => setOpen((value) => !value)}
             aria-label={t("notify.title")}
             aria-expanded={open}

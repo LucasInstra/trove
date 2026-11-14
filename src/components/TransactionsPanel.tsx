@@ -374,7 +374,7 @@ export function TransactionsPanel({
       ) : null}
 
       {rows.length > 0 ? (
-        <div className="card tx-table">
+        <div className={keptSelection.length > 0 ? "card tx-table is-selecting" : "card tx-table"}>
           <div className="tx-colhead" aria-hidden="true">
             <span />
             <span />

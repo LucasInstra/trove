@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { TitleBar } from "./components/TitleBar";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TopBar } from "./components/TopBar";
@@ -810,8 +811,20 @@ export function App() {
                 className="flex items-center rounded-full border border-line bg-surface-soft p-0.5"
                 onClick={() => {
                   const next: Theme = theme === "dark" ? "light" : "dark";
-                  setTheme(next);
                   saveTheme(next);
+                  const swap = () => {
+                    flushSync(() => setTheme(next));
+                    applyTheme(next);
+                  };
+                  // The whole window cross-fades between the themes where the webview supports it.
+                  if (
+                    typeof document.startViewTransition === "function" &&
+                    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                  ) {
+                    document.startViewTransition(swap);
+                  } else {
+                    swap();
+                  }
                 }}
                 aria-label={t("common.theme")}
                 aria-pressed={theme === "dark"}

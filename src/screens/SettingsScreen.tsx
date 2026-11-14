@@ -69,7 +69,7 @@ export function SettingsScreen({
   const [nameError, setNameError] = useState("");
   const [demoLoaded, setDemoLoaded] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
-  const [tab, setTab] = useState<"account" | "appearance" | "language" | "updates" | "about">("account");
+  const [tab, setTab] = useState<"account" | "appearance" | "updates" | "about">("account");
   const [pathCopied, setPathCopied] = useState(false);
 
   useEffect(() => {
@@ -174,7 +174,6 @@ export function SettingsScreen({
         tabs={[
           { id: "account", label: t("settings.tabAccount") },
           { id: "appearance", label: t("settings.tabAppearance") },
-          { id: "language", label: t("settings.tabLanguage") },
           { id: "updates", label: t("settings.tabUpdates") },
           { id: "about", label: t("settings.tabAbout") },
         ]}
@@ -207,30 +206,7 @@ export function SettingsScreen({
         </div>
       </article>
 
-      <article className="card" hidden={tab !== "account"}>
-        <header className="card-head">
-          <h2>{t("settings.demo")}</h2>
-        </header>
-        <p className="muted">{t("settings.demoDesc")}</p>
-        <button
-          type="button"
-          className="primary"
-          disabled={demoLoaded || demoBusy}
-          onClick={async () => {
-            setDemoBusy(true);
-            try {
-              await onLoadDemo();
-              setDemoLoaded(true);
-            } finally {
-              setDemoBusy(false);
-            }
-          }}
-        >
-          {demoLoaded ? t("settings.demoDone") : t("settings.demoLoad")}
-        </button>
-      </article>
-
-      <article className="card" hidden={tab !== "language"}>
+      <article className="card" hidden={tab !== "appearance"}>
         <header className="card-head">
           <h2>{t("settings.language")}</h2>
         </header>
@@ -425,6 +401,29 @@ export function SettingsScreen({
             </div>
           </div>
         ) : null}
+      </article>
+
+      <article className="card" hidden={tab !== "account"}>
+        <header className="card-head">
+          <h2>{t("settings.demo")}</h2>
+        </header>
+        <p className="muted">{t("settings.demoDesc")}</p>
+        <button
+          type="button"
+          className="primary"
+          disabled={demoLoaded || demoBusy}
+          onClick={async () => {
+            setDemoBusy(true);
+            try {
+              await onLoadDemo();
+              setDemoLoaded(true);
+            } finally {
+              setDemoBusy(false);
+            }
+          }}
+        >
+          {demoLoaded ? t("settings.demoDone") : t("settings.demoLoad")}
+        </button>
       </article>
 
       <article className="card" hidden={tab !== "about"}>

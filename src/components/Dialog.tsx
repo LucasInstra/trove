@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useLanguage } from "../lib/language";
 
 const EXIT_MS = 140;
@@ -70,11 +71,23 @@ export function Dialog({ title, onClose, children }: DialogProps) {
     };
   }, [requestClose]);
 
-  return (
+  const pressedBackdrop = useRef(false);
+
+  // Rendered on the body: inside a screen that has a transform, "fixed" is relative to that
+  // screen and the dialog is centred in the page instead of the window.
+  return createPortal(
     <div
       className="dialog-backdrop"
       data-closing={closing || undefined}
-      onClick={requestClose}
+      onPointerDown={(event) => {
+        pressedBackdrop.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        // Closes only when the press also began on the backdrop: selecting text inside the
+        // dialog and letting go outside it must not count as a click on the backdrop.
+        if (pressedBackdrop.current && event.target === event.currentTarget) requestClose();
+        pressedBackdrop.current = false;
+      }}
       role="presentation"
     >
       <div
@@ -96,6 +109,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
         </header>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

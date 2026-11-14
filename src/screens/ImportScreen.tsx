@@ -111,7 +111,7 @@ export function ImportScreen({
         <div>
           <h1>{t("import.title")}</h1>
         </div>
-        <div className="segmented" role="group" aria-label={t("import.title")}>
+        <div className="segmented import-switch" role="group" aria-label={t("import.title")}>
           <button
             type="button"
             className={tab === "ofx" ? "active" : undefined}

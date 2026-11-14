@@ -848,7 +848,9 @@ export function OverviewScreen({
     const scroller = grid.closest<HTMLElement>("main");
     const top = lastScroll.current;
     const fit = (cell: HTMLElement) => {
-      cell.style.gridRowEnd = `span ${Math.ceil(cell.offsetHeight + GAP)}`;
+      // Only written when it changes: clearing it on every render collapsed the rows to 1px.
+      const next = `span ${Math.ceil(cell.offsetHeight + GAP)}`;
+      if (cell.style.gridRowEnd !== next) cell.style.gridRowEnd = next;
     };
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) fit(entry.target as HTMLElement);
@@ -858,10 +860,7 @@ export function OverviewScreen({
       observer.observe(cell);
     }
     if (scroller) scroller.scrollTop = top;
-    return () => {
-      observer.disconnect();
-      for (const cell of cells) cell.style.gridRowEnd = "";
-    };
+    return () => observer.disconnect();
   });
 
   // Dragging an edge must not select the page text.
@@ -919,6 +918,72 @@ export function OverviewScreen({
     drop.kind === "col"
       ? placeCard(layout, baseCols, id, drop.col, drop.beforeId)
       : moveCardNear(layout, id, drop.id, drop.side);
+
+  // The drag listens on the window: the preview reorders the cards in the DOM, which
+  // drops the pointer capture, and then only a card under the pointer would hear it.
+  const dragMove = (event: PointerEvent) => {
+    const state = drag.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    // A release that nobody heard (outside the window) must not leave the card following the cursor.
+    if (state.active && event.buttons === 0) {
+      dragEnd(event);
+      return;
+    }
+    if (!state.active) {
+      if (Math.hypot(event.clientX - state.x, event.clientY - state.y) < 6) return;
+      state.active = true;
+      setDragId(state.id);
+    }
+    const drop = dropAt(event.clientX, event.clientY, state.id);
+    const key = drop ? JSON.stringify(drop) : "";
+    if (drop && key !== dropKey.current) {
+      dropKey.current = key;
+      setDropId(drop.markId);
+      setDropSide(drop.markSide);
+      setPreview(applyDrop(drop, state.id));
+    }
+  };
+  const dragEnd = (event: PointerEvent) => {
+    const state = drag.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    drag.current = null;
+    // The landing is read from where the pointer actually stopped, so
+    // letting go over a gap or outside the grid cancels instead of
+    // committing whatever was last hovered.
+    const drop = state.active ? dropAt(event.clientX, event.clientY, state.id) : null;
+    if (drop) {
+      const next = applyDrop(drop, state.id);
+      if (next !== layout) onLayoutSet(next);
+    }
+    dropKey.current = "";
+    setDragId(null);
+    setDropId(null);
+    setPreview(null);
+  };
+  const dragCancel = (event: PointerEvent) => {
+    if (!drag.current || drag.current.pointerId !== event.pointerId) return;
+    drag.current = null;
+    dropKey.current = "";
+    setDragId(null);
+    setDropId(null);
+    setPreview(null);
+  };
+  const dragHandlers = useRef({ dragMove, dragEnd, dragCancel });
+  dragHandlers.current = { dragMove, dragEnd, dragCancel };
+  useEffect(() => {
+    const move = (event: PointerEvent) => dragHandlers.current.dragMove(event);
+    const end = (event: PointerEvent) => dragHandlers.current.dragEnd(event);
+    const cancel = (event: PointerEvent) => dragHandlers.current.dragCancel(event);
+    // Capture phase: the resize handles stop propagation, which must not swallow the release.
+    window.addEventListener("pointermove", move, true);
+    window.addEventListener("pointerup", end, true);
+    window.addEventListener("pointercancel", cancel, true);
+    return () => {
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", end, true);
+      window.removeEventListener("pointercancel", cancel, true);
+    };
+  }, []);
 
   const snapshotDragCells = () =>
     Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-card]") ?? []).map((cell) => ({
@@ -1189,48 +1254,6 @@ export function OverviewScreen({
               };
               dragCells.current = snapshotDragCells();
               event.currentTarget.setPointerCapture(event.pointerId);
-            }}
-            onPointerMove={(event) => {
-              const state = drag.current;
-              if (!state || state.pointerId !== event.pointerId) return;
-              if (!state.active) {
-                if (Math.hypot(event.clientX - state.x, event.clientY - state.y) < 6) return;
-                state.active = true;
-                setDragId(state.id);
-              }
-              const drop = dropAt(event.clientX, event.clientY, state.id);
-              const key = drop ? JSON.stringify(drop) : "";
-              if (drop && key !== dropKey.current) {
-                dropKey.current = key;
-                setDropId(drop.markId);
-                setDropSide(drop.markSide);
-                setPreview(applyDrop(drop, state.id));
-              }
-            }}
-            onPointerUp={(event) => {
-              const state = drag.current;
-              drag.current = null;
-              if (!state || state.pointerId !== event.pointerId) return;
-              // The landing is read from where the pointer actually stopped, so
-              // letting go over a gap or outside the grid cancels instead of
-              // committing whatever was last hovered.
-              const drop = state.active ? dropAt(event.clientX, event.clientY, state.id) : null;
-              if (drop) {
-                const next = applyDrop(drop, state.id);
-                if (next !== layout) onLayoutSet(next);
-              }
-              dropKey.current = "";
-              setDragId(null);
-              setDropId(null);
-              setPreview(null);
-            }}
-            onPointerCancel={() => {
-              drag.current = null;
-              resize.current = null;
-              setDragId(null);
-              setDropId(null);
-              setResizingId(null);
-              setPreview(null);
             }}
           >
             {item.id === "cards" && span === 1 &&

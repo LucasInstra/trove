@@ -1420,7 +1420,6 @@ input[type="month"]:focus-visible,
 }
 
 /* Housing is the vivid red wherever it is drawn. */
-.housing-card .meter-fill:not(.over),
 .housing-card .breakdown-seg {
   background: var(--chart-housing);
 }
