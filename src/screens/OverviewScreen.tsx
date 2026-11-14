@@ -28,7 +28,7 @@ import {
 import type { MonthPlan } from "../domain/projection";
 import { computeScore } from "../domain/score";
 import { computeSplit } from "../domain/split";
-import { formatCents, formatDate, monthLabel, monthShort, shiftMonth } from "../lib/format";
+import { formatCents, formatDate, monthLabel, monthShort, shiftMonth, todayIso } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 import type {
@@ -308,8 +308,7 @@ export function OverviewScreen({
       case "split":
         return formatCents(computeSplit(people, shares, plan.dueBills).settlementCents);
       case "donut": {
-        const biggest = byCategory[0];
-        return biggest ? `${biggest.name} · ${formatCents(biggest.totalCents)}` : formatCents(0);
+        return formatCents(spending);
       }
       case "series":
         return formatCents(series.find((point) => point.month === month)?.expenseCents ?? 0);
@@ -329,6 +328,52 @@ export function OverviewScreen({
         return formatCents(inoutNet);
       case "recent":
         return t("overview.recentCount", { count: recent.length });
+    }
+  };
+
+  // The second line of a minimised card: one fact that is useful next to the
+  // figure. A card with nothing to add returns null instead of repeating itself.
+  const collapsedDetail = (id: CardId): string | null => {
+    switch (id) {
+      case "kpis":
+        return `${t("overview.income")} ${formatCents(plan.incomeCents)}`;
+      case "forecast":
+        return t("overview.keptShare", { percent: keptShare });
+      case "bills":
+        return t("planner.paidOf", { paid: plan.paidBillIds.length, count: plan.dueBills.length });
+      case "cards": {
+        const first = cards[0];
+        if (!first) return null;
+        const open = first.window.to >= todayIso();
+        return `${first.meta.brand} •••• ${first.meta.last4} · ${open ? t("planner.open") : t("planner.closed")}`;
+      }
+      case "housing":
+        return plan.incomeCents > 0
+          ? t("mini.ofIncome", { percent: Math.round((plan.housingCents / plan.incomeCents) * 100) })
+          : null;
+      case "goals":
+        return plan.goals[0]?.goal.name ?? null;
+      case "donut": {
+        const biggest = ranked[0];
+        return biggest ? categoryName(t, biggest.name) : null;
+      }
+      case "series":
+        return monthLabel(month, lang);
+      case "installments": {
+        const count = plan.dueBills.filter((bill) => (bill.installmentsTotal ?? 0) >= 1).length;
+        return count > 0 ? t("mini.active", { count }) : null;
+      }
+      case "debts": {
+        const pending = debts.filter((debt) => !debt.settledOn).length;
+        return t("mini.pending", { count: pending });
+      }
+      case "inout":
+        return `${t("overview.income")} ${formatCents(currentPoint?.incomeCents ?? 0)}`;
+      case "recent":
+        return rows[0]?.description ?? null;
+      case "split":
+      case "score":
+        return null;
     }
   };
 
@@ -1003,7 +1048,12 @@ export function OverviewScreen({
                 title={t("layout.expand")}
                 aria-label={`${cardName(item.id)} · ${t("layout.expand")}`}
               >
-                <span className="collapsed-card-title">{cardName(item.id)}</span>
+                <span className="collapsed-card-text">
+                  <span className="collapsed-card-title">{cardName(item.id)}</span>
+                  {collapsedDetail(item.id) ? (
+                    <span className="collapsed-card-detail">{collapsedDetail(item.id)}</span>
+                  ) : null}
+                </span>
                 <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
                 <span className="collapse-trigger" aria-hidden="true">
                   <Icon name="chevron-down" size={13} />
