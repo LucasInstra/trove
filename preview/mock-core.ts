@@ -15,6 +15,7 @@ const accounts = [
   { id: 1, name: "Itaú Conta", kind: "checking", bankId: "341", acctId: "12345-6", currency: "BRL" },
   { id: 2, name: "Nubank", kind: "credit_card", bankId: "260", acctId: "9876", currency: "BRL" },
   { id: 3, name: "Carteira", kind: "manual", bankId: "", acctId: "wallet", currency: "BRL" },
+  { id: 4, name: "Itaú Cartão", kind: "credit_card", bankId: "341", acctId: "4410", currency: "BRL" },
 ];
 
 const categories = [
@@ -119,6 +120,11 @@ for (let back = 11; back >= 0; back -= 1) {
     });
   }
 }
+for (let back = 2; back >= 0; back -= 1) {
+  const month = shift(MONTH, -back);
+  push(month, 6, "AMAZON MARKETPLACE", 5, 4, -89990);
+  push(month, 11, "SMART FIT", 4, 4, -12990);
+}
 rows.sort((left, right) => (left.postedOn === right.postedOn ? right.id - left.id : left.postedOn < right.postedOn ? 1 : -1));
 
 const inMonth = (month: string) => rows.filter((row) => row.postedOn.startsWith(month) && !row.transferGroup);
@@ -166,6 +172,7 @@ const planner = {
   ],
   cards: [
     { id: 1, accountId: 2, accountName: "Nubank", brand: "mastercard", last4: "9876", limitCents: 800000, closingDay: 3, dueDay: 10, color: "#7c3aed", texture: "plain" },
+    { id: 2, accountId: 4, accountName: "Itaú Cartão", brand: "visa", last4: "4410", limitCents: 1200000, closingDay: 20, dueDay: 27, color: "#ea580c", texture: "plain" },
   ],
   goals: [
     { id: 1, name: "Reserva de emergência", kind: "reserve", targetCents: 4500000, monthlyCents: 150000, startsOn: "2025-06-01", accountId: 1, color: "#16a34a" },
