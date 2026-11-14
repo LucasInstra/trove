@@ -2,7 +2,7 @@
 // household so every screen can be rendered and screenshotted without Rust.
 // Wired in by vite.preview.config.ts; the real app never imports this.
 
-const MONTH = "2026-11";
+const MONTH = "2026-12";
 
 const pad = (value: number) => String(value).padStart(2, "0");
 const shift = (month: string, delta: number) => {
@@ -107,7 +107,7 @@ const push = (month: string, day: number, description: string, categoryId: numbe
 
 for (let back = 11; back >= 0; back -= 1) {
   const month = shift(MONTH, -back);
-  const lastDay = back === 0 ? 13 : 28;
+  const lastDay = 28;
   push(month, 5, "SALARIO EMPRESA LTDA", 8, 1, 1250000);
   push(month, 10, "ALUGUEL APTO", 1, 1, -320000);
   push(month, 12, "CONDOMINIO", 1, 1, -68000);
@@ -120,11 +120,20 @@ for (let back = 11; back >= 0; back -= 1) {
     });
   }
 }
-for (let back = 2; back >= 0; back -= 1) {
+for (let back = 11; back >= 0; back -= 1) {
   const month = shift(MONTH, -back);
   push(month, 6, "AMAZON MARKETPLACE", 5, 4, -89990);
   push(month, 11, "SMART FIT", 4, 4, -12990);
 }
+// December: 13th salary, year-end shopping and the card invoices to come.
+push(MONTH, 20, "13O SALARIO EMPRESA LTDA", 8, 1, 625000);
+push(MONTH, 18, "AMAZON PRESENTES NATAL", 5, 4, -64900);
+push(MONTH, 19, "MAGAZINE LUIZA", 5, 2, -129900);
+push(MONTH, 22, "CEIA DE NATAL MERCADO", 2, 1, -48700);
+push(MONTH, 23, "VIAGEM AEREA LATAM", 5, 4, -184200);
+push(MONTH, 14, "SEGURO AUTO PORTO", 3, 1, -38000);
+push(MONTH, 16, "PLANO DE SAUDE", 6, 1, -62000);
+push(MONTH, 17, "ACADEMIA SMART FIT", 4, 4, -12990);
 rows.sort((left, right) => (left.postedOn === right.postedOn ? right.id - left.id : left.postedOn < right.postedOn ? 1 : -1));
 
 const inMonth = (month: string) => rows.filter((row) => row.postedOn.startsWith(month) && !row.transferGroup);
@@ -164,12 +173,11 @@ const planner = {
     { id: 3, name: "Internet", amountCents: 12000, dueDay: 15, frequency: "monthly", categoryId: 1, categoryName: "Moradia", categoryColor: "#6366f1", accountId: 1, goalId: null, startsOn: "2025-01-01", endsOn: null, installmentsTotal: null, active: true },
     { id: 4, name: "Energia", amountCents: 21000, dueDay: 20, frequency: "monthly", categoryId: 1, categoryName: "Moradia", categoryColor: "#6366f1", accountId: 1, goalId: null, startsOn: "2025-01-01", endsOn: null, installmentsTotal: null, active: true },
     { id: 5, name: "Notebook (10x)", amountCents: 45000, dueDay: 8, frequency: "monthly", categoryId: 5, categoryName: "Lazer", categoryColor: "#ec4899", accountId: 2, goalId: null, startsOn: "2026-06-01", endsOn: "2027-03-01", installmentsTotal: 10, active: true },
+    { id: 6, name: "Seguro auto", amountCents: 38000, dueDay: 14, frequency: "monthly", categoryId: 3, categoryName: "Transporte", categoryColor: "#f59e0b", accountId: 1, goalId: null, startsOn: "2026-01-01", endsOn: null, installmentsTotal: null, active: true },
+    { id: 7, name: "Plano de saúde", amountCents: 62000, dueDay: 16, frequency: "monthly", categoryId: 6, categoryName: "Saúde", categoryColor: "#14b8a6", accountId: 1, goalId: null, startsOn: "2026-01-01", endsOn: null, installmentsTotal: null, active: true },
+    { id: 8, name: "Academia", amountCents: 12990, dueDay: 17, frequency: "monthly", categoryId: 4, categoryName: "Restaurantes", categoryColor: "#ef4444", accountId: 4, goalId: null, startsOn: "2026-01-01", endsOn: null, installmentsTotal: null, active: true },
   ],
-  payments: [
-    { id: 1, billId: 1, month: MONTH, paidOn: `${MONTH}-10`, amountCents: 320000 },
-    { id: 2, billId: 2, month: MONTH, paidOn: `${MONTH}-12`, amountCents: 68000 },
-    { id: 3, billId: 5, month: MONTH, paidOn: `${MONTH}-08`, amountCents: 45000 },
-  ],
+  payments: [] as { id: number; billId: number; month: string; paidOn: string; amountCents: number }[],
   cards: [
     { id: 1, accountId: 2, accountName: "Nubank", brand: "mastercard", last4: "9876", limitCents: 800000, closingDay: 3, dueDay: 10, color: "#7c3aed", texture: "plain" },
     { id: 2, accountId: 4, accountName: "Itaú Cartão", brand: "visa", last4: "4410", limitCents: 1200000, closingDay: 20, dueDay: 27, color: "#ea580c", texture: "plain" },
@@ -190,6 +198,26 @@ const planner = {
   shares: [{ billId: 1, personId: 2 }],
   debts: [{ id: 1, personId: 2, personName: "Ana", label: "Jantar", amountCents: 8500, month: MONTH, settledOn: null }],
 };
+
+// Every bill is paid for the months already closed; December keeps the later ones open.
+{
+  const dueDays: Record<number, number> = {};
+  const amounts: Record<number, number> = {};
+  for (const bill of planner.bills) {
+    dueDays[bill.id] = bill.dueDay;
+    amounts[bill.id] = bill.amountCents;
+  }
+  let paymentId = 1;
+  for (let back = 11; back >= 0; back -= 1) {
+    const month = shift(MONTH, -back);
+    for (const bill of planner.bills) {
+      if (month < bill.startsOn.slice(0, 7)) continue;
+      if (bill.endsOn && month > bill.endsOn.slice(0, 7)) continue;
+      if (back === 0 && dueDays[bill.id] > 13) continue;
+      planner.payments.push({ id: paymentId++, billId: bill.id, month, paidOn: `${month}-${pad(dueDays[bill.id])}`, amountCents: amounts[bill.id] });
+    }
+  }
+}
 
 const settings: Record<string, string | null> = {
   user_name: "Lucas",
@@ -226,7 +254,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
       (month) => categoryTotals(month).map(({ categoryId, name, color, totalCents }) => ({ month, categoryId, name, color, totalCents })),
     ),
   latest_month: () => MONTH,
-  planner_state: () => planner,
+  planner_state: (args) => ({ ...planner, payments: planner.payments.filter((payment) => payment.month === ((args.month as string) ?? MONTH)) }),
   budget_status: (args) => {
     const totals = categoryTotals(args.month as string);
     const line = (categoryId: number, limit: number) => {
