@@ -1,4 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+
+const EXIT_MS = 140;
 
 interface DialogProps {
   title: string;
@@ -14,6 +16,24 @@ export function Dialog({ title, onClose, children }: DialogProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+
+  // Leaves the way it came in: the exit plays, then the parent unmounts us.
+  // Reduced motion and tests close straight away.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    const instant =
+      import.meta.env.MODE === "test" ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (instant) {
+      closeRef.current();
+      return;
+    }
+    setClosing(true);
+    window.setTimeout(() => closeRef.current(), EXIT_MS);
+  }, []);
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -22,7 +42,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeRef.current();
+        requestClose();
         return;
       }
       if (event.key !== "Tab" || !sheet) return;
@@ -46,10 +66,15 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       window.removeEventListener("keydown", onKey);
       previous?.focus?.();
     };
-  }, []);
+  }, [requestClose]);
 
   return (
-    <div className="dialog-backdrop" onClick={onClose} role="presentation">
+    <div
+      className="dialog-backdrop"
+      data-closing={closing || undefined}
+      onClick={requestClose}
+      role="presentation"
+    >
       <div
         ref={sheetRef}
         className="dialog-sheet"
@@ -61,7 +86,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       >
         <header className="dialog-head">
           <h2>{title}</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-button" onClick={requestClose} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="m6 6 12 12M18 6 6 18" />
             </svg>

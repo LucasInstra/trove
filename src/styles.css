@@ -2096,7 +2096,13 @@ select.tx-category {
   display: grid;
   place-items: center;
   background: rgba(26, 25, 23, 0.34);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(6px) saturate(140%);
+  animation: dialog-scrim-in 180ms var(--ease-out) both;
+}
+
+.dialog-backdrop[data-closing] {
+  animation: dialog-scrim-out 140ms var(--ease-out) both;
+  pointer-events: none;
 }
 
 .dialog-sheet {
@@ -2106,6 +2112,54 @@ select.tx-category {
   border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: 0 30px 70px rgba(26, 25, 23, 0.24);
+  transform-origin: 50% 40%;
+  animation: dialog-sheet-in 220ms var(--ease-out) both;
+}
+
+.dialog-backdrop[data-closing] .dialog-sheet {
+  animation: dialog-sheet-out 140ms var(--ease-out) both;
+}
+
+@keyframes dialog-scrim-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+}
+
+@keyframes dialog-scrim-out {
+  to { opacity: 0; backdrop-filter: blur(0); }
+}
+
+@keyframes dialog-sheet-in {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+}
+
+@keyframes dialog-sheet-out {
+  to { opacity: 0; transform: scale(0.97) translateY(4px); }
+}
+
+/* Accessibility variants of the translucent scrim. */
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop,
+  .dialog-sheet {
+    animation-name: dialog-fade !important;
+    animation-duration: 120ms !important;
+  }
+
+  @keyframes dialog-fade {
+    from { opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .dialog-backdrop {
+    backdrop-filter: none;
+    background: rgba(26, 25, 23, 0.6);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .dialog-sheet {
+    border-color: var(--ink);
+  }
 }
 
 .dialog-head {
