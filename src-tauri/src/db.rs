@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 15;
+pub const SCHEMA_VERSION: i64 = 16;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -402,8 +402,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v14(&connection)?;
         write_version(&connection, 14)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 15 {
         migrate_to_v15(&connection)?;
+        write_version(&connection, 15)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v16(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -565,6 +569,23 @@ create table if not exists holdings (
 fn migrate_to_v15(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(NEW_TABLES_V15)
+        .map_err(|problem| problem.to_string())
+}
+
+/// v15 to v16: the order of the cards is the user's. Cards used to be listed
+/// by account name, so that order is what each one starts with.
+fn migrate_to_v16(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "cards", "position", "integer not null default 0")?;
+    connection
+        .execute_batch(
+            "update cards set position = (
+                 select count(*) from cards other
+                 join accounts other_account on other_account.id = other.account_id
+                 join accounts own_account on own_account.id = cards.account_id
+                 where other_account.name < own_account.name
+                    or (other_account.name = own_account.name and other.id < cards.id)
+             )",
+        )
         .map_err(|problem| problem.to_string())
 }
 

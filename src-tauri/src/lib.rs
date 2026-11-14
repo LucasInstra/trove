@@ -436,6 +436,12 @@ fn set_bill_paid(
 }
 
 #[tauri::command]
+fn reorder_cards(app: tauri::AppHandle, ids: Vec<i64>) -> Result<(), String> {
+    let connection = connection(&app)?;
+    planner::reorder_cards(&connection, &ids)
+}
+
+#[tauri::command]
 fn save_card(app: tauri::AppHandle, input: planner::CardInput) -> Result<i64, String> {
     let connection = connection(&app)?;
     planner::save_card(&connection, &input)
@@ -630,6 +636,7 @@ pub fn run() {
             delete_bill,
             set_bill_paid,
             save_card,
+            reorder_cards,
             save_goal,
             card_usage,
             set_share,

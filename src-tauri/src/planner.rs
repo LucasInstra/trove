@@ -470,7 +470,7 @@ pub fn list_cards(connection: &Connection) -> Result<Vec<CardMeta>, String> {
              from cards k
              join accounts a on a.id = k.account_id
              where k.deleted_at is null and a.deleted_at is null
-             order by a.name",
+             order by k.position, k.id",
         )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
@@ -491,6 +491,20 @@ pub fn list_cards(connection: &Connection) -> Result<Vec<CardMeta>, String> {
         .map_err(|problem| problem.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|problem| problem.to_string())
+}
+
+/// Stores the order the user chose: each card gets the index of its id in `ids`.
+/// A card missing from the list keeps its place after the listed ones.
+pub fn reorder_cards(connection: &Connection, ids: &[i64]) -> Result<(), String> {
+    for (index, id) in ids.iter().enumerate() {
+        connection
+            .execute(
+                "update cards set position = ?1, updated_at = ?2 where id = ?3",
+                params![index as i64, now(), id],
+            )
+            .map_err(|problem| problem.to_string())?;
+    }
+    Ok(())
 }
 
 pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, String> {
@@ -536,8 +550,10 @@ pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, Stri
                 .execute(
                     "insert into cards
                      (uid, account_id, brand, last4, limit_cents, closing_day, due_day, color,
-                      texture, created_at, updated_at)
-                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+                      texture, created_at, updated_at, position)
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9,
+                             (select coalesce(max(position) + 1, 0) from cards
+                              where deleted_at is null))
                      on conflict (account_id) do update
                         set brand = excluded.brand, last4 = excluded.last4,
                             limit_cents = excluded.limit_cents,
@@ -1071,6 +1087,30 @@ mod tests {
             .collect();
         assert_eq!(brands.len(), 2);
         assert!(brands.contains(&"mastercard".to_string()));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn new_cards_go_last_and_the_order_can_be_changed() {
+        let path = temporary_database("card-order");
+        let connection = db::open(&path).expect("should open");
+        let mut ids = Vec::new();
+        for name in ["Zeta", "Alfa", "Meio"] {
+            let account = db::create_manual_account(&connection, name).expect("account");
+            ids.push(save_card(&connection, &card_input(account, name)).expect("card"));
+        }
+        let brands = |connection: &Connection| -> Vec<String> {
+            list_cards(connection).expect("list").into_iter().map(|card| card.brand).collect()
+        };
+        // Added order, not alphabetical: the newest card is the last.
+        assert_eq!(brands(&connection), ["Zeta", "Alfa", "Meio"]);
+
+        reorder_cards(&connection, &[ids[2], ids[0], ids[1]]).expect("reorder");
+        assert_eq!(brands(&connection), ["Meio", "Zeta", "Alfa"]);
+
+        let account = db::create_manual_account(&connection, "Novo").expect("account");
+        save_card(&connection, &card_input(account, "Novo")).expect("card");
+        assert_eq!(brands(&connection), ["Meio", "Zeta", "Alfa", "Novo"]);
         let _ = std::fs::remove_file(&path);
     }
 
