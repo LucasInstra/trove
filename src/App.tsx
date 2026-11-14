@@ -738,6 +738,7 @@ export function App() {
       <SidebarItem
         key={item.route}
         active={route === item.route}
+        data-nav={item.route}
         onClick={() => setRoute(item.route)}
         className={sidebarCollapsed ? "justify-center px-0" : undefined}
         title={sidebarCollapsed ? label : undefined}

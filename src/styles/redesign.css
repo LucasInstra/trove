@@ -1168,3 +1168,174 @@ input[type="month"]:focus-visible,
   border-color: var(--line);
   box-shadow: none;
 }
+
+/* ---- Sidebar: roomy rows, soft active pill, an icon that moves ----------- */
+
+.sidebar-item {
+  height: 40px;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.sidebar-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-item.sidebar-item-active {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  box-shadow: none;
+}
+
+.sidebar-item.sidebar-item-active::before {
+  display: none;
+}
+
+.sidebar-item.sidebar-item-active svg {
+  color: var(--primary-text);
+}
+
+.sidebar-group-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Each icon plays a small gesture that fits what it is, on hover and when it
+   becomes the active page. */
+.sidebar-item svg *,
+.sidebar-item svg {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Overview: the four tiles pop one after another. */
+  .sidebar-item[data-nav="overview"]:is(:hover, .sidebar-item-active) rect {
+    animation: nav-pop 420ms var(--ease) both;
+  }
+  .sidebar-item[data-nav="overview"]:is(:hover, .sidebar-item-active) rect:nth-child(2) { animation-delay: 70ms; }
+  .sidebar-item[data-nav="overview"]:is(:hover, .sidebar-item-active) rect:nth-child(4) { animation-delay: 140ms; }
+  .sidebar-item[data-nav="overview"]:is(:hover, .sidebar-item-active) rect:nth-child(3) { animation-delay: 210ms; }
+
+  /* Transactions: the lines slide in from the left. */
+  .sidebar-item[data-nav="transactions"]:is(:hover, .sidebar-item-active) path {
+    animation: nav-slide-in 380ms var(--ease) both;
+  }
+  .sidebar-item[data-nav="transactions"]:is(:hover, .sidebar-item-active) path:nth-child(2) { animation-delay: 70ms; }
+  .sidebar-item[data-nav="transactions"]:is(:hover, .sidebar-item-active) path:nth-child(3) { animation-delay: 140ms; }
+
+  /* Cash flow: money goes out on top and comes back below. */
+  .sidebar-item[data-nav="flow"]:is(:hover, .sidebar-item-active) path:nth-child(1) {
+    animation: nav-go-right 460ms var(--ease);
+  }
+  .sidebar-item[data-nav="flow"]:is(:hover, .sidebar-item-active) path:nth-child(2) {
+    animation: nav-go-left 460ms var(--ease);
+  }
+
+  /* Cards: the card tilts and the stripe swipes. */
+  .sidebar-item[data-nav="cards"]:is(:hover, .sidebar-item-active) rect {
+    animation: nav-tilt 460ms var(--ease);
+  }
+  .sidebar-item[data-nav="cards"]:is(:hover, .sidebar-item-active) path:nth-child(3) {
+    animation: nav-go-right 460ms var(--ease);
+  }
+
+  /* Plans: the rings pulse outward from the bullseye. */
+  .sidebar-item[data-nav="goals"]:is(:hover, .sidebar-item-active) circle {
+    animation: nav-pulse 520ms var(--ease);
+  }
+  .sidebar-item[data-nav="goals"]:is(:hover, .sidebar-item-active) circle:nth-child(2) { animation-delay: 70ms; }
+  .sidebar-item[data-nav="goals"]:is(:hover, .sidebar-item-active) circle:nth-child(1) { animation-delay: 140ms; }
+
+  /* Net worth: the roof lifts and the columns grow. */
+  .sidebar-item[data-nav="patrimony"]:is(:hover, .sidebar-item-active) path:nth-child(1) {
+    animation: nav-lift 460ms var(--ease);
+  }
+  .sidebar-item[data-nav="patrimony"]:is(:hover, .sidebar-item-active) path:nth-child(2) {
+    transform-origin: 50% 100%;
+    animation: nav-grow 460ms var(--ease);
+  }
+
+  /* Import: the arrow drops into the tray. */
+  .sidebar-item[data-nav="import"]:is(:hover, .sidebar-item-active) path:nth-child(-n + 2) {
+    animation: nav-drop 480ms var(--ease);
+  }
+
+  /* Categories: the tag swings from its corner. */
+  .sidebar-item[data-nav="categories"]:is(:hover, .sidebar-item-active) svg {
+    transform-origin: 20% 20%;
+    animation: nav-swing 560ms var(--ease);
+  }
+
+  /* Settings: the sliders move along their tracks. */
+  .sidebar-item[data-nav="settings"]:is(:hover, .sidebar-item-active) circle {
+    animation: nav-knob-right 520ms var(--ease);
+  }
+  .sidebar-item[data-nav="settings"]:is(:hover, .sidebar-item-active) circle:nth-child(6) {
+    animation-name: nav-knob-left;
+  }
+}
+
+@keyframes nav-pop {
+  50% { transform: scale(0.62); }
+}
+@keyframes nav-slide-in {
+  from { opacity: 0; transform: translateX(-6px); }
+}
+@keyframes nav-go-right {
+  45% { transform: translateX(3px); }
+}
+@keyframes nav-go-left {
+  45% { transform: translateX(-3px); }
+}
+@keyframes nav-tilt {
+  35% { transform: rotate(-9deg) scale(1.05); }
+  70% { transform: rotate(4deg); }
+}
+@keyframes nav-pulse {
+  45% { transform: scale(1.22); }
+}
+@keyframes nav-lift {
+  45% { transform: translateY(-2px); }
+}
+@keyframes nav-grow {
+  from { transform: scaleY(0.4); }
+}
+@keyframes nav-drop {
+  40% { transform: translateY(3px); }
+}
+@keyframes nav-swing {
+  25% { transform: rotate(-16deg); }
+  60% { transform: rotate(10deg); }
+}
+@keyframes nav-knob-right {
+  45% { transform: translateX(4px); }
+}
+@keyframes nav-knob-left {
+  45% { transform: translateX(-4px); }
+}
+
+/* The forecast legend never spills out of its chips: wide enough for an amount,
+   and the share wraps under it when the card is narrow. */
+.composition-legend li {
+  min-width: 150px;
+}
+
+.composition-legend .composition-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  white-space: normal;
+}
+
+.composition-legend .composition-value em {
+  white-space: nowrap;
+}
