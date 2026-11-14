@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { vivid } from "./color";
+import { DATA_OTHER, DATA_RAMP, rampOf } from "./color";
 
-describe("vivid", () => {
-  it("leaves greys and non-hex values alone", () => {
-    expect(vivid("#8b93a1")).toBe("#8b93a1");
-    expect(vivid("red")).toBe("red");
+describe("rampOf", () => {
+  it("maps the first five distinct colours onto the ramp, in order", () => {
+    const stored = ["#e91e63", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7"];
+    const ramp = rampOf(stored);
+    stored.forEach((hex, index) => expect(ramp(hex)).toBe(DATA_RAMP[index]));
   });
 
-  it("raises the saturation of a muted colour and keeps its hue family", () => {
-    const out = vivid("#4c9f70");
-    const g = parseInt(out.slice(3, 5), 16);
-    const r = parseInt(out.slice(1, 3), 16);
-    expect(g).toBeGreaterThan(r);
-    const spread = (hex: string) => {
-      const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-      return Math.max(...v) - Math.min(...v);
-    };
-    expect(spread(out)).toBeGreaterThan(spread("#4c9f70"));
+  it("sends the rest, greys and unknown values to slate", () => {
+    const ramp = rampOf(["#e91e63", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#8b93a1"]);
+    expect(ramp("#ef4444")).toBe(DATA_OTHER);
+    expect(ramp("#8b93a1")).toBe(DATA_OTHER);
+    expect(ramp("#123456")).toBe(DATA_OTHER);
   });
 });

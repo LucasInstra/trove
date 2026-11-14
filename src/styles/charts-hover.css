@@ -1,7 +1,7 @@
 /* Scrubber chart: grid, zero line, cursor and tooltip. */
 .line-chart {
   position: relative;
-  border-radius: 10px;
+  border-radius: 12px;
   outline: none;
   touch-action: pan-y;
 }
@@ -46,7 +46,7 @@
   min-width: 150px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(10px) saturate(160%);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);

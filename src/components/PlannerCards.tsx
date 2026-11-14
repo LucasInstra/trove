@@ -34,6 +34,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
   const { t } = useLanguage();
   const [filter, setFilter] = useState<"all" | "overdue" | "ontime">("all");
   const [scope, setScope] = useState<"all" | "personal" | "house">("all");
+  const [moreFilters, setMoreFilters] = useState(false);
   const total = plan.plannedCents;
   const paidCount = plan.paidBillIds.length;
   const count = plan.dueBills.length;
@@ -117,31 +118,37 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
               </button>
             ))}
           </div>
-          <div className="segmented" role="group" aria-label={t("planner.scope")}>
-            {(
-              [
-                { id: "all", key: "planner.scopeAll" },
-                { id: "personal", key: "planner.scopePersonal" },
-                { id: "house", key: "planner.scopeHouse" },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={scope === option.id ? "active" : undefined}
-                aria-pressed={scope === option.id}
-                onClick={() => setScope(option.id)}
-              >
-                {t(option.key)}
-              </button>
-            ))}
+          <button
+            type="button"
+            className={moreFilters || scope !== "all" ? "more-filters active" : "more-filters"}
+            aria-expanded={moreFilters}
+            onClick={() => setMoreFilters((open) => !open)}
+          >
+            {t("planner.moreFilters")}
+          </button>
           </div>
-          </div>
-        </>
-      ) : null}
-
-      {visibleGroups.length > 0 ? (
-        <div className="day-pills" role="list">
+          {moreFilters ? (
+            <div className="bills-more">
+            <div className="segmented" role="group" aria-label={t("planner.scope")}>
+              {(
+                [
+                  { id: "all", key: "planner.scopeAll" },
+                  { id: "personal", key: "planner.scopePersonal" },
+                  { id: "house", key: "planner.scopeHouse" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={scope === option.id ? "active" : undefined}
+                  aria-pressed={scope === option.id}
+                  onClick={() => setScope(option.id)}
+                >
+                  {t(option.key)}
+                </button>
+              ))}
+            </div>
+              <div className="day-pills" role="list">
           {visibleGroups.map((group) => (
             <span
               key={group.day}
@@ -155,7 +162,11 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
             </span>
           ))}
         </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
+
 
       {count === 0 ? (
         <button type="button" className="empty-add" onClick={onAdd}>

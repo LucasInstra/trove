@@ -20,7 +20,7 @@ h1,
   font-family: var(--ff-display);
   font-size: 26px;
   line-height: 30px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--tracking-display);
 }
 
@@ -33,7 +33,7 @@ h3 {
 .card-title h2,
 .card-with-art .card-title h2 {
   font-family: var(--ff-sans);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 22px;
   font-weight: 600;
 }
@@ -55,14 +55,14 @@ h3 {
 /* The one big number of a screen: display face, tight tracking, small cents. */
 .money-hero {
   font-family: var(--ff-display);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--tracking-display);
   line-height: 48px;
 }
 
 .money-hero,
 .account-value.money-hero {
-  font-size: 46px;
+  font-size: 40px;
 }
 
 .net-worth-hero {
@@ -73,13 +73,13 @@ h3 {
 
 .money-hero .money-cents {
   font-family: var(--ff-sans);
-  font-size: 0.62em;
+  font-size: 0.55em;
   font-weight: 500;
   letter-spacing: 0;
 }
 
 .money-cents {
-  font-size: 0.62em;
+  font-size: 0.55em;
   font-weight: 500;
 }
 
@@ -180,7 +180,7 @@ h3 {
 }
 
 .metric-value {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 650;
 }
 
@@ -264,10 +264,10 @@ button.primary:hover:not(:disabled),
 .titlebar-mark {
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: var(--ff-display);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .titlebar-drag {
@@ -410,7 +410,7 @@ button.primary:hover:not(:disabled),
   bottom: 8px;
   left: 8px;
   font-family: var(--ff-hand);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 16px;
   color: #2b2b2b;
   text-align: center;
@@ -756,7 +756,7 @@ input[type="month"]:focus-visible,
 
 .onboarding h1 {
   margin: 8px 0 12px;
-  font-size: 46px;
+  font-size: 40px;
   line-height: 48px;
   color: inherit;
 }
@@ -834,7 +834,7 @@ input[type="month"]:focus-visible,
   justify-content: space-between;
   margin-bottom: 8px;
   font-family: var(--ff-display);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .month-pop-grid {
@@ -898,4 +898,190 @@ input[type="month"]:focus-visible,
 
 .spark-down path {
   stroke: var(--chart-out);
+}
+
+/* ---- Visual system pass: one card anatomy, one scale -------------------- */
+
+/* Card: 20 px padding, a 44 px head, meta aligned right. The lead card gets 24. */
+.card {
+  padding: 20px;
+}
+
+.anchor-card,
+.card.hero {
+  padding: 24px;
+}
+
+.card-head {
+  min-height: 44px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.card-head h2,
+.card-title h2 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.card-head > .muted,
+.card-head > span.muted {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.card-title .icon-bubble img,
+.card-title .icon-bubble svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Hover: the border darkens and the card rises 1 px. Dark cards never cast a shadow. */
+.card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .account-card,
+[data-theme="dark"] .entity-card,
+[data-theme="dark"] .planner-metrics {
+  box-shadow: none;
+}
+
+/* Money: tabular figures, cents quiet. */
+.money,
+.money-hero,
+.account-value,
+.kpi-value,
+.recent-amount,
+.composition-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.money-cents {
+  color: var(--muted);
+}
+
+/* The month is a title, not a link. */
+.floating-bar .brush-stroke {
+  display: none;
+}
+
+/* Navigation icons share one size. */
+.sidebar-nav svg,
+.nav-item svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Lists: ellipsis name, right-aligned value column. */
+.recent-row {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+}
+
+.recent-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-amount {
+  min-width: 88px;
+  text-align: right;
+}
+
+.card-link {
+  align-self: flex-start;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.card-link:hover {
+  text-decoration: underline;
+}
+
+/* One visible filter per card; the rest lives behind "More filters". */
+.bills-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bills-more {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.more-filters {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.more-filters.active {
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+/* Charts: 2 px round line, light area, dashed horizontal grid, fixed height. */
+.chart-line,
+.spark .spark-line,
+.spark path.spark-line {
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-grid {
+  stroke-dasharray: 3 4;
+  stroke-opacity: 0.5;
+}
+
+.overview-chart .flow-bars {
+  flex: none;
+  height: 168px;
+  min-height: 0;
+}
+
+.recent-row .dot {
+  justify-self: center;
+}
+
+.bills-filters .segmented {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bills-filters .segmented button {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The pale end of the ramp needs an edge to read on a white card. */
+.dot,
+.composition-dot,
+.chart-swatch,
+.flow-swatch {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.account-delta .delta-line {
+  white-space: nowrap;
 }

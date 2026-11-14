@@ -123,6 +123,7 @@ interface OverviewProps {
   rows: TransactionRow[];
   month: string;
   onSelectMonth: (month: string) => void;
+  onOpenLedger: () => void;
   onToggleBill: (billId: number, paid: boolean) => void;
   onAddBill: () => void;
   onEditBill: (bill: Bill) => void;
@@ -166,6 +167,7 @@ export function OverviewScreen({
   rows,
   month,
   onSelectMonth,
+  onOpenLedger,
   onToggleBill,
   onAddBill,
   onEditBill,
@@ -220,10 +222,12 @@ export function OverviewScreen({
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
   // Biggest first, and the tail becomes one slice: a legend of twelve rows is a
   // list, not a chart. A wider card has room for more rows.
-  const legendLimit = spanOf("donut") >= 2 ? 10 : 6;
+  const legendLimit = 5;
   const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
-  const topCategories = ranked.slice(0, legendLimit);
-  const restCents = ranked.slice(legendLimit).reduce((total, item) => total + item.totalCents, 0);
+  // Over five, the legend keeps four rows and one "Other": five lines at most.
+  const keep = ranked.length > legendLimit ? legendLimit - 1 : legendLimit;
+  const topCategories = ranked.slice(0, keep);
+  const restCents = ranked.slice(keep).reduce((total, item) => total + item.totalCents, 0);
   const donutSlices =
     ranked.length > legendLimit
       ? [
@@ -254,8 +258,8 @@ export function OverviewScreen({
   );
 
   // The ledger arrives newest first; sort defensively and keep the head. The
-  // narrow card shows six entries, the wide one ten.
-  const recentLimit = spanOf("recent") >= 2 ? 10 : 6;
+  // card shows four entries and a link to the rest.
+  const recentLimit = 4;
   const recent = [...rows]
     .sort((left, right) =>
       left.postedOn === right.postedOn ? right.id - left.id : left.postedOn < right.postedOn ? 1 : -1,
@@ -792,6 +796,11 @@ export function OverviewScreen({
             ))}
           </ul>
         )}
+        {recent.length > 0 ? (
+          <button type="button" className="card-link" onClick={onOpenLedger}>
+            {t("overview.recentAll")}
+          </button>
+        ) : null}
       </article>
     ),
   };

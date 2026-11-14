@@ -27,7 +27,7 @@
 
 .chart-tick {
   fill: var(--faint);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .chart-legend {

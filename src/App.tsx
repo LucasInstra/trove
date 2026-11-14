@@ -101,7 +101,7 @@ import {
 import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
 import { Onboarding } from "./components/Onboarding";
-import { vivid } from "./lib/color";
+import { rampOf } from "./lib/color";
 
 type Route =
   | "overview"
@@ -337,16 +337,17 @@ export function App() {
           api.getSetting("dashboard_layout").catch(() => null),
           api.transactions("", at, null, 10, null).catch(() => []),
         ]);
+        const ramp = rampOf(nextCategories.map((category) => category.color));
         const tone = (row: TransactionRow): TransactionRow =>
-          row.categoryColor ? { ...row, categoryColor: vivid(row.categoryColor) } : row;
+          row.categoryColor ? { ...row, categoryColor: ramp(row.categoryColor) } : row;
         setRows(nextRows.map(tone));
         setRecentRows(nextRecent.map(tone));
         setAccounts(nextAccounts);
-        setCategories(nextCategories.map((category) => ({ ...category, color: vivid(category.color) })));
+        setCategories(nextCategories.map((category) => ({ ...category, color: ramp(category.color) })));
         setTotals(nextTotals);
-        setByCategory(nextByCategory.map((entry) => ({ ...entry, color: vivid(entry.color) })));
+        setByCategory(nextByCategory.map((entry) => ({ ...entry, color: ramp(entry.color) })));
         setSeries(nextSeries);
-        setMatrix(nextMatrix.map((entry) => ({ ...entry, color: vivid(entry.color) })));
+        setMatrix(nextMatrix.map((entry) => ({ ...entry, color: ramp(entry.color) })));
         setPlanner(nextPlanner);
         setBudgetStatus(nextBudgetStatus);
         setRecurrence(nextHistory);
@@ -742,7 +743,7 @@ export function App() {
         title={sidebarCollapsed ? label : undefined}
         aria-label={sidebarCollapsed ? label : undefined}
       >
-        <Icon name={item.icon} size={17} />
+        <Icon name={item.icon} size={18} />
         <span className="sidebar-label">{label}</span>
       </SidebarItem>
     );
@@ -886,6 +887,7 @@ export function App() {
                 rows={recentRows}
                 month={month ?? currentMonth()}
                 onSelectMonth={setMonth}
+                onOpenLedger={() => setRoute("transactions")}
                 onToggleBill={(id, paid) => void toggleBill(id, paid)}
                 onAddBill={() => setDialog({ kind: "bill", bill: null })}
                 onEditBill={(bill) => setDialog({ kind: "bill", bill })}
@@ -1192,14 +1194,14 @@ export function App() {
           ...MENU.map((item) => ({
             key: item.route,
             label: t(`nav.${item.route}`),
-            icon: <Icon name={item.icon} size={19} />,
+            icon: <Icon name={item.icon} size={18} />,
             active: route === item.route,
             onSelect: () => setRoute(item.route),
           })),
           {
             key: "settings",
             label: t("nav.settings"),
-            icon: <Icon name="settings" size={19} />,
+            icon: <Icon name="settings" size={18} />,
             active: route === "settings",
             onSelect: () => setRoute("settings"),
           },

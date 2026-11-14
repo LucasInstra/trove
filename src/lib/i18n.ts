@@ -730,6 +730,8 @@ const en: Dictionary = {
   "overview.inout": "Income vs spending",
   "overview.recent": "Latest transactions",
   "overview.recentEmpty": "No entries in this month.",
+  "overview.recentAll": "See all",
+  "planner.moreFilters": "More filters",
 
   "kpi.title": "Month at a glance",
   "kpi.income": "Income",
@@ -1464,6 +1466,8 @@ const pt: Dictionary = {
   "overview.inout": "Receitas vs gastos",
   "overview.recent": "Últimas transações",
   "overview.recentEmpty": "Nenhum lançamento neste mês.",
+  "overview.recentAll": "Ver todas",
+  "planner.moreFilters": "Mais filtros",
 
   "kpi.title": "Resumo do mês",
   "kpi.income": "Entradas",
