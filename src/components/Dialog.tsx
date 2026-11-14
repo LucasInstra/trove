@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useLanguage } from "../lib/language";
 
 const EXIT_MS = 140;
 
@@ -13,6 +14,7 @@ interface DialogProps {
  * focus goes back where it came from.
  */
 export function Dialog({ title, onClose, children }: DialogProps) {
+  const { t } = useLanguage();
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -86,7 +88,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       >
         <header className="dialog-head">
           <h2>{title}</h2>
-          <button type="button" className="icon-button" onClick={requestClose} aria-label="Close">
+          <button type="button" className="icon-button" onClick={requestClose} aria-label={t("common.close")}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="m6 6 12 12M18 6 6 18" />
             </svg>

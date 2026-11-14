@@ -88,6 +88,7 @@ import {
   moveCardTo,
   parseLayout,
   setSpan,
+  setHeight,
   serializeLayout,
   setMode,
   type CardId,
@@ -203,6 +204,7 @@ export function App() {
   const [splitSettled, setSplitSettled] = useState(false);
   const [trackSettlement, setTrackSettlement] = useState(true);
   const [layout, setLayout] = useState<LayoutCard[]>(() => parseLayout(null));
+  const layoutLoaded = useRef(false);
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
@@ -341,7 +343,10 @@ export function App() {
         setHousingScope(scope === "total" ? "total" : "primary");
         setSplitSettled(settled === "1");
         setTrackSettlement(track !== "0");
-        setLayout(parseLayout(storedLayout));
+        if (!layoutLoaded.current) {
+          layoutLoaded.current = true;
+          setLayout(parseLayout(storedLayout));
+        }
         setError("");
       } catch (problem) {
         setError(problem instanceof Error ? problem.message : String(problem));
@@ -476,6 +481,7 @@ export function App() {
   };
 
   const saveLayout = (next: LayoutCard[]) => {
+    layoutLoaded.current = true;
     setLayout(next);
     void api.setSetting("dashboard_layout", serializeLayout(next));
   };
@@ -873,6 +879,9 @@ export function App() {
                 }}
                 onLayoutResize={(id: CardId, span: Span) => {
                   saveLayout(setSpan(layout, id, span));
+                }}
+                onLayoutHeight={(id: CardId, height: number | null) => {
+                  saveLayout(setHeight(layout, id, height));
                 }}
                 onLayoutSpan={(id: CardId, span: number) => {
                   saveLayout(setSpan(layout, id, span));

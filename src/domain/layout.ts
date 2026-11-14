@@ -67,10 +67,47 @@ export function spanOptions(id: CardId): Span[] {
 export const CARD_MODES = ["hidden", "full", "mini"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
+/** Cards whose content is a list or a chart can be made taller or shorter by hand. */
+export const HEIGHT_CARDS: readonly CardId[] = [
+  "bills",
+  "recent",
+  "series",
+  "inout",
+  "donut",
+  "goals",
+  "cards",
+  "installments",
+  "debts",
+  "kpis",
+];
+export const MIN_CARD_HEIGHT = 200;
+export const MAX_CARD_HEIGHT = 1200;
+
 export interface LayoutCard {
   id: CardId;
   span: Span;
   mode: CardMode;
+  /** Height in pixels chosen by the user; absent means the card sizes to its content. */
+  height?: number;
+}
+
+/** A stored height is kept only for cards that can be resized, and clamped to a sane range. */
+export function clampHeight(id: CardId, value: unknown): number | undefined {
+  if (!HEIGHT_CARDS.includes(id)) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
+  return Math.min(MAX_CARD_HEIGHT, Math.max(MIN_CARD_HEIGHT, Math.round(value)));
+}
+
+/** Sets the height of one card; null puts it back to sizing by content. */
+export function setHeight(layout: LayoutCard[], id: CardId, height: number | null): LayoutCard[] {
+  const next = height === null ? undefined : clampHeight(id, height);
+  if (!layout.some((entry) => entry.id === id && entry.height !== next)) return layout;
+  return layout.map((entry) => {
+    if (entry.id !== id) return entry;
+    const { height: _previous, ...rest } = entry;
+    void _previous;
+    return next === undefined ? rest : { ...rest, height: next };
+  });
 }
 
 /**
@@ -155,12 +192,13 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
     const id = typeof entry === "object" && entry !== null ? (entry as { id?: unknown }).id : null;
     if (!isCardId(id) || seen.has(id)) continue;
     seen.add(id);
-    // A height saved by an older version is dropped: cards size to their content.
-    const card = entry as { span?: unknown; mode?: unknown; collapsed?: unknown };
+    const card = entry as { span?: unknown; mode?: unknown; collapsed?: unknown; height?: unknown };
+    const height = clampHeight(id, card.height);
     layout.push({
       id,
       span: clampSpanFor(id, card.span, defaultSpan(id)),
       mode: modeOf(card),
+      ...(height === undefined ? {} : { height }),
     });
   }
 
@@ -212,6 +250,6 @@ export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): Layou
 
 export function serializeLayout(layout: LayoutCard[]): string {
   return JSON.stringify(
-    layout.map(({ id, span, mode }) => ({ id, span, mode })),
+    layout.map(({ id, span, mode, height }) => ({ id, span, mode, ...(height ? { height } : {}) })),
   );
 }

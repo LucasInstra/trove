@@ -272,3 +272,59 @@ select.payer-select:hover {
 .spend-bars[data-focus] .bar-segment:not(.is-on) {
   opacity: 0.5;
 }
+
+/* Cards with a height of their own: the card fills the cell and scrolls inside it. */
+.grid-cell.has-height > :is(article, .card, .account-card) {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cell-resize-handle.is-bottom {
+  left: 12px;
+  right: 12px;
+  bottom: -9px;
+  top: auto;
+  width: auto;
+  height: 18px;
+  transform: none;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  cursor: ns-resize;
+}
+
+.cell-resize-handle.is-bottom::after {
+  content: "";
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-strong);
+  transition: background-color 140ms var(--ease-out);
+}
+
+.cell-resize-handle.is-bottom:hover::after,
+.grid-cell.is-resizing .cell-resize-handle.is-bottom::after {
+  background: var(--primary);
+}
+
+/* Month summary: tiles start at the top of the card instead of floating in the middle. */
+.kpi-grid {
+  align-content: start;
+}
+
+/* PF Score: label, bar and value share one line. */
+.score-parts li {
+  grid-template-columns: 64px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+}
+.score-parts li > span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Goals: the action buttons sit together on the right edge. */
+.entity-title-row > div + .entity-edit {
+  margin-left: auto;
+}

@@ -10,8 +10,7 @@ import {
   setMode,
   setSpan,
   spanOptions,
-  type LayoutCard,
-} from "./layout";
+  type LayoutCard, setHeight, clampHeight, parseLayout as parseForHeight, serializeLayout as serializeForHeight } from "./layout";
 
 describe("parseLayout", () => {
   it("falls back to the default for nothing, garbage or a non array", () => {
@@ -264,20 +263,37 @@ describe("card widths", () => {
 });
 
 describe("saved heights", () => {
-  it("drops a height saved by an older version and never writes one", () => {
-    const legacy = parseLayout(JSON.stringify([{ id: "bills", span: 2, mode: "full", height: 320 }]));
-    expect(legacy.find((entry) => entry.id === "bills")).toEqual({ id: "bills", span: 2, mode: "full" });
-    expect(serializeLayout(legacy)).not.toContain("height");
+  it("keeps a saved height, clamped, and ignores one on a card that cannot be resized", () => {
+    const stored = parseLayout(
+      JSON.stringify([
+        { id: "bills", span: 2, mode: "full", height: 320 },
+        { id: "forecast", span: 1, mode: "full", height: 320 },
+      ]),
+    );
+    expect(stored.find((entry) => entry.id === "bills")).toEqual({ id: "bills", span: 2, mode: "full", height: 320 });
+    expect(stored.find((entry) => entry.id === "forecast")).toEqual({ id: "forecast", span: 1, mode: "full" });
   });
 });
 
-describe("serializeLayout", () => {
-  it("round trips through parse", () => {
-    const layout = setMode(
-      setSpan(moveCardTo(DEFAULT_LAYOUT, "cards", "forecast"), "cards", 3),
-      "cards",
-      "mini",
-    );
-    expect(parseLayout(serializeLayout(layout))).toEqual(layout);
+describe("card height", () => {
+  it("keeps a height only for cards that can be resized, within range", () => {
+    expect(clampHeight("bills", 50)).toBe(200);
+    expect(clampHeight("bills", 5000)).toBe(1200);
+    expect(clampHeight("bills", 333.4)).toBe(333);
+    expect(clampHeight("forecast", 400)).toBeUndefined();
+    expect(clampHeight("bills", "tall")).toBeUndefined();
+  });
+
+  it("sets, saves and clears a height", () => {
+    const base = parseForHeight(null);
+    const tall = setHeight(base, "bills", 420);
+    expect(tall.find((card) => card.id === "bills")?.height).toBe(420);
+    const stored = serializeForHeight(tall);
+    expect(parseForHeight(stored).find((card) => card.id === "bills")?.height).toBe(420);
+    expect(JSON.parse(stored).find((card: { id: string }) => card.id === "recent").height).toBeUndefined();
+    const cleared = setHeight(tall, "bills", null);
+    expect(cleared.find((card) => card.id === "bills")?.height).toBeUndefined();
+    expect(setHeight(base, "forecast", 400)).toBe(base);
   });
 });
+

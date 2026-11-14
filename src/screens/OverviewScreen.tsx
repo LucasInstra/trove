@@ -15,6 +15,10 @@ import {
   isCardAvailable,
   moveCardTo,
   setSpan,
+  setHeight,
+  HEIGHT_CARDS,
+  MIN_CARD_HEIGHT,
+  MAX_CARD_HEIGHT,
   nextMode,
   CARD_SPANS,
   spanOptions,
@@ -125,6 +129,7 @@ interface OverviewProps {
   layoutEditing: boolean;
   onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
   onLayoutResize: (id: CardId, span: Span) => void;
+  onLayoutHeight: (id: CardId, height: number | null) => void;
   onLayoutSpan: (id: CardId, span: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
   onLayoutReset: () => void;
@@ -168,6 +173,7 @@ export function OverviewScreen({
   layoutEditing,
   onLayoutMoveTo,
   onLayoutResize,
+  onLayoutHeight,
   onLayoutSpan,
   onLayoutMode,
   onLayoutReset,
@@ -952,6 +958,41 @@ export function OverviewScreen({
     setPreview(null);
   };
 
+  // The bottom edge sets a height in pixels; a double click puts the card back to its content.
+  const heightDrag = useRef<{ id: CardId; pointerId: number; startY: number; startHeight: number; height: number } | null>(null);
+
+  const beginHeight = (event: React.PointerEvent<HTMLButtonElement>, id: CardId) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const cell = event.currentTarget.closest<HTMLElement>("[data-card]");
+    if (!cell) return;
+    const startHeight = cell.getBoundingClientRect().height;
+    heightDrag.current = { id, pointerId: event.pointerId, startY: event.clientY, startHeight, height: startHeight };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResizingId(id);
+  };
+
+  const moveHeight = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const state = heightDrag.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const height = Math.min(MAX_CARD_HEIGHT, Math.max(MIN_CARD_HEIGHT, state.startHeight + event.clientY - state.startY));
+    if (Math.round(height) === Math.round(state.height)) return;
+    state.height = height;
+    setPreview(setHeight(layout, state.id, height));
+  };
+
+  const endHeight = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const state = heightDrag.current;
+    heightDrag.current = null;
+    if (!state || state.pointerId !== event.pointerId) return;
+    if (Math.round(state.height) !== Math.round(state.startHeight)) onLayoutHeight(state.id, Math.round(state.height));
+    setResizingId(null);
+    setPreview(null);
+  };
+
   const cancelResize = () => {
     resize.current = null;
     setResizingId(null);
@@ -1081,6 +1122,7 @@ export function OverviewScreen({
             dragId === item.id ? "is-dragging" : "",
             resizingId === item.id ? "is-resizing" : "",
             dropId === item.id ? "is-drop-target" : "",
+            item.height && !chip ? "has-height" : "",
           ]
             .filter(Boolean)
             .join(" ");
@@ -1088,6 +1130,7 @@ export function OverviewScreen({
           <div
             key={item.id}
             className={cellClass}
+            style={item.height && !chip ? { height: item.height } : undefined}
             data-card={item.id}
             onPointerDown={(event) => {
               // The webview hands system drags to Rust, so HTML5 drag events
@@ -1243,6 +1286,23 @@ export function OverviewScreen({
                   <Icon name="x" size={13} />
                 </button>
               </div>
+            ) : null}
+            {layoutEditing && !chip && HEIGHT_CARDS.includes(item.id) ? (
+              <button
+                type="button"
+                className="cell-resize-handle is-bottom"
+                aria-label={t("layout.resizeHeight", { name: cardName(item.id) })}
+                title={t("layout.resizeHeightHint")}
+                onPointerDown={(event) => beginHeight(event, item.id)}
+                onPointerMove={moveHeight}
+                onPointerUp={endHeight}
+                onPointerCancel={() => {
+                  heightDrag.current = null;
+                  setResizingId(null);
+                  setPreview(null);
+                }}
+                onDoubleClick={() => onLayoutHeight(item.id, null)}
+              />
             ) : null}
             {layoutEditing && !chip && spanOptions(item.id).length > 1 ? (
               <button

@@ -423,7 +423,7 @@ export function TransactionsPanel({
                             event.target.value === "" ? null : Number(event.target.value),
                           )
                         }
-                        aria-label="Category"
+                        aria-label={t("ledger.category")}
                       >
                         <option value="">{t("ledger.noCategory")}</option>
                         {categories.map((category) => (
