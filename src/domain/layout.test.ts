@@ -4,7 +4,7 @@ import {
   DEFAULT_LAYOUT,
   isCardAvailable,
   moveCardTo,
-  nextMode,
+  resetCard,
   parseLayout,
   serializeLayout,
   setMode,
@@ -61,7 +61,7 @@ describe("parseLayout", () => {
     expect(layout.find((entry) => entry.id === "goals")?.mode).toBe("full");
   });
 
-  it("reads the old collapsed flag as the smallest step", () => {
+  it("shows a card whole when an old layout had it collapsed or minimised", () => {
     const layout = parseLayout(
       JSON.stringify([
         { id: "bills", span: 1, collapsed: true },
@@ -70,15 +70,15 @@ describe("parseLayout", () => {
         { id: "goals", span: 1, collapsed: null },
       ]),
     );
-    expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("mini");
+    expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "cards")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "housing")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "goals")?.mode).toBe("full");
   });
 
-  it("prefers an explicit mode over the old flag", () => {
-    const layout = parseLayout(JSON.stringify([{ id: "bills", span: 1, mode: "mini", collapsed: true }]));
-    expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("mini");
+  it("reads a stored mini mode as a full card", () => {
+    const layout = parseLayout(JSON.stringify([{ id: "bills", span: 1, mode: "mini" }]));
+    expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("full");
   });
 
   it("always returns every card exactly once", () => {
@@ -126,10 +126,14 @@ describe("moveCardTo", () => {
   });
 });
 
-describe("nextMode", () => {
-  it("walks full, mini and back", () => {
-    expect(nextMode("full")).toBe("mini");
-    expect(nextMode("mini")).toBe("full");
+describe("resetCard", () => {
+  it("puts one card back to its default width and height, keeping place and visibility", () => {
+    const edited = setHeight(setSpan(parseLayout(null), "bills", 1), "bills", 400);
+    const moved = moveCardTo(edited, "bills", "kpis");
+    const back = resetCard(moved, "bills");
+    const bills = back.find((entry) => entry.id === "bills");
+    expect(bills).toEqual({ id: "bills", span: 2, mode: "full" });
+    expect(back.map((entry) => entry.id)).toEqual(moved.map((entry) => entry.id));
   });
 });
 
@@ -171,7 +175,7 @@ describe("hidden cards", () => {
   });
 
   it("round trips a shelf of hidden cards", () => {
-    const layout = setMode(setMode(parseLayout(null), "split", "hidden"), "housing", "mini");
+    const layout = setMode(setMode(parseLayout(null), "split", "hidden"), "housing", "hidden");
     expect(parseLayout(serializeLayout(layout))).toEqual(layout);
   });
 });
@@ -179,25 +183,25 @@ describe("hidden cards", () => {
 describe("setMode", () => {
   it("changes only the selected card without mutating the layout", () => {
     const layout = parseLayout(null);
-    const next = setMode(layout, "bills", "mini");
+    const next = setMode(layout, "bills", "hidden");
     expect(next).not.toBe(layout);
-    expect(next.find((entry) => entry.id === "bills")?.mode).toBe("mini");
+    expect(next.find((entry) => entry.id === "bills")?.mode).toBe("hidden");
     expect(next.find((entry) => entry.id === "forecast")?.mode).toBe("full");
     expect(layout.find((entry) => entry.id === "bills")?.mode).toBe("full");
     expect(setMode(next, "bills", "full").find((entry) => entry.id === "bills")?.mode).toBe("full");
   });
 
   it("keeps the width when the display mode changes", () => {
-    const smallest = setMode(setSpan(parseLayout(null), "bills", 2), "bills", "mini");
+    const smallest = setMode(setSpan(parseLayout(null), "bills", 2), "bills", "hidden");
     const bills = smallest.find((entry) => entry.id === "bills");
 
-    expect(bills?.mode).toBe("mini");
+    expect(bills?.mode).toBe("hidden");
     expect(bills?.span).toBe(2);
   });
 
   it("leaves an unknown card alone and keeps the same array", () => {
     const layout = parseLayout(null);
-    expect(setMode(layout, "ghost" as LayoutCard["id"], "mini")).toBe(layout);
+    expect(setMode(layout, "ghost" as LayoutCard["id"], "hidden")).toBe(layout);
     expect(setMode(layout, "bills", "full")).toBe(layout);
   });
 
@@ -254,11 +258,11 @@ describe("spanOptions", () => {
 
 describe("card widths", () => {
   it("only lets a card grow where it has more to show", () => {
-    for (const id of ["forecast", "installments", "debts", "split", "score"] as const) {
+    for (const id of ["installments", "debts", "split", "score"] as const) {
       expect(spanOptions(id)).toEqual([1]);
     }
     expect(spanOptions("cards")).toEqual([1, 2, 3]);
-    expect(parseLayout(JSON.stringify([{ id: "forecast", span: 3 }]))[0].span).toBe(1);
+    expect(parseLayout(JSON.stringify([{ id: "score", span: 3 }]))[0].span).toBe(1);
   });
 });
 

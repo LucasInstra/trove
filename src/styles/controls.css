@@ -309,7 +309,7 @@ select.payer-select:hover {
 }
 
 /* Month summary: tiles start at the top of the card instead of floating in the middle. */
-.kpi-grid {
+.card > .kpi-grid {
   align-content: start;
 }
 
@@ -348,4 +348,11 @@ body.is-layout-resizing, body.is-layout-resizing * {
   user-select: none;
   -webkit-user-select: none;
   cursor: ns-resize;
+}
+
+/* The soft glow on these cards hangs past the bottom edge; inside a scrolling card
+   it would add an empty stretch to scroll through, so it is dropped there. */
+.grid-cell.has-height > :is(.account-card, .card, article)::after,
+.grid-cell.has-height > :is(.account-card, .card, article)::before {
+  display: none;
 }

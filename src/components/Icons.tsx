@@ -39,9 +39,16 @@ export type IconName =
   | "pencil"
   | "trash"
   | "tag"
-  | "minus";
+  | "minus"
+  | "reset";
 
 const ICONS: Record<IconName, ReactNode> = {
+  reset: (
+    <>
+      <path d="M4 12a8 8 0 1 0 2.5-5.8" />
+      <path d="M4 4v4.5h4.5" />
+    </>
+  ),
   ledger: (
     <>
       <path d="M4 6h16" />

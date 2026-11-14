@@ -91,6 +91,7 @@ import {
   setHeight,
   serializeLayout,
   setMode,
+  resetCard,
   type CardId,
   type CardMode,
   type LayoutCard,
@@ -886,6 +887,7 @@ export function App() {
                 onLayoutSpan={(id: CardId, span: number) => {
                   saveLayout(setSpan(layout, id, span));
                 }}
+                onLayoutResetCard={(id: CardId) => saveLayout(resetCard(layout, id))}
                 onLayoutMode={(id: CardId, mode: CardMode) => {
                   saveLayout(setMode(layout, id, mode));
                 }}

@@ -43,7 +43,7 @@ export type Span = 1 | 2 | 3;
  */
 export const CARD_SPANS: Record<CardId, { min: Span; max: Span }> = {
   kpis: { min: 1, max: 3 },
-  forecast: { min: 1, max: 1 },
+  forecast: { min: 1, max: 3 },
   bills: { min: 1, max: 2 },
   inout: { min: 1, max: 3 },
   recent: { min: 1, max: 2 },
@@ -63,8 +63,8 @@ export function spanOptions(id: CardId): Span[] {
   return Array.from({ length: max - min + 1 }, (_, offset) => (min + offset) as Span);
 }
 
-/** Off the dashboard, the full card, or the one-chip summary. */
-export const CARD_MODES = ["hidden", "full", "mini"] as const;
+/** Off the dashboard, or on it. */
+export const CARD_MODES = ["hidden", "full"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
 /** Cards whose content is a list or a chart can be made taller or shorter by hand. */
@@ -170,9 +170,7 @@ function modeOf(entry: { mode?: unknown; collapsed?: unknown }): CardMode {
   if (isMode(entry.mode)) return entry.mode;
   // The lean card was folded into the one-column width, which says the same.
   if (entry.mode === "reduced") return "full";
-  // An older layout only stored whether the card was collapsed, and the step
-  // between full and the one-line chip no longer exists.
-  if (entry.collapsed === true) return "mini";
+  // A one-line chip (or a collapsed card) no longer exists: the card is shown whole.
   return "full";
 }
 
@@ -238,9 +236,15 @@ export function setSpan(layout: LayoutCard[], id: CardId, span: number): LayoutC
   return layout.map((entry) => (entry.id === id ? { ...entry, span: next } : entry));
 }
 
-/** The step a card takes when its size control is pressed. */
-export function nextMode(mode: CardMode): CardMode {
-  return mode === "full" ? "mini" : "full";
+/** Puts one card back to its default width and to sizing by its content; its place and visibility stay. */
+export function resetCard(layout: LayoutCard[], id: CardId): LayoutCard[] {
+  const span = defaultSpan(id);
+  return layout.map((entry) => {
+    if (entry.id !== id) return entry;
+    const { height: _height, ...rest } = entry;
+    void _height;
+    return { ...rest, span };
+  });
 }
 
 export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {

@@ -3,7 +3,7 @@ import { CompositionBar } from "../components/CompositionBar";
 import { BreakdownBar } from "../components/BreakdownBar";
 import { BalanceLine } from "../components/charts/BalanceLine";
 import { Icon3D } from "../components/Icon3D";
-import { Icon, type IconName } from "../components/Icons";
+import { Icon } from "../components/Icons";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
 import { KpisCard } from "../components/KpiCards";
@@ -19,7 +19,6 @@ import {
   HEIGHT_CARDS,
   MIN_CARD_HEIGHT,
   MAX_CARD_HEIGHT,
-  nextMode,
   CARD_SPANS,
   spanOptions,
   type CardId,
@@ -28,9 +27,7 @@ import {
   type Span,
 } from "../domain/layout";
 import type { MonthPlan } from "../domain/projection";
-import { computeScore } from "../domain/score";
-import { computeSplit } from "../domain/split";
-import { formatCents, formatDate, monthLabel, monthShort, shiftMonth, todayIso } from "../lib/format";
+import { formatCents, formatDate, monthLabel, monthShort, shiftMonth } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 import type {
@@ -132,6 +129,7 @@ interface OverviewProps {
   onLayoutHeight: (id: CardId, height: number | null) => void;
   onLayoutSpan: (id: CardId, span: number) => void;
   onLayoutMode: (id: CardId, mode: CardMode) => void;
+  onLayoutResetCard: (id: CardId) => void;
   onLayoutReset: () => void;
   onLayoutDone: () => void;
   onEditIncome: () => void;
@@ -177,6 +175,7 @@ export function OverviewScreen({
   onLayoutSpan,
   onLayoutMode,
   onLayoutReset,
+  onLayoutResetCard,
   onLayoutDone,
 }: OverviewProps) {
   const { lang, t } = useLanguage();
@@ -231,8 +230,6 @@ export function OverviewScreen({
     ...inoutMonths.map((point) => Math.max(point.incomeCents, point.expenseCents)),
     1,
   );
-  const currentPoint = series.find((point) => point.month === month);
-  const inoutNet = (currentPoint?.incomeCents ?? 0) - (currentPoint?.expenseCents ?? 0);
 
   // The ledger arrives newest first; sort defensively and keep the head. The
   // narrow card shows six entries, the wide one ten.
@@ -251,7 +248,7 @@ export function OverviewScreen({
   );
   // A card with its own height leaves a hole in its row, so the grid packs the
   // cards by measured height and the ones below move up into the hole.
-  const packed = visible.some((item) => item.height && item.mode !== "mini");
+  const packed = visible.some((item) => item.height);
   const shelved = layout.filter(
     (item) => item.mode === "hidden" && isCardAvailable(item.id, cardContext),
   );
@@ -340,106 +337,6 @@ export function OverviewScreen({
       inout: t("overview.inout"),
       recent: t("overview.recent"),
     })[id];
-
-  const collapsedFigure = (id: CardId): ReactNode => {
-    switch (id) {
-      case "kpis":
-        return formatCents(plan.forecastCents);
-      case "forecast":
-        return formatCents(plan.forecastCents);
-      case "bills":
-        return formatCents(plan.plannedCents);
-      case "cards":
-        return formatCents(cards[0]?.usageCents ?? 0);
-      case "housing":
-        return formatCents(plan.housingCents);
-      case "goals": {
-        const firstGoal = plan.goals[0];
-        return firstGoal
-          ? t("planner.goalProgress", { percent: Math.round(firstGoal.sharePct) })
-          : t("layout.goalCount", { count: 0 });
-      }
-      case "split":
-        return formatCents(computeSplit(people, shares, plan.dueBills).settlementCents);
-      case "donut": {
-        return formatCents(spending);
-      }
-      case "series":
-        return formatCents(series.find((point) => point.month === month)?.expenseCents ?? 0);
-      case "installments":
-        return formatCents(
-          plan.dueBills
-            .filter((bill) => (bill.installmentsTotal ?? 0) >= 1)
-            .reduce((sum, bill) => sum + bill.amountCents, 0),
-        );
-      case "debts":
-        return formatCents(
-          debts.filter((debt) => !debt.settledOn).reduce((sum, debt) => sum + debt.amountCents, 0),
-        );
-      case "score":
-        return `${computeScore(plan).total}/100`;
-      case "inout":
-        return formatCents(inoutNet);
-      case "recent":
-        return t("overview.recentCount", { count: recent.length });
-    }
-  };
-
-  // The second line of a minimised card: one fact that is useful next to the
-  // figure. A card with nothing to add returns null instead of repeating itself.
-  const collapsedDetail = (id: CardId): string | null => {
-    switch (id) {
-      case "kpis":
-        return `${t("overview.income")} ${formatCents(plan.incomeCents)}`;
-      case "forecast":
-        return t("overview.keptShare", { percent: keptShare });
-      case "bills":
-        return t("planner.paidOf", { paid: plan.paidBillIds.length, count: plan.dueBills.length });
-      case "cards": {
-        const first = cards[0];
-        if (!first) return null;
-        const open = first.window.to >= todayIso();
-        return `${first.meta.brand} •••• ${first.meta.last4} · ${open ? t("planner.open") : t("planner.closed")}`;
-      }
-      case "housing":
-        return plan.incomeCents > 0
-          ? t("mini.ofIncome", { percent: Math.round((plan.housingCents / plan.incomeCents) * 100) })
-          : null;
-      case "goals":
-        return plan.goals[0]?.goal.name ?? null;
-      case "donut": {
-        const biggest = ranked[0];
-        return biggest ? categoryName(t, biggest.name) : null;
-      }
-      case "series":
-        return monthLabel(month, lang);
-      case "installments": {
-        const count = plan.dueBills.filter((bill) => (bill.installmentsTotal ?? 0) >= 1).length;
-        return count > 0 ? t("mini.active", { count }) : null;
-      }
-      case "debts": {
-        const pending = debts.filter((debt) => !debt.settledOn).length;
-        return t("mini.pending", { count: pending });
-      }
-      case "inout":
-        return `${t("overview.income")} ${formatCents(currentPoint?.incomeCents ?? 0)}`;
-      case "recent":
-        return rows[0]?.description ?? null;
-      case "split":
-      case "score":
-        return null;
-    }
-  };
-
-  // The button in the card toolbar always names what the next step will do.
-  const modeLabel = (mode: CardMode) =>
-    mode === "mini" ? t("layout.minimise") : t("layout.expand");
-
-  const modeShort = (mode: CardMode) =>
-    mode === "mini" ? t("layout.actionMinimise") : t("layout.actionExpand");
-
-  const modeIcon = (mode: CardMode): IconName =>
-    mode === "mini" ? "arrow-down-to-line" : "chevron-up";
 
   const cells: Record<CardId, ReactNode> = {
     kpis: <KpisCard plan={plan} series={series} month={month} span={spanOf("kpis")} />,
@@ -1162,20 +1059,14 @@ export function OverviewScreen({
           </div>
         ) : null}
         {visible.map((item, index) => {
-          // Only the smallest step becomes a one-line chip. The compact card is
-          // still a card and shows its figures.
-          const chip = item.mode === "mini";
-          // The width belongs to the card, not to how much of it is shown: a
-          // minimised card keeps the columns the user chose.
           const span = item.span;
-          const target = nextMode(item.mode);
           const cellClass = [
             "grid-cell",
             `span-${span}`,
             dragId === item.id ? "is-dragging" : "",
             resizingId === item.id ? "is-resizing" : "",
             dropId === item.id ? "is-drop-target" : "",
-            item.height && !chip ? "has-height" : "",
+            item.height ? "has-height" : "",
           ]
             .filter(Boolean)
             .join(" ");
@@ -1183,7 +1074,7 @@ export function OverviewScreen({
           <div
             key={item.id}
             className={cellClass}
-            style={item.height && !chip ? { height: item.height } : undefined}
+            style={item.height ? { height: item.height } : undefined}
             data-card={item.id}
             onPointerDown={(event) => {
               // The webview hands system drags to Rust, so HTML5 drag events
@@ -1242,26 +1133,7 @@ export function OverviewScreen({
               setPreview(null);
             }}
           >
-            {chip ? (
-              <button
-                type="button"
-                className="collapsed-card is-mini"
-                onClick={() => onLayoutMode(item.id, "full")}
-                title={t("layout.expand")}
-                aria-label={`${cardName(item.id)} · ${t("layout.expand")}`}
-              >
-                <span className="collapsed-card-text">
-                  <span className="collapsed-card-title">{cardName(item.id)}</span>
-                  {collapsedDetail(item.id) ? (
-                    <span className="collapsed-card-detail">{collapsedDetail(item.id)}</span>
-                  ) : null}
-                </span>
-                <span className="collapsed-card-value">{collapsedFigure(item.id)}</span>
-                <span className="collapse-trigger" aria-hidden="true">
-                  <Icon name="chevron-down" size={13} />
-                </span>
-              </button>
-            ) : item.id === "cards" && span === 1 &&
+            {item.id === "cards" && span === 1 &&
               leanCells[item.id] ? (
               leanCells[item.id]
             ) : (
@@ -1320,13 +1192,12 @@ export function OverviewScreen({
                 )}
                 <button
                   type="button"
-                  className="cell-mode"
-                  aria-label={modeLabel(target)}
-                  title={modeLabel(target)}
-                  onClick={() => onLayoutMode(item.id, target)}
+                  className="cell-reset"
+                  aria-label={t("layout.resetCard")}
+                  title={t("layout.resetCard")}
+                  onClick={() => onLayoutResetCard(item.id)}
                 >
-                  <Icon name={modeIcon(target)} size={14} />
-                  <span>{modeShort(target)}</span>
+                  <Icon name="reset" size={14} />
                 </button>
                 <span className="cell-tools-sep" aria-hidden="true" />
                 <button
@@ -1340,7 +1211,7 @@ export function OverviewScreen({
                 </button>
               </div>
             ) : null}
-            {layoutEditing && !chip && HEIGHT_CARDS.includes(item.id) ? (
+            {layoutEditing && HEIGHT_CARDS.includes(item.id) ? (
               <button
                 type="button"
                 className="cell-resize-handle is-bottom"
@@ -1358,7 +1229,7 @@ export function OverviewScreen({
                 onDoubleClick={() => onLayoutHeight(item.id, null)}
               />
             ) : null}
-            {layoutEditing && !chip && spanOptions(item.id).length > 1 ? (
+            {layoutEditing && spanOptions(item.id).length > 1 ? (
               <button
                 type="button"
                 className="cell-resize-handle is-right"
