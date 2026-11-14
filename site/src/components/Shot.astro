@@ -1,0 +1,24 @@
+---
+import { Picture } from "astro:assets";
+
+// One app screenshot in both themes. CSS shows the one that matches the page theme,
+// so it follows the system and the toggle without a line of script.
+interface Props {
+  route: string;
+  lang: string;
+  alt: string;
+  widths: number[];
+  sizes: string;
+  eager?: boolean;
+}
+const { route, lang, alt, widths, sizes, eager = false } = Astro.props;
+const all = import.meta.glob<{ default: ImageMetadata }>("../assets/shots/*.png", { eager: true });
+const get = (theme: string) => {
+  const m = all[`../assets/shots/${route}-${theme}-${lang}.png`];
+  if (!m) throw new Error(`missing screenshot ${route}-${theme}-${lang}.png`);
+  return m.default;
+};
+---
+
+<Picture class="shot-light" src={get("light")} alt={alt} formats={["avif", "webp"]} widths={widths} sizes={sizes} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} decoding="async" />
+<Picture class="shot-dark" src={get("dark")} alt={alt} formats={["avif", "webp"]} widths={widths} sizes={sizes} loading={eager ? "eager" : "lazy"} decoding="async" />

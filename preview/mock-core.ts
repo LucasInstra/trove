@@ -363,6 +363,17 @@ try {
   // storage blocked: the app falls back to light
 }
 
+// `?lang=pt` picks the interface language, in storage and in the stored setting.
+try {
+  const lang = new URLSearchParams(window.location.search).get("lang");
+  if (lang === "pt" || lang === "en") {
+    window.localStorage.setItem("trove.lang", lang);
+    settings.lang = lang;
+  }
+} catch {
+  // storage blocked: the app falls back to English
+}
+
 // `?layout=cards:3,bills:2:mini` seeds the dashboard layout (id:span[:mode]) for screenshots.
 try {
   const spec = new URLSearchParams(window.location.search).get("layout");

@@ -7,7 +7,7 @@ export const en: Strings = {
   meta: {
     title: "Trove: personal finance on your computer, no account and no server",
     description:
-      "Import the OFX file your bank already gives you and organise your finances in a local, free, open source app. No sign-up, no telemetry, no server.",
+      "Import the OFX file your bank already gives you and organise your finances in a local, open source app that is free for now. No sign-up, no telemetry, no server.",
   },
   skip: "Skip to content",
   nav: {
@@ -17,16 +17,17 @@ export const en: Strings = {
     faq: "FAQ",
     changelog: "Changelog",
     github: "GitHub",
+    theme: "Switch between light and dark theme",
     download: "Download",
     label: "Main",
   },
   hero: {
     eyebrow: "WINDOWS · LOCAL-FIRST · OPEN SOURCE",
     h1: "Your money, on your computer.",
-    sub: "Trove reads the OFX file your bank already gives you and organises everything in one local file. No account, no server, no subscription.",
+    sub: "Trove reads the OFX file your bank already gives you and organises everything in one local file. No account, no server, no bank password.",
     cta: "Download for Windows",
     ctaSecondary: "See how it works",
-    proof: "Free and open source (MIT) · no sign-up · updates through GitHub",
+    proof: "Free for now, open source (MIT) · no sign-up · updates through GitHub",
     tagImported: "imported from statement.ofx",
     tagManual: "manual",
     alt: "Trove's overview screen with forecast balance, month at a glance, income versus spending and latest transactions.",
@@ -204,7 +205,7 @@ export const en: Strings = {
   cta: {
     h2: "Start with last month's statement.",
     button: "Download for Windows",
-    micro: "Free · MIT · no sign-up",
+    micro: "Free for now · MIT · no sign-up",
   },
   footer: {
     cols: [
@@ -245,9 +246,9 @@ export const en: Strings = {
   },
   download: {
     title: "Download Trove for Windows",
-    description: "The MSI installer, the EXE installer and the portable build of Trove, free, straight from the GitHub releases.",
+    description: "The MSI installer, the EXE installer and the portable build of Trove, free for now, straight from the GitHub releases.",
     h1: "Download Trove",
-    lead: "Free, no sign-up. The files come straight from the GitHub releases.",
+    lead: "Free for now, no sign-up. The files come straight from the GitHub releases.",
     latest: (v: string, date: string) => `Latest version: ${v}, published ${date}.`,
     reqTitle: "Requirements",
     req: "Windows 10 or 11, 64-bit.",

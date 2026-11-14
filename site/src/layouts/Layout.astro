@@ -4,7 +4,8 @@ import "../styles/app-tokens.css";
 import "../styles/site.css";
 import interUrl from "../assets/fonts/inter-latin-wght-normal.woff2?url";
 import displayUrl from "../assets/fonts/bricolage-grotesque-latin-wght-normal.woff2?url";
-import og from "../assets/shots/overview-light.png";
+import ogPt from "../assets/shots/overview-light-pt.png";
+import ogEn from "../assets/shots/overview-light-en.png";
 import { pt } from "../i18n/pt";
 import { en } from "../i18n/en";
 import type { Strings } from "../i18n/pt";
@@ -28,7 +29,7 @@ const alt = {
   en: site + pageUrl(en, page),
 };
 // The social card is the real overview screen, cropped to 1200x630.
-const card = await getImage({ src: og, width: 1200, height: 630, fit: "cover", position: "top", format: "png" });
+const card = await getImage({ src: t.code === "en" ? ogEn : ogPt, width: 1200, height: 630, fit: "cover", position: "top", format: "png" });
 const cardUrl = site + card.src;
 ---
 
@@ -37,6 +38,17 @@ const cardUrl = site + card.src;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Applies a saved choice before the first paint so the page never flashes. -->
+    <script is:inline>
+      try {
+        var s = localStorage.getItem("trove.site.theme");
+        if (s === "light" || s === "dark") document.documentElement.setAttribute("data-theme", s);
+        document.documentElement.classList.add("js");
+      } catch (e) {
+        document.documentElement.classList.add("js");
+      }
+    </script>
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={self} />
@@ -64,5 +76,14 @@ const cardUrl = site + card.src;
       <slot />
     </main>
     <Footer t={t} />
+    <script is:inline>
+      document.querySelector(".theme-btn")?.addEventListener("click", function () {
+        var root = document.documentElement;
+        var current = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        var next = current === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("trove.site.theme", next); } catch (e) {}
+      });
+    </script>
   </body>
 </html>

@@ -1,12 +1,9 @@
 ---
-import { Picture, Image } from "astro:assets";
+import { Image } from "astro:assets";
+import Shot from "./Shot.astro";
 import type { Strings } from "../i18n/pt";
 import { pageUrl } from "../lib/urls";
 import { REPO_URL } from "../lib/github";
-import overview from "../assets/shots/overview-light.png";
-import transactions from "../assets/shots/transactions-light.png";
-import flow from "../assets/shots/flow-light.png";
-import cards from "../assets/shots/cards-light.png";
 import piggy from "../assets/icons3d/piggy.png";
 import checklist from "../assets/icons3d/checklist.png";
 import coins from "../assets/icons3d/coins.png";
@@ -19,7 +16,6 @@ interface Props {
   version: string | null;
 }
 const { t, stars, version } = Astro.props;
-const shots: Record<string, ImageMetadata> = { transactions, flow, cards };
 const dl = pageUrl(t, "download");
 const check = "M5 12.5l4.5 4.5L19 7.5";
 ---
@@ -36,16 +32,7 @@ const check = "M5 12.5l4.5 4.5L19 7.5";
     <p class="micro">{t.hero.proof}</p>
     <div class="shot-stage">
       <div class="frame">
-        <Picture
-          src={overview}
-          alt={t.hero.alt}
-          formats={["avif", "webp"]}
-          widths={[900, 1800]}
-          sizes="(min-width: 948px) 900px, 100vw"
-          loading="eager"
-          fetchpriority="high"
-          decoding="async"
-        />
+        <Shot route="overview" lang={t.code} alt={t.hero.alt} widths={[900, 1800]} sizes="(min-width: 948px) 900px, 100vw" eager />
       </div>
       <div class="tags" aria-hidden="true">
         <span class="tag imported">{t.hero.tagImported}</span>
@@ -188,7 +175,7 @@ const check = "M5 12.5l4.5 4.5L19 7.5";
         t.proof.shots.map((s) => (
           <figure>
             <div class="frame">
-              <Picture src={shots[s.key]} alt={s.alt} formats={["avif", "webp"]} widths={[560, 1120]} sizes="560px" loading="lazy" decoding="async" />
+              <Shot route={s.key} lang={t.code} alt={s.alt} widths={[560, 1120]} sizes="560px" />
             </div>
             <figcaption>{s.label}</figcaption>
           </figure>

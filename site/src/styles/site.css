@@ -822,3 +822,257 @@ section {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Theme toggle and the theme-matched screenshots */
+.theme-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 150ms ease-out,
+    border-color 150ms ease-out;
+}
+.theme-btn:hover {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+html.js .theme-btn {
+  display: grid;
+}
+.theme-btn .sun,
+.shot-dark {
+  display: none;
+}
+[data-theme="dark"] .theme-btn .sun,
+[data-theme="dark"] .shot-dark {
+  display: block;
+}
+[data-theme="dark"] .theme-btn .moon,
+[data-theme="dark"] .shot-light {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-btn .sun,
+  :root:not([data-theme="light"]) .shot-dark {
+    display: block;
+  }
+  :root:not([data-theme="light"]) .theme-btn .moon,
+  :root:not([data-theme="light"]) .shot-light {
+    display: none;
+  }
+}
+
+/* Dark: no card shadow, as in the app */
+[data-theme="dark"] .frame,
+[data-theme="dark"] .tag {
+  box-shadow: none;
+}
+[data-theme="dark"] .float img {
+  filter: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .frame,
+  :root:not([data-theme="light"]) .tag {
+    box-shadow: none;
+  }
+  :root:not([data-theme="light"]) .float img {
+    filter: none;
+  }
+}
+
+/* ---------- Pills, floating nav, motion ---------- */
+
+/* Pill buttons and a pill eyebrow */
+.btn,
+.btn.small {
+  border-radius: var(--radius-full);
+}
+.eyebrow {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--surface));
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+}
+
+/* Floating pill nav */
+.nav {
+  top: 10px;
+  height: auto;
+  border: 0;
+  background: transparent;
+  padding-top: 10px;
+  pointer-events: none;
+}
+.nav .wrap {
+  display: block;
+  height: auto;
+}
+.nav-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 56px;
+  padding: 0 8px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+[data-theme="dark"] .nav-pill {
+  box-shadow: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .nav-pill {
+    box-shadow: none;
+  }
+}
+.theme-btn {
+  border-radius: var(--radius-full);
+}
+
+/* Cards lift and get the pale blue border, as in the app */
+.card,
+.bento-card,
+.who-card {
+  transition:
+    transform 180ms ease-out,
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out;
+}
+.card:hover,
+.bento-card:hover,
+.who-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--surface));
+  box-shadow: 0 14px 32px rgba(16, 24, 40, 0.08);
+}
+.bento-card.solid:hover {
+  border-color: transparent;
+}
+.small-list li {
+  transition:
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+}
+.small-list li:hover {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bob {
+  from {
+    transform: translateY(-6px);
+  }
+  to {
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Hero: a staggered entrance on load */
+  .hero .eyebrow,
+  .hero h1,
+  .hero .sub,
+  .hero .cta-row,
+  .hero .micro,
+  .shot-stage {
+    animation: rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hero h1 {
+    animation-delay: 80ms;
+  }
+  .hero .sub {
+    animation-delay: 160ms;
+  }
+  .hero .cta-row {
+    animation-delay: 240ms;
+  }
+  .hero .micro {
+    animation-delay: 300ms;
+  }
+  .shot-stage {
+    animation-delay: 380ms;
+  }
+
+  /* The 3D icons drift, each on its own beat */
+  .float img {
+    animation: bob 5s ease-in-out infinite alternate;
+  }
+  .float.b img {
+    animation-duration: 6.5s;
+    animation-delay: -2s;
+  }
+  .float.c img {
+    animation-duration: 5.7s;
+    animation-delay: -4s;
+  }
+
+  /* Below the fold: things rise into place as they scroll into view. No script:
+     browsers without scroll-driven animations just show everything. */
+  @supports (animation-timeline: view()) {
+    .promises li,
+    .problem h2,
+    .card,
+    .close,
+    .steps li,
+    .how h2,
+    .bento-card,
+    #features h2,
+    .small-list,
+    .dcols > div,
+    .band-dark h2,
+    .diagram,
+    .strip figure,
+    .proof-items + .strip,
+    .who h2,
+    .who-card,
+    #faq h2,
+    .faq-list details,
+    .final h2,
+    .final .cta-row {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+    .promises li:nth-child(2),
+    .cards3 > :nth-child(2),
+    .proof-items > :nth-child(2),
+    .steps li:nth-child(2),
+    .bento-card:nth-child(3n + 2),
+    .dcols > :nth-child(2),
+    .strip figure:nth-child(2) {
+      animation-range: entry 8% entry 53%;
+    }
+    .promises li:nth-child(3),
+    .cards3 > :nth-child(3),
+    .proof-items > :nth-child(3),
+    .steps li:nth-child(3),
+    .bento-card:nth-child(3n),
+    .dcols > :nth-child(3),
+    .strip figure:nth-child(3) {
+      animation-range: entry 16% entry 61%;
+    }
+  }
+}

@@ -16,12 +16,12 @@ console.log(`Fonts: ${fonts.length} files, ${kb(fonts.reduce((a, f) => a + size(
 
 const html = readFileSync(join(dist, "index.html"), "utf8");
 const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map((m) => m[1]);
-console.log(`<script> tags on home: ${scripts.length} (${scripts.map((s) => (s.includes("ld+json") ? "ld+json" : "OTHER")).join(", ") || "none"})`);
+console.log(`<script> tags on home: ${scripts.length} (${scripts.map((s) => (s.includes("ld+json") ? "ld+json" : "inline")).join(", ") || "none"})`);
 
 // First fold: HTML + the hero AVIF actually chosen at 900px + the two preloaded fonts.
 const heroAvif = [...html.matchAll(/srcset="([^"]+)"/g)]
   .map((m) => m[1])
-  .find((s) => s.includes("overview-light") && s.includes(".avif"));
+  .find((s) => s.includes("overview-light-pt") && s.includes(".avif"));
 const urls = heroAvif ? [...heroAvif.matchAll(/(\/[^\s,]+\.avif)\s+(\d+)w/g)] : [];
 console.log("Hero AVIF candidates:", urls.map((m) => `${m[2]}w`).join(", ") || "none found");
 let hero = 0;

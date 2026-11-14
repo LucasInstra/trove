@@ -5,7 +5,7 @@ export const pt = {
   meta: {
     title: "Trove: finanças pessoais no seu computador, sem conta e sem servidor",
     description:
-      "Importe o OFX do seu banco e organize suas finanças em um app local, gratuito e open source. Sem cadastro, sem telemetria, sem servidor.",
+      "Importe o OFX do seu banco e organize suas finanças em um app local, open source e gratuito por enquanto. Sem cadastro, sem telemetria, sem servidor.",
   },
   skip: "Ir para o conteúdo",
   nav: {
@@ -15,16 +15,17 @@ export const pt = {
     faq: "FAQ",
     changelog: "Changelog",
     github: "GitHub",
+    theme: "Alternar tema claro e escuro",
     download: "Baixar",
     label: "Principal",
   },
   hero: {
     eyebrow: "WINDOWS · LOCAL-FIRST · OPEN SOURCE",
     h1: "Seu dinheiro, no seu computador.",
-    sub: "O Trove lê o OFX que o seu banco já entrega e organiza tudo em um arquivo local. Sem conta, sem servidor, sem assinatura.",
+    sub: "O Trove lê o OFX que o seu banco já entrega e organiza tudo em um arquivo local. Sem conta, sem servidor, sem senha do banco.",
     cta: "Baixar para Windows",
     ctaSecondary: "Ver como funciona",
-    proof: "Grátis e open source (MIT) · sem cadastro · atualizações pelo GitHub",
+    proof: "Grátis por enquanto, open source (MIT) · sem cadastro · atualizações pelo GitHub",
     tagImported: "importado de extrato.ofx",
     tagManual: "manual",
     alt: "Tela de resumo do Trove com saldo previsto, resumo do mês, receitas contra gastos e últimas transações.",
@@ -206,7 +207,7 @@ export const pt = {
   cta: {
     h2: "Comece com o extrato do mês passado.",
     button: "Baixar para Windows",
-    micro: "Grátis · MIT · sem cadastro",
+    micro: "Grátis por enquanto · MIT · sem cadastro",
   },
   footer: {
     cols: [
@@ -249,7 +250,7 @@ export const pt = {
     title: "Baixar o Trove para Windows",
     description: "Instalador MSI, instalador EXE e versão portátil do Trove, de graça, direto das releases do GitHub.",
     h1: "Baixar o Trove",
-    lead: "Grátis, sem cadastro. Os arquivos saem direto das releases do GitHub.",
+    lead: "Grátis por enquanto, sem cadastro. Os arquivos saem direto das releases do GitHub.",
     latest: (v: string, date: string) => `Última versão: ${v}, publicada em ${date}.`,
     reqTitle: "Requisitos",
     req: "Windows 10 ou 11, 64 bits.",
