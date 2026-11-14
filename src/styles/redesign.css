@@ -1363,3 +1363,69 @@ input[type="month"]:focus-visible,
 .cards-card {
   border-bottom-width: 1px;
 }
+
+/* ---- Profile photo ------------------------------------------------------- */
+
+.avatar-picker {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.avatar-preview {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.avatar-choose {
+  cursor: pointer;
+}
+
+/* Bars: every segment of the forecast bar is a full pill, and stacked columns get
+   their rounded ends from the column, never from a single segment. */
+.composition-part,
+.composition-part:first-child,
+.composition-part:last-child,
+.composition-part:only-child {
+  border-radius: var(--radius-full);
+}
+
+.bar-segment,
+.bar-segment:first-child,
+.bar-segment:last-child {
+  border-radius: 0;
+}
+
+/* Housing is the vivid red wherever it is drawn. */
+.housing-card .meter-fill:not(.over),
+.housing-card .breakdown-seg {
+  background: var(--chart-housing);
+}
+
+.housing-card .card-icon,
+.housing-card .icon-bubble {
+  color: var(--chart-housing);
+}

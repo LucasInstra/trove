@@ -29,6 +29,7 @@ function SidebarProfile({
   name,
   detail,
   color,
+  avatar,
   onClick,
   className,
   collapsed = false,
@@ -37,6 +38,7 @@ function SidebarProfile({
   name: string;
   detail: string;
   color?: string | null;
+  avatar?: string | null;
   onClick: () => void;
   className?: string;
   collapsed?: boolean;
@@ -52,11 +54,11 @@ function SidebarProfile({
       title={name}
     >
       <span
-        className="grid size-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold text-white"
+        className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full text-[13px] font-semibold text-white"
         style={{ background: color ?? "var(--primary)" }}
         aria-hidden="true"
       >
-        {initials}
+        {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : initials}
       </span>
       <span
         className={cn(

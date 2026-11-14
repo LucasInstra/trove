@@ -1,12 +1,16 @@
 import type { Lang } from "./i18n";
 
+import { MASK, isPrivate } from "./privacy";
+
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export function formatCents(cents: number): string {
+  if (isPrivate()) return MASK;
   return brl.format(cents / 100);
 }
 
 export function formatSignedCents(cents: number): string {
+  if (isPrivate()) return MASK;
   const text = brl.format(Math.abs(cents) / 100);
   return cents < 0 ? `-${text}` : text;
 }

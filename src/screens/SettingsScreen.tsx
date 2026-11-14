@@ -12,6 +12,7 @@ import { LANGUAGES, type Lang } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 import type { Translate } from "../lib/i18n";
 import type { UpdaterState } from "../lib/updater";
+import { initialsOf, squareAvatar } from "../lib/avatar";
 
 function statusText(updater: UpdaterState, t: Translate): string {
   switch (updater.status) {
@@ -41,6 +42,8 @@ export function SettingsScreen({
   onRenameAccount,
   onArchiveAccount,
   onSaveUserName,
+  avatar,
+  onAvatar,
   onLoadDemo,
   theme,
   onTheme,
@@ -51,6 +54,8 @@ export function SettingsScreen({
   onRenameAccount: (id: number, name: string) => void;
   onArchiveAccount: (id: number) => void;
   onSaveUserName: (name: string | null) => void;
+  avatar: string | null;
+  onAvatar: (next: string | null) => void;
   onLoadDemo: () => Promise<void>;
   theme: Theme;
   onTheme: (theme: Theme) => void;
@@ -248,6 +253,36 @@ export function SettingsScreen({
         <header className="card-head">
           <h2>{t("settings.profile")}</h2>
         </header>
+        <div className="avatar-picker">
+          <span className="avatar-preview" aria-hidden="true">
+            {avatar ? <img src={avatar} alt="" /> : initialsOf(userName || savedName) || "?"}
+          </span>
+          <div className="avatar-actions">
+            <label className="outline-button avatar-choose">
+              {t("settings.photoChoose")}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  setNameError("");
+                  squareAvatar(file)
+                    .then(onAvatar)
+                    .catch(() => setNameError(t("settings.photoError")));
+                }}
+              />
+            </label>
+            {avatar ? (
+              <button type="button" className="ghost" onClick={() => onAvatar(null)}>
+                {t("settings.photoRemove")}
+              </button>
+            ) : null}
+            <span className="muted small">{t("settings.photoHint")}</span>
+          </div>
+        </div>
         <label className="field">
           <span>{t("settings.userName")}</span>
           <input

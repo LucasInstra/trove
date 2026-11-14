@@ -5,6 +5,7 @@ import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
 import { MonthPicker } from "./MonthPicker";
 import { Icon } from "./Icons";
+import { setPrivate, usePrivacy } from "../lib/privacy";
 
 interface TopBarProps {
   month: string;
@@ -38,6 +39,7 @@ export function TopBar({
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
 
+  const hidden = usePrivacy();
   return (
     <header className="topbar floating-bar">
       <div>
@@ -67,6 +69,16 @@ export function TopBar({
       </div>
 
       <div className="topbar-actions">
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => setPrivate(!hidden)}
+          aria-label={t(hidden ? "privacy.show" : "privacy.hide")}
+          aria-pressed={hidden}
+          title={t(hidden ? "privacy.show" : "privacy.hide")}
+        >
+          <Icon name={hidden ? "eye-off" : "eye"} size={17} />
+        </button>
         <div className="bell-wrap">
           <button
             type="button"

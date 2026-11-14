@@ -102,6 +102,8 @@ import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
 import { Onboarding } from "./components/Onboarding";
 import { rampOf } from "./lib/color";
+import { initialsOf } from "./lib/avatar";
+import { usePrivacy } from "./lib/privacy";
 
 type Route =
   | "overview"
@@ -227,6 +229,9 @@ export function App() {
     }
   };
   const [userName, setUserName] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  // Re-render the whole app when the eye toggles: every formatter reads the flag.
+  usePrivacy();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const updater = useUpdater();
@@ -282,6 +287,12 @@ export function App() {
       .getSetting("user_name")
       .then((stored) => {
         if (!cancelled) setUserName(stored && stored.trim() ? stored.trim() : null);
+      })
+      .catch(() => {});
+    void api
+      .getSetting("user_avatar")
+      .then((stored) => {
+        if (!cancelled) setUserAvatar(stored && stored.startsWith("data:image/") ? stored : null);
       })
       .catch(() => {});
     return () => {
@@ -770,7 +781,8 @@ export function App() {
           <SidebarProfile
             name={profileName}
             detail={t("app.tagline")}
-            initials={profileName.slice(0, 2).toUpperCase()}
+            initials={initialsOf(profileName)}
+            avatar={userAvatar}
             color={selfPerson?.color}
             onClick={() => setRoute("settings")}
             collapsed={sidebarCollapsed}
@@ -1174,6 +1186,11 @@ export function App() {
                 updater={updater}
                 accounts={accounts}
                 onSaveUserName={setUserName}
+                avatar={userAvatar}
+                onAvatar={(next) => {
+                  setUserAvatar(next);
+                  void api.setSetting("user_avatar", next ?? "");
+                }}
                 onLoadDemo={loadDemo}
                 theme={theme}
                 onTheme={(next) => {

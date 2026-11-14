@@ -687,7 +687,7 @@ export function OverviewScreen({
       <article className="card overview-chart">
         <header className="card-head">
           <div className="card-title">
-            <IconBubble name="wallet-plus" size="sm" />
+            <IconBubble name="scale" size="sm" />
             <h2>{t("overview.inout")}</h2>
           </div>
           <span className="muted">
