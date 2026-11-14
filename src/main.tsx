@@ -21,3 +21,4 @@ createRoot(container).render(
     </LanguageProvider>
   </StrictMode>,
 );
+import "./styles/apple.css";

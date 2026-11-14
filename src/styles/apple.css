@@ -1,0 +1,166 @@
+/*
+ * Finishing layer, loaded last. It does not change layout: it tunes how the app
+ * answers a press, how its surfaces are layered, and how its type is set, after
+ * the principles in Apple's "Designing Fluid Interfaces".
+ */
+
+:root {
+  /* Critically damped feel: it settles without bouncing. */
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --press-in: 90ms;
+  --press-out: 260ms;
+  --shadow-rest: 0 1px 1px rgba(16, 24, 40, 0.04), 0 2px 6px rgba(16, 24, 40, 0.04);
+  --shadow-raised: 0 2px 4px rgba(16, 24, 40, 0.05), 0 12px 28px rgba(16, 24, 40, 0.1);
+  --shadow-sheet: 0 4px 8px rgba(16, 24, 40, 0.06), 0 32px 80px rgba(16, 24, 40, 0.28);
+  --glass: color-mix(in srgb, var(--surface) 72%, transparent);
+  --glass-edge: color-mix(in srgb, #fff 55%, transparent);
+}
+
+:root[data-theme="dark"] {
+  --shadow-rest: 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.35), 0 14px 32px rgba(0, 0, 0, 0.45);
+  --shadow-sheet: 0 4px 10px rgba(0, 0, 0, 0.4), 0 36px 90px rgba(0, 0, 0, 0.6);
+  --glass-edge: color-mix(in srgb, #fff 14%, transparent);
+}
+
+/* ---- Response: feedback is on the press, not on the release ---- */
+
+:is(.icon-button, .round-button, .outline-button, .cell-span, .cell-reset, .cell-remove, .titlebar-button) {
+  transition:
+    transform var(--press-out) var(--ease-settle),
+    background-color 160ms var(--ease-settle),
+    border-color 160ms var(--ease-settle),
+    box-shadow 160ms var(--ease-settle);
+}
+
+:is(.icon-button, .round-button, .outline-button, .cell-span, .cell-reset, .cell-remove):active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: var(--press-in);
+}
+
+/* ---- Materials: floating chrome is translucent, content scrolls under it ---- */
+
+.topbar {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow-rest);
+}
+
+.cell-tools {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow-raised);
+}
+
+/* Bigger surfaces read as thicker: a deeper shadow and a bright top edge. */
+.dialog-sheet {
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow-sheet);
+}
+
+.chart-tip,
+.col-tip {
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  backdrop-filter: blur(12px) saturate(150%);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ---- Depth: resting cards sit low, the one in use lifts ---- */
+
+.card,
+.account-card,
+.entity-card {
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow-rest);
+}
+
+.planner-grid:has(.cell-tools) .grid-cell.is-dragging > :is(.card, .account-card) {
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow-sheet);
+  transform: scale(1.012);
+  transition: transform var(--press-out) var(--ease-settle), box-shadow var(--press-out) var(--ease-settle);
+}
+
+/* ---- Typography: tracking follows size, figures line up ---- */
+
+body {
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  letter-spacing: -0.032em;
+}
+
+h2,
+h3 {
+  letter-spacing: -0.014em;
+}
+
+.kpi-value,
+.account-value,
+.entity-figures strong,
+.compact-value {
+  letter-spacing: -0.022em;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted.small,
+.kpi-label,
+small {
+  letter-spacing: 0.005em;
+}
+
+td,
+.money {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Focus: one ring, drawn only for the keyboard ---- */
+
+:is(button, a, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
+  outline-offset: 2px;
+}
+
+:is(button, a, input, select, textarea):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---- Accessibility: gentler, never absent ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.icon-button, .round-button, .outline-button, .cell-span, .cell-reset, .cell-remove):active:not(:disabled) {
+    transform: none;
+  }
+  .planner-grid:has(.cell-tools) .grid-cell.is-dragging > :is(.card, .account-card) {
+    transform: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .topbar,
+  .cell-tools,
+  .chart-tip,
+  .col-tip {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .card,
+  .account-card,
+  .entity-card,
+  .topbar,
+  .cell-tools,
+  .dialog-sheet {
+    border-color: var(--line-strong, currentColor);
+  }
+}
