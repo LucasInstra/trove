@@ -287,7 +287,7 @@ export const pt = {
     title: "Changelog do Trove",
     description: "Cada versão do Trove com o que mudou, direto das notas de release.",
     h1: "Changelog",
-    lead: "Cada versão, direto das notas de release. As notas são escritas em inglês.",
+    lead: "Cada versão, direto das notas de release.",
   },
   privacy: {
     title: "Privacidade do Trove",
