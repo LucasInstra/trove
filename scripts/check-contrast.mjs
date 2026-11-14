@@ -15,6 +15,7 @@ function block(selector) {
 function vars(text) {
   const out = {};
   for (const m of text.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) out[m[1]] = m[2];
+  for (const m of text.matchAll(/(--primary-text):\s*var\((--[\w-]+)\)/g)) out[m[1]] = out[m[2]] ?? m[2];
   return out;
 }
 
@@ -43,9 +44,9 @@ const pairs = [
   ["--faint", "--bg", "metadata on window"],
   ["--faint", "--surface-soft", "metadata on soft surface"],
   ["--faint", "--paper", "metadata on paper"],
-  ["--primary", "--surface", "link / eyebrow on card"],
-  ["--primary", "--bg", "link on window"],
-  ["--primary", "--primary-soft", "primary on tint"],
+  ["--primary-text", "--surface", "link / eyebrow on card"],
+  ["--primary-text", "--bg", "link on window"],
+  ["--primary-text", "--primary-soft", "primary on tint"],
   ["--primary-strong", "--primary-soft", "active nav item"],
   ["--primary-foreground", "--primary", "primary button label"],
   ["--positive", "--surface", "income figure"],

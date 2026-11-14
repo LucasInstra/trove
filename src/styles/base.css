@@ -1320,7 +1320,7 @@ select.tx-category {
   border: 0;
   background: none;
   padding: 0;
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -2330,13 +2330,13 @@ select.tx-category {
 .card-icon {
   background: var(--surface-soft);
   border: 1px solid var(--line);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .card-icon.violet,
 .card-icon.slate {
   background: var(--surface-soft);
-  color: var(--primary);
+  color: var(--primary-text);
   border: 1px solid var(--line);
 }
 
@@ -2652,7 +2652,7 @@ select.tx-category {
 }
 
 .upcoming-tile.active .upcoming-value {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 /* Invoice panel */
@@ -3182,7 +3182,7 @@ select.tx-category {
 
 .empty-add:hover {
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--primary-soft);
 }
 

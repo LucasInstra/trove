@@ -40,7 +40,7 @@ h3 {
 
 /* Eyebrow: small caps in the one blue, closed by a sparkle. */
 .eyebrow {
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
@@ -643,7 +643,7 @@ input[type="month"]:focus-visible,
   height: 32px;
   border-radius: var(--radius-full);
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .prov-main {
@@ -710,7 +710,7 @@ input[type="month"]:focus-visible,
 .import-stepper li.is-done .import-stepper-dot {
   border-color: var(--primary);
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .import-preview {
@@ -751,7 +751,7 @@ input[type="month"]:focus-visible,
 }
 
 .onboarding .eyebrow {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .onboarding h1 {
@@ -862,7 +862,7 @@ input[type="month"]:focus-visible,
 
 .month-pop-grid button.is-today {
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .month-pop-grid button.is-selected {

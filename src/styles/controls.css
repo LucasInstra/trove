@@ -254,7 +254,7 @@ select.payer-select:hover {
 }
 
 .spend-bars .bar-col[aria-current="true"] .bar-value {
-  color: var(--primary);
+  color: var(--primary-text);
   font-weight: 650;
 }
 
