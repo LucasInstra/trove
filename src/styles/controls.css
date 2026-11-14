@@ -715,3 +715,45 @@ html.vt-privacy::view-transition-new(root) {
 .network-mark.network-amex { font-size: 11px; letter-spacing: 0.06em; padding: 4px 6px; border: 1.5px solid currentColor; border-radius: 4px; }
 .network-mark.network-hipercard { font-size: 13px; font-style: italic; }
 .card-art-real[data-texture="bb"] .network-mark:not(svg) { color: #10215a; filter: none; }
+
+/* More Brazilian banks: BRB, Safra and Sicredi, and the top tiers of Itaú, Bradesco and Inter. */
+.card-art-real:is([data-texture^="brb"], [data-texture^="safra"], [data-texture^="sicredi"])::before,
+.card-art-real:is([data-texture^="brb"], [data-texture^="safra"], [data-texture^="sicredi"])::after {
+  border-color: transparent;
+}
+/* BRB: a white arc across the lower right. */
+:is(.card-art-real, .design-swatch)[data-texture^="brb"] {
+  background-image:
+    radial-gradient(90% 120% at 108% 112%, rgba(255, 255, 255, 0.2) 0 46%, transparent 47%),
+    radial-gradient(90% 80% at 10% 0%, rgba(255, 255, 255, 0.18), transparent 60%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="brb"] { --g1: #2a74d6; --g2: #0a4aa6; --g3: #06307a; }
+:is(.card-art-real, .design-swatch)[data-texture="brb-dux"] { --g1: #2b2f38; --g2: #14161b; --g3: #050608; }
+/* Safra: deep navy with a thin gold line, or black. */
+:is(.card-art-real, .design-swatch)[data-texture^="safra"] {
+  background-image:
+    linear-gradient(112deg, transparent 0 64%, rgba(212, 175, 90, 0.85) 64% 65.2%, transparent 65.2% 100%),
+    radial-gradient(90% 80% at 85% 0%, rgba(255, 255, 255, 0.12), transparent 58%),
+    linear-gradient(160deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="safra"] { --g1: #123a7a; --g2: #0a2a5e; --g3: #05183a; }
+:is(.card-art-real, .design-swatch)[data-texture="safra-black"] { --g1: #26262a; --g2: #101012; --g3: #000; }
+/* Sicredi: green with a soft light and a darker curve. */
+:is(.card-art-real, .design-swatch)[data-texture^="sicredi"] {
+  background-image:
+    radial-gradient(120% 70% at 0% 115%, rgba(0, 60, 20, 0.35) 0 46%, transparent 47%),
+    radial-gradient(90% 80% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 58%),
+    linear-gradient(150deg, var(--g1), var(--g2) 55%, var(--g3));
+}
+:is(.card-art-real, .design-swatch)[data-texture="sicredi"] { --g1: #55c265; --g2: #2e9b3f; --g3: #1d7330; }
+:is(.card-art-real, .design-swatch)[data-texture="sicredi-black"] { --g1: #2a302c; --g2: #111513; --g3: #030403; }
+/* Tiers added to the banks above. */
+:is(.card-art-real, .design-swatch)[data-texture="itau-personnalite"] { --g1: #34343a; --g2: #1b1b1e; --g3: #070708; --c: #c9a24a; }
+:is(.card-art-real, .design-swatch)[data-texture="bradesco-aeternum"] { --g1: #222226; --g2: #0c0c0e; --g3: #000; }
+:is(.card-art-real, .design-swatch)[data-texture="inter-prime"] { --g1: #3a3a3d; --g2: #2a2a2c; --g3: #121213; }
+
+.bank-mark svg { flex: none; }
+.bank-mark.bank-itau svg, .bank-mark.bank-bb svg { display: none; }
+.network-mark:is(svg) { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+.card-art-real:is([data-texture="bb"], [data-texture="itau-platinum"], [data-texture="santander-silver"], [data-texture="c6-platinum"]) svg.network-mark:is(.network-visa, .network-elo) { color: #14213d; }

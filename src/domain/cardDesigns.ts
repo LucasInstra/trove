@@ -59,6 +59,7 @@ export const BANKS: Bank[] = [
       look("itau", "Clássico", "#ec7000"),
       look("itau-platinum", "Platinum", "#aeb4bc"),
       look("itau-black", "Black", "#121212"),
+      look("itau-personnalite", "Personnalité", "#1b1b1e"),
     ],
   },
   {
@@ -75,7 +76,7 @@ export const BANKS: Bank[] = [
     id: "bradesco",
     name: "Bradesco",
     match: /bradesco/,
-    variants: [look("bradesco", "Clássico", "#cc092f"), look("bradesco-prime", "Prime", "#1c1c20")],
+    variants: [look("bradesco", "Clássico", "#cc092f"), look("bradesco-prime", "Prime", "#1c1c20"), look("bradesco-aeternum", "Aeternum", "#0c0c0e")],
   },
   {
     id: "caixa",
@@ -87,7 +88,7 @@ export const BANKS: Bank[] = [
     id: "inter",
     name: "Inter",
     match: /\binter\b/,
-    variants: [look("inter", "Laranja", "#ff7a00"), look("inter-black", "Black", "#151515")],
+    variants: [look("inter", "Laranja", "#ff7a00"), look("inter-prime", "Prime", "#2a2a2c"), look("inter-black", "Black", "#151515")],
   },
   {
     id: "picpay",
@@ -112,6 +113,24 @@ export const BANKS: Bank[] = [
     name: "Mercado Pago",
     match: /mercado\s?pago/,
     variants: [look("mp", "Azul", "#009ee3"), look("mp-black", "Preto", "#151a1f")],
+  },
+  {
+    id: "brb",
+    name: "BRB",
+    match: /\bbrb\b/,
+    variants: [look("brb", "Clássico", "#0a4aa6"), look("brb-dux", "Dux", "#14161b")],
+  },
+  {
+    id: "safra",
+    name: "Safra",
+    match: /safra/,
+    variants: [look("safra", "Clássico", "#0a2a5e"), look("safra-black", "Black", "#101012")],
+  },
+  {
+    id: "sicredi",
+    name: "Sicredi",
+    match: /sicredi/,
+    variants: [look("sicredi", "Clássico", "#2e9b3f"), look("sicredi-black", "Black", "#111513")],
   },
   {
     id: "xp",
