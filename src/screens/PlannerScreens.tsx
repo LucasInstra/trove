@@ -975,24 +975,6 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
   });
   const last = curve.at(-1);
 
-  const width = 600;
-  const height = 220;
-  const pad = { left: 8, right: 8, top: 12, bottom: 22 };
-  const values = curve.map((point) => point.balanceCents);
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 1);
-  const span = max - min || 1;
-  const x = (index: number) =>
-    curve.length < 2
-      ? width / 2
-      : pad.left + (index * (width - pad.left - pad.right)) / (curve.length - 1);
-  const y = (value: number) =>
-    pad.top + (1 - (value - min) / span) * (height - pad.top - pad.bottom);
-  const line = curve
-    .map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.balanceCents)}`)
-    .join(" ");
-  const area = `${line} L${x(curve.length - 1)},${height - pad.bottom} L${x(0)},${height - pad.bottom} Z`;
-
   return (
     <section className="screen planner-screen">
       <PageHeader
@@ -1072,44 +1054,22 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
           <p className="card-empty">{t("retirement.empty")}</p>
         ) : (
           <>
-            <svg
-              viewBox={`0 0 ${width} ${height}`}
-              className="wealth-curve"
-              role="img"
-              aria-label={t("retirement.curve")}
-            >
-              <path d={area} fill="var(--primary)" fillOpacity={0.12} />
-              <path
-                d={line}
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth={2.5}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
-              {curve.map((point, index) =>
-                index % Math.ceil(curve.length / 6) === 0 || index === curve.length - 1 ? (
-                  <g key={point.year}>
-                    <circle cx={x(index)} cy={y(point.balanceCents)} r={3.5} fill="var(--primary)">
-                      <title>{`${t("retirement.year", { count: point.year })}: ${formatCents(point.balanceCents)}`}</title>
-                    </circle>
-                  </g>
-                ) : null,
+            <LineChart
+              values={curve.map((point) => point.balanceCents)}
+              labels={curve.map((point) => t("retirement.year", { count: point.year }))}
+              height={220}
+              ariaLabel={t("retirement.curve")}
+              tip={(index) => (
+                <>
+                  <strong>{t("retirement.year", { count: curve[index].year })}</strong>
+                  <span className="tip-row">
+                    <i className="chart-swatch spend" />
+                    {t("retirement.projected")}
+                    <b>{formatCents(curve[index].balanceCents)}</b>
+                  </span>
+                </>
               )}
-              <text x={pad.left} y={height - 6} fontSize={11} fill="var(--muted)">
-                {t("retirement.today")}
-              </text>
-              <text
-                x={width - pad.right}
-                y={height - 6}
-                fontSize={11}
-                fill="var(--muted)"
-                textAnchor="end"
-              >
-                {t("retirement.inYears", { count: yearsCount })}
-              </text>
-            </svg>
+            />
             <p className="muted small">{t("retirement.note")}</p>
           </>
         )}

@@ -116,51 +116,54 @@ h3 {
   background: var(--primary-soft);
 }
 
-/* ---- Anchor card: the one dark card of the Overview ---------------------- */
+/* ---- Anchor card: the Overview's lead card ------------------------------- */
 
+/* Light theme: the same surface as the others, tinted, with the number on top. */
 .anchor-card {
-  border-color: transparent;
-  background: var(--hero-band);
-  color: var(--hero-band-text);
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--line));
+  background: var(--primary-soft);
 }
 
+/* Dark theme: a raised panel with light type. */
 [data-theme="dark"] .anchor-card {
   border-color: var(--line);
   background: var(--surface-soft);
-}
-
-.anchor-card :is(.account-value, .account-meta strong, .money-prefix) {
   color: var(--hero-band-text);
 }
 
-.anchor-card .account-edit {
+[data-theme="dark"] .anchor-card :is(.account-label, .account-meta, .account-meta-label, .muted, .small),
+[data-theme="dark"] .anchor-card .account-edit {
   color: var(--anchor-muted);
 }
 
-.anchor-card .account-delta .delta-line {
+[data-theme="dark"] .anchor-card :is(.account-value, .account-meta strong, .money-prefix) {
+  color: var(--hero-band-text);
+}
+
+[data-theme="dark"] .anchor-card .account-delta .delta-line {
   background: rgba(255, 255, 255, 0.08);
   color: var(--anchor-positive);
 }
 
-.anchor-card .account-delta .delta-line.down {
+[data-theme="dark"] .anchor-card .account-delta .delta-line.down {
   color: var(--anchor-negative);
 }
 
-.anchor-card .account-delta .delta-line svg {
+[data-theme="dark"] .anchor-card .account-delta .delta-line svg {
   color: inherit;
 }
 
-.anchor-card .composition-legend li {
+[data-theme="dark"] .anchor-card .composition-legend li {
   border-color: var(--anchor-line);
   background: rgba(255, 255, 255, 0.06);
   color: var(--hero-band-text);
 }
 
-.anchor-card .composition-legend :is(.composition-item, .composition-value) {
+[data-theme="dark"] .anchor-card .composition-legend :is(.composition-item, .composition-value) {
   color: var(--hero-band-text);
 }
 
-.anchor-card .composition-track {
+[data-theme="dark"] .anchor-card .composition-track {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -736,29 +739,31 @@ input[type="month"]:focus-visible,
   gap: 40px;
   padding: 48px;
   border-radius: var(--radius-xl);
-  background: var(--hero-band);
-  color: var(--hero-band-text);
+  border: 1px solid color-mix(in srgb, var(--clay) 14%, var(--line));
+  background: var(--paper);
+  color: var(--ink);
 }
 
 [data-theme="dark"] .onboarding {
-  border: 1px solid var(--line);
+  border-color: var(--line);
   background: var(--surface-soft);
+  color: var(--hero-band-text);
 }
 
 .onboarding .eyebrow {
-  color: var(--anchor-positive);
+  color: var(--primary);
 }
 
 .onboarding h1 {
   margin: 8px 0 12px;
   font-size: 46px;
   line-height: 48px;
-  color: var(--hero-band-text);
+  color: inherit;
 }
 
 .onboarding p {
   max-width: 46ch;
-  color: var(--anchor-muted);
+  color: var(--muted);
 }
 
 .onboarding-steps {
@@ -766,7 +771,7 @@ input[type="month"]:focus-visible,
   gap: 6px;
   margin: 20px 0 24px;
   padding-left: 20px;
-  color: var(--hero-band-text);
+  color: inherit;
 }
 
 .onboarding-actions {
@@ -775,12 +780,6 @@ input[type="month"]:focus-visible,
   gap: 12px;
 }
 
-.onboarding-actions .outline-button,
-.onboarding-actions .ghost {
-  border-color: var(--anchor-line);
-  background: transparent;
-  color: var(--hero-band-text);
-}
 
 .onboarding-photos {
   display: flex;
@@ -798,4 +797,100 @@ input[type="month"]:focus-visible,
     grid-template-columns: minmax(0, 1fr);
     padding: 28px;
   }
+}
+
+/* ---- Month navigation: the arrows never move, the picker is our own ------- */
+
+.floating-bar .title-row h1 {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  min-width: 190px;
+  white-space: nowrap;
+}
+
+.month-pop {
+  position: relative;
+  margin-left: 4px;
+}
+
+.month-pop-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+  width: 252px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+
+.month-pop-year {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-family: var(--ff-display);
+  font-size: 16px;
+}
+
+.month-pop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.month-pop-grid button {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+.month-pop-grid button:hover {
+  border-color: var(--line-strong);
+}
+
+.month-pop-grid button.is-today {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.month-pop-grid button.is-selected {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+@media (max-width: 700px) {
+  .floating-bar .title-row h1 {
+    min-width: 140px;
+  }
+}
+
+/* ---- Charts: livelier marks (the brand blue stays as it is) ---------------- */
+
+.flow-bar.out,
+.flow-swatch.out {
+  background: var(--chart-out);
+  opacity: 1;
+}
+
+.flow-bar.out.planned,
+.flow-swatch.planned,
+.composition-part.housing {
+  background: var(--chart-planned);
+  opacity: 1;
+}
+
+.spark-down path {
+  stroke: var(--chart-out);
 }

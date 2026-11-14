@@ -101,6 +101,7 @@ import {
 import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
 import { Onboarding } from "./components/Onboarding";
+import { vivid } from "./lib/color";
 
 type Route =
   | "overview"
@@ -336,14 +337,16 @@ export function App() {
           api.getSetting("dashboard_layout").catch(() => null),
           api.transactions("", at, null, 10, null).catch(() => []),
         ]);
-        setRows(nextRows);
-        setRecentRows(nextRecent);
+        const tone = (row: TransactionRow): TransactionRow =>
+          row.categoryColor ? { ...row, categoryColor: vivid(row.categoryColor) } : row;
+        setRows(nextRows.map(tone));
+        setRecentRows(nextRecent.map(tone));
         setAccounts(nextAccounts);
-        setCategories(nextCategories);
+        setCategories(nextCategories.map((category) => ({ ...category, color: vivid(category.color) })));
         setTotals(nextTotals);
-        setByCategory(nextByCategory);
+        setByCategory(nextByCategory.map((entry) => ({ ...entry, color: vivid(entry.color) })));
         setSeries(nextSeries);
-        setMatrix(nextMatrix);
+        setMatrix(nextMatrix.map((entry) => ({ ...entry, color: vivid(entry.color) })));
         setPlanner(nextPlanner);
         setBudgetStatus(nextBudgetStatus);
         setRecurrence(nextHistory);

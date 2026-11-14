@@ -3,6 +3,7 @@ import type { PlanNotification } from "../domain/notifications";
 import { monthName } from "../lib/format";
 import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
+import { MonthPicker } from "./MonthPicker";
 import { Icon } from "./Icons";
 
 interface TopBarProps {
@@ -61,18 +62,7 @@ export function TopBar({
         >
           <Icon name="chevron-right" size={18} />
         </button>
-        <label className="month-picker" title={t("planner.pickMonth")}>
-          <span className="visually-hidden">{t("planner.pickMonth")}</span>
-          <input
-            type="month"
-            value={month}
-            onChange={(event) => {
-              if (event.target.value) onPickMonth(event.target.value);
-            }}
-            aria-label={t("planner.pickMonth")}
-          />
-          <Icon name="calendar" size={15} />
-        </label>
+        <MonthPicker month={month} onPick={onPickMonth} />
         </div>
       </div>
 

@@ -47,7 +47,7 @@ export function Onboarding({
       </div>
       <div className="onboarding-photos">
         <Polaroid icon="bank" caption={t("onboard.cap1")} tilt={-3} />
-        <Polaroid icon="chart-up" caption={t("onboard.cap2")} tilt={2} />
+        <Polaroid icon="pie" caption={t("onboard.cap2")} tilt={2} />
         <Polaroid icon="target" caption={t("onboard.cap3")} tilt={-1.5} />
       </div>
     </section>

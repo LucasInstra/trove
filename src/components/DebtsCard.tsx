@@ -114,7 +114,7 @@ export function DebtsCard({
     return (
       <article className="card card-compact">
         <div className="compact-head">
-          <Icon3D name="receipt" size={22} />
+          <Icon3D name="wallet-minus" size={22} />
           <span className="compact-title">{t("debts.title")}</span>
           <span className="compact-value">{formatCents(total)}</span>
         </div>
@@ -133,7 +133,7 @@ export function DebtsCard({
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <IconBubble name="receipt" size="sm" />
+          <IconBubble name="wallet-minus" size="sm" />
           <h2>{t("debts.title")}</h2>
         </div>
         <button type="button" className="round-button" onClick={onAdd} aria-label={t("debts.newDebt")}>

@@ -59,7 +59,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
     return (
       <article className="card card-compact">
         <div className="compact-head">
-          <Icon3D name="receipt" size={22} />
+          <Icon3D name="calendar" size={22} />
           <span className="compact-title">{t("planner.bills")}</span>
           <span className="compact-value">{formatCents(total)}</span>
         </div>
@@ -85,7 +85,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
         <button type="button" className="round-button" onClick={onAdd} aria-label={t("planner.newBill")}>
           <Icon name="plus" size={16} />
         </button>
-        <Icon3D name="receipt" className="card-art" />
+        <Icon3D name="calendar" className="card-art" />
       </header>
 
       <div className="card-figure">

@@ -18,6 +18,10 @@ import piggy from "@/assets/icons3d/piggy.png";
 import receipt from "@/assets/icons3d/receipt.png";
 import scale from "@/assets/icons3d/scale.png";
 import target from "@/assets/icons3d/target.png";
+import bars from "@/assets/icons3d/bars.png";
+import badge from "@/assets/icons3d/badge.png";
+import walletPlus from "@/assets/icons3d/wallet-plus.png";
+import walletMinus from "@/assets/icons3d/wallet-minus.png";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,6 +54,10 @@ const ICONS = {
   trophy,
   coins,
   gear,
+  bars,
+  badge,
+  "wallet-plus": walletPlus,
+  "wallet-minus": walletMinus,
 } as const;
 
 export type Icon3DName = keyof typeof ICONS;

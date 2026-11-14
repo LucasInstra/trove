@@ -529,7 +529,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <IconBubble name="chart-up" size="sm" />
+            <IconBubble name="bars" size="sm" />
             <h2>{isWide("series") ? t("ledger.lastTwelve") : t("ledger.lastSix")}</h2>
           </div>
           <div className="card-nav">
@@ -683,7 +683,7 @@ export function OverviewScreen({
       <article className="card overview-chart">
         <header className="card-head">
           <div className="card-title">
-            <IconBubble name="chart-up" size="sm" />
+            <IconBubble name="wallet-plus" size="sm" />
             <h2>{t("overview.inout")}</h2>
           </div>
           <span className="muted">
