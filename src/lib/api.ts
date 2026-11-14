@@ -33,6 +33,11 @@ export interface Holding {
   updatedOn: string;
   /** What was put in; 0 when unknown. */
   costCents: number;
+  indexer: "none" | "cdi" | "selic" | "ipca" | "fixed";
+  rateBps: number;
+  termMonths: number;
+  /** Day the term started, YYYY-MM-DD; empty when unknown. */
+  startedOn: string;
 }
 
 export interface HoldingInput {
@@ -42,6 +47,10 @@ export interface HoldingInput {
   amountCents: number;
   updatedOn: string;
   costCents?: number;
+  indexer?: "none" | "cdi" | "selic" | "ipca" | "fixed";
+  rateBps?: number;
+  termMonths?: number;
+  startedOn?: string;
 }
 
 export interface TransactionRow {

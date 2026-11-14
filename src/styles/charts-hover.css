@@ -158,3 +158,90 @@
     backdrop-filter: none;
   }
 }
+
+/* The composition track clips its parts to a pill, the tip must not be clipped with them. */
+.composition-part.has-tip {
+  overflow: visible;
+}
+
+.composition-part.has-tip:hover {
+  filter: brightness(1.08);
+}
+
+/* Sparklines in the KPI tiles: a dot and a tip follow the pointer. */
+.spark-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  touch-action: none;
+}
+
+.spark-wrap > .spark {
+  display: block;
+}
+
+.spark-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--chart-line);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.spark-up ~ .spark-dot {
+  background: var(--primary);
+}
+
+.spark-down ~ .spark-dot {
+  background: var(--negative);
+}
+
+.chart-tip.spark-tip {
+  top: calc(100% + 8px);
+  bottom: auto;
+  min-width: 130px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.chart-tip.spark-tip.start {
+  left: 0 !important;
+  transform: none;
+}
+
+.chart-tip.spark-tip.end {
+  left: auto !important;
+  right: 0;
+  transform: none;
+}
+
+/* Monthly spending bars: taller, with a gap between categories, and a focus on the one hovered. */
+.spend-bars {
+  position: relative;
+  height: 196px;
+  gap: 12px;
+}
+
+.spend-bars .bar-segment {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent);
+  transition: opacity 140ms var(--ease-out), filter 140ms var(--ease-out);
+}
+
+.spend-bars[data-focus] .bar-segment:not(.is-on) {
+  opacity: 0.35;
+}
+
+.spend-bars[data-focus] .bar-segment.is-on {
+  filter: saturate(1.15) brightness(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spend-bars .bar-segment {
+    transition: none;
+  }
+}

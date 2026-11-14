@@ -798,7 +798,8 @@ export function SplitCard({
         ))}
       </ul>
 
-      <div className="split-foot" hidden={!trackSettlement}>
+      {trackSettlement ? (
+      <div className="split-foot">
         {split.owes === "partner" ? (
           <span className="split-owes">
             <Icon name="arrow-right" size={15} />
@@ -813,13 +814,14 @@ export function SplitCard({
           <span className="muted small">{t("split.even")}</span>
         )}
 
-        {split.owes && trackSettlement ? (
+        {split.owes ? (
           <button type="button" className="ghost small-button" onClick={onSettle} disabled={settled}>
             <Icon name="check" size={15} />
             {settled ? t("split.settled") : t("split.markDone")}
           </button>
         ) : null}
       </div>
+      ) : null}
     </article>
   );
 }

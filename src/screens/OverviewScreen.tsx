@@ -272,6 +272,17 @@ export function OverviewScreen({
     };
   });
   const stackPeak = Math.max(...stacks.map((stack) => stack.total), 1);
+  const barsRef = useRef<HTMLDivElement>(null);
+  // What the pointer rests on in the monthly bars: a whole month or one category of it.
+  const [barTip, setBarTip] = useState<{ month: string; category: string | null; x: number; y: number } | null>(null);
+  const aimBarTip = (element: Element, month: string, category: string | null) => {
+    const host = barsRef.current?.getBoundingClientRect();
+    if (!host) return;
+    const box = element.getBoundingClientRect();
+    setBarTip({ month, category, x: box.left + box.width / 2 - host.left, y: box.top - host.top });
+  };
+  const tipStack = barTip ? stacks.find((stack) => stack.month === barTip.month) : undefined;
+  const tipSlice = tipStack?.slices.find((slice) => slice.name === barTip?.category);
   const stackLegend = (() => {
     const seen = new Map<string, string>();
     for (const stack of stacks) {
@@ -598,44 +609,43 @@ export function OverviewScreen({
               net={series.slice(-12).map((point) => point.incomeCents - point.expenseCents)}
               months={series.slice(-12).map((point) => point.month)}
             />
-            <div className="bars">
+            <div
+              className="bars spend-bars"
+              ref={barsRef}
+              data-focus={barTip?.category ? "" : undefined}
+              onPointerLeave={() => setBarTip(null)}
+            >
               {stacks.map((stack) => (
                 <button
                   type="button"
-                  className="bar-col has-tip"
+                  className="bar-col"
                   key={stack.month}
                   onClick={() => onSelectMonth(stack.month)}
+                  onPointerEnter={(event) => aimBarTip(event.currentTarget.querySelector(".bar-track") ?? event.currentTarget, stack.month, null)}
+                  onFocus={(event) => aimBarTip(event.currentTarget.querySelector(".bar-track") ?? event.currentTarget, stack.month, null)}
+                  onBlur={() => setBarTip(null)}
                   aria-current={stack.month === month}
                   aria-label={`${monthLabel(stack.month, lang)}: ${formatCents(stack.total)}`}
                 >
                   <span className="bar-value">
                     {stack.month === month && stack.total > 0 ? formatCents(stack.total) : ""}
                   </span>
-                  <span className="col-tip" role="tooltip">
-                    <strong>{monthLabel(stack.month, lang)}</strong>
-                    {stack.slices.slice(0, 5).map((slice) => (
-                      <span className="tip-row" key={slice.categoryId ?? slice.name}>
-                        <i className="chart-swatch" style={{ background: slice.color }} />
-                        {categoryName(t, slice.name)}
-                        <b>{formatCents(slice.totalCents)}</b>
-                      </span>
-                    ))}
-                    {stack.slices.length > 5 ? (
-                      <span className="tip-row muted">
-                        {t("chart.others", { count: stack.slices.length - 5 })}
-                      </span>
-                    ) : null}
-                    <span className="tip-row">
-                      {t("chart.total")}
-                      <b>{formatCents(stack.total)}</b>
-                    </span>
-                  </span>
                   <div className="bar-track">
                     <div className="bar-stack">
                       {stack.slices.map((slice) => (
                         <div
                           key={slice.categoryId ?? slice.name}
-                          className="bar-segment"
+                          className={
+                            barTip?.category === slice.name ? "bar-segment is-on" : "bar-segment"
+                          }
+                          onPointerEnter={(event) => {
+                            event.stopPropagation();
+                            aimBarTip(event.currentTarget, stack.month, slice.name);
+                          }}
+                          onPointerLeave={(event) => {
+                            const track = event.currentTarget.closest(".bar-track");
+                            if (track) aimBarTip(track, stack.month, null);
+                          }}
                           style={{
                             height: `${Math.max(2, (slice.totalCents / stackPeak) * 100)}%`,
                             background: slice.color,
@@ -649,6 +659,53 @@ export function OverviewScreen({
                   </span>
                 </button>
               ))}
+              {barTip && tipStack ? (
+                <span
+                  className="chart-tip"
+                  role="tooltip"
+                  style={{
+                    left: Math.min(
+                      Math.max(barTip.x, 84),
+                      (barsRef.current?.clientWidth ?? 0) - 84,
+                    ),
+                    top: barTip.y - 8,
+                  }}
+                >
+                  <strong>{monthLabel(barTip.month, lang)}</strong>
+                  {tipSlice ? (
+                    <>
+                      <span className="tip-row">
+                        <i className="chart-swatch" style={{ background: tipSlice.color }} />
+                        {categoryName(t, tipSlice.name)}
+                        <b>{formatCents(tipSlice.totalCents)}</b>
+                      </span>
+                      <span className="tip-row muted">
+                        {t("chart.share")}
+                        <b>
+                          {tipStack.total > 0 ? Math.round((tipSlice.totalCents / tipStack.total) * 100) : 0}%
+                        </b>
+                      </span>
+                    </>
+                  ) : (
+                    tipStack.slices.slice(0, 5).map((slice) => (
+                      <span className="tip-row" key={slice.categoryId ?? slice.name}>
+                        <i className="chart-swatch" style={{ background: slice.color }} />
+                        {categoryName(t, slice.name)}
+                        <b>{formatCents(slice.totalCents)}</b>
+                      </span>
+                    ))
+                  )}
+                  {!tipSlice && tipStack.slices.length > 5 ? (
+                    <span className="tip-row muted">
+                      {t("chart.others", { count: tipStack.slices.length - 5 })}
+                    </span>
+                  ) : null}
+                  <span className="tip-row">
+                    {t("chart.total")}
+                    <b>{formatCents(tipStack.total)}</b>
+                  </span>
+                </span>
+              ) : null}
             </div>
             <div className="stack-legend" aria-hidden="true">
               {stackLegend.map(([name, color]) => (

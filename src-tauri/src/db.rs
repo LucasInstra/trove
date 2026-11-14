@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 17;
+pub const SCHEMA_VERSION: i64 = 18;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -410,8 +410,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v16(&connection)?;
         write_version(&connection, 16)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 17 {
         migrate_to_v17(&connection)?;
+        write_version(&connection, 17)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v18(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -600,6 +604,14 @@ fn migrate_to_v17(connection: &Connection) -> Result<(), String> {
     add_column(connection, "goals", "icon", "text not null default 'target'")?;
     add_column(connection, "people", "income_cents", "integer not null default 0")?;
     add_column(connection, "holdings", "cost_cents", "integer not null default 0")
+}
+
+/// v17 to v18: how an investment earns (indexer, rate) and for how long.
+fn migrate_to_v18(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "holdings", "indexer", "text not null default 'none'")?;
+    add_column(connection, "holdings", "rate_bps", "integer not null default 0")?;
+    add_column(connection, "holdings", "term_months", "integer not null default 0")?;
+    add_column(connection, "holdings", "started_on", "text not null default ''")
 }
 
 /// v12 to v13: monthly budget rows. A row overrides the category's base cap
@@ -2229,9 +2241,13 @@ pub struct Holding {
     pub amount_cents: i64,
     pub updated_on: String,
     pub cost_cents: i64,
+    pub indexer: String,
+    pub rate_bps: i64,
+    pub term_months: i64,
+    pub started_on: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct HoldingInput {
     pub id: Option<i64>,
@@ -2241,6 +2257,23 @@ pub struct HoldingInput {
     pub updated_on: String,
     #[serde(default)]
     pub cost_cents: i64,
+    /// none | cdi | selic | ipca | fixed
+    #[serde(default)]
+    pub indexer: String,
+    /// Percent of the indexer (cdi, selic) or yearly rate (fixed, ipca spread), times 100.
+    #[serde(default)]
+    pub rate_bps: i64,
+    #[serde(default)]
+    pub term_months: i64,
+    #[serde(default)]
+    pub started_on: String,
+}
+
+fn check_indexer(indexer: &str) -> Result<(), String> {
+    match indexer {
+        "" | "none" | "cdi" | "selic" | "ipca" | "fixed" => Ok(()),
+        other => Err(format!("unknown indexer: {other}")),
+    }
 }
 
 fn check_holding_kind(kind: &str) -> Result<(), String> {
@@ -2253,7 +2286,7 @@ fn check_holding_kind(kind: &str) -> Result<(), String> {
 pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, kind, amount_cents, updated_on, cost_cents from holdings
+            "select id, name, kind, amount_cents, updated_on, cost_cents, indexer, rate_bps, term_months, started_on from holdings
              where deleted_at is null order by name",
         )
         .map_err(|problem| problem.to_string())?;
@@ -2266,6 +2299,10 @@ pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
                 amount_cents: row.get(3)?,
                 updated_on: row.get(4)?,
                 cost_cents: row.get(5)?,
+                indexer: row.get(6)?,
+                rate_bps: row.get(7)?,
+                term_months: row.get(8)?,
+                started_on: row.get(9)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -2289,18 +2326,33 @@ pub fn save_holding(connection: &Connection, input: &HoldingInput) -> Result<i64
         return Err("holding cost must not be negative".to_string());
     }
     check_date(&input.updated_on)?;
+    check_indexer(&input.indexer)?;
+    if input.rate_bps < 0 || input.rate_bps > 1_000_000 {
+        return Err("holding rate is out of range".to_string());
+    }
+    if input.term_months < 0 || input.term_months > 1200 {
+        return Err("holding term is out of range".to_string());
+    }
+    if !input.started_on.is_empty() {
+        check_date(&input.started_on)?;
+    }
+    let indexer = if input.indexer.is_empty() { "none" } else { input.indexer.as_str() };
     let stamp = Utc::now().to_rfc3339();
     let affected = match input.id {
         Some(id) => connection.execute(
             "update holdings set name = ?1, kind = ?2, amount_cents = ?3, updated_on = ?4,
-                    cost_cents = ?5, updated_at = ?6
-             where id = ?7 and deleted_at is null",
-            params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents, stamp, id],
+                    cost_cents = ?5, indexer = ?6, rate_bps = ?7, term_months = ?8,
+                    started_on = ?9, updated_at = ?10
+             where id = ?11 and deleted_at is null",
+            params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents,
+                    indexer, input.rate_bps, input.term_months, input.started_on, stamp, id],
         ),
         None => connection.execute(
-            "insert into holdings (uid, name, kind, amount_cents, updated_on, cost_cents, created_at, updated_at)
-             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?6)",
-            params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents, stamp],
+            "insert into holdings (uid, name, kind, amount_cents, updated_on, cost_cents,
+                    indexer, rate_bps, term_months, started_on, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
+            params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents,
+                    indexer, input.rate_bps, input.term_months, input.started_on, stamp],
         ),
     }
     .map_err(|problem| {
@@ -5336,19 +5388,37 @@ mod tests {
             amount_cents: 150000,
             cost_cents: 0,
             updated_on: "2024-03-15".to_string(),
+            ..Default::default()
         };
         let id = save_holding(&connection, &input).expect("should save");
         assert!(save_holding(&connection, &input).is_err());
-        let bad_kind = HoldingInput { kind: "yacht".to_string(), ..HoldingInput { id: None, name: "X".to_string(), kind: String::new(), amount_cents: 1, cost_cents: 0, updated_on: "2024-03-15".to_string() } };
+        let bad_kind = HoldingInput { kind: "yacht".to_string(), ..HoldingInput { id: None, name: "X".to_string(), kind: String::new(), amount_cents: 1, cost_cents: 0, updated_on: "2024-03-15".to_string(), ..Default::default() } };
         assert!(save_holding(&connection, &bad_kind).is_err());
-        let negative = HoldingInput { id: None, name: "Neg".to_string(), kind: "cash".to_string(), amount_cents: -1, cost_cents: 0, updated_on: "2024-03-15".to_string() };
+        let negative = HoldingInput { id: None, name: "Neg".to_string(), kind: "cash".to_string(), amount_cents: -1, cost_cents: 0, updated_on: "2024-03-15".to_string(), ..Default::default() };
         assert!(save_holding(&connection, &negative).is_err());
-        let bad_date = HoldingInput { id: None, name: "Data".to_string(), kind: "cash".to_string(), amount_cents: 1, cost_cents: 0, updated_on: "ontem".to_string() };
+        let bad_date = HoldingInput { id: None, name: "Data".to_string(), kind: "cash".to_string(), amount_cents: 1, cost_cents: 0, updated_on: "ontem".to_string(), ..Default::default() };
         assert!(save_holding(&connection, &bad_date).is_err());
-        assert!(save_holding(&connection, &HoldingInput { id: Some(999_999), name: "X".to_string(), kind: "cash".to_string(), amount_cents: 1, cost_cents: 0, updated_on: "2024-03-15".to_string() }).is_err());
+        assert!(save_holding(&connection, &HoldingInput { id: Some(999_999), name: "X".to_string(), kind: "cash".to_string(), amount_cents: 1, cost_cents: 0, updated_on: "2024-03-15".to_string(), ..Default::default() }).is_err());
 
-        let update = HoldingInput { id: Some(id), name: "Nu Reserva".to_string(), kind: "investment".to_string(), amount_cents: 160000, cost_cents: 0, updated_on: "2024-03-20".to_string() };
+        let update = HoldingInput { id: Some(id), name: "Nu Reserva".to_string(), kind: "investment".to_string(), amount_cents: 160000, cost_cents: 0, updated_on: "2024-03-20".to_string(), ..Default::default() };
         assert_eq!(save_holding(&connection, &update).expect("should update"), id);
+
+        // How an investment earns is stored with it and validated.
+        let earning = HoldingInput {
+            indexer: "cdi".to_string(),
+            rate_bps: 11_000,
+            term_months: 24,
+            started_on: "2024-03-10".to_string(),
+            ..update
+        };
+        save_holding(&connection, &earning).expect("should save the terms");
+        let saved = list_holdings(&connection).expect("should list");
+        assert_eq!(saved[0].indexer, "cdi");
+        assert_eq!(saved[0].rate_bps, 11_000);
+        assert_eq!(saved[0].term_months, 24);
+        assert_eq!(saved[0].started_on, "2024-03-10");
+        let unknown = HoldingInput { indexer: "lottery".to_string(), ..earning };
+        assert!(save_holding(&connection, &unknown).is_err());
         let holdings = list_holdings(&connection).expect("should list");
         assert_eq!(holdings.len(), 1);
         assert_eq!(holdings[0].amount_cents, 160000);

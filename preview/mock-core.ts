@@ -229,10 +229,10 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   list_categories: () => categories,
   list_tags: () => tags,
   list_holdings: () => [
-    { id: 3, name: "Fundo IVVB11", kind: "investment", amountCents: 1450000, updatedOn: `${MONTH}-01`, costCents: 1600000 },
-    { id: 4, name: "CDB Nubank", kind: "investment", amountCents: 820000, updatedOn: `${MONTH}-01`, costCents: 800000 },
-    { id: 1, name: "Tesouro Selic", kind: "investment", amountCents: 3200000, updatedOn: `${MONTH}-01`, costCents: 2900000 },
-    { id: 2, name: "Carro", kind: "property", amountCents: 6500000, updatedOn: `${MONTH}-01`, costCents: 0 },
+    { id: 3, name: "Fundo IVVB11", kind: "investment", amountCents: 1450000, updatedOn: `${MONTH}-01`, costCents: 1600000, indexer: "none", rateBps: 0, termMonths: 0, startedOn: "" },
+    { id: 4, name: "CDB Nubank", kind: "investment", amountCents: 820000, updatedOn: `${MONTH}-01`, costCents: 800000, indexer: "cdi", rateBps: 11000, termMonths: 24, startedOn: "2026-03-10" },
+    { id: 1, name: "Tesouro Selic", kind: "investment", amountCents: 3200000, updatedOn: `${MONTH}-01`, costCents: 2900000, indexer: "selic", rateBps: 10000, termMonths: 0, startedOn: "" },
+    { id: 2, name: "Carro", kind: "property", amountCents: 6500000, updatedOn: `${MONTH}-01`, costCents: 0, indexer: "none", rateBps: 0, termMonths: 0, startedOn: "" },
   ],
   list_transactions: (args) => {
     const search = (args.search as string | null)?.toLowerCase();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MonthPoint } from "../lib/api";
-import { holdingsByKind, holdingsTotal, investmentLines, investmentSummary, netWorthCurve, totalWealth } from "./patrimony";
+import { annualRate, monthsLeft, holdingsByKind, holdingsTotal, investmentLines, investmentSummary, netWorthCurve, totalWealth } from "./patrimony";
 
 const point = (month: string, incomeCents: number, expenseCents: number): MonthPoint => ({
   month,
@@ -71,5 +71,35 @@ describe("investments", () => {
   it("has no return at all when nothing reports a cost", () => {
     const summary = investmentSummary(investmentLines([holdings[2]]));
     expect(summary.gainPct).toBeNull();
+  });
+
+  it("turns an indexer and a rate into a yearly return", () => {
+    const rates = { cdiPct: 10, ipcaPct: 5 };
+    expect(annualRate("cdi", 11000, rates)).toBeCloseTo(0.11);
+    expect(annualRate("selic", 10000, rates)).toBeCloseTo(0.1);
+    expect(annualRate("ipca", 600, rates)).toBeCloseTo(1.05 * 1.06 - 1);
+    expect(annualRate("fixed", 1250, rates)).toBeCloseTo(0.125);
+    expect(annualRate("none", 1250, rates)).toBeNull();
+    expect(annualRate("cdi", 0, rates)).toBeNull();
+  });
+
+  it("counts the months left of a term", () => {
+    expect(monthsLeft("2026-01-10", 24, "2026-12-09")).toBe(14);
+    expect(monthsLeft("2026-01-10", 24, "2026-12-10")).toBe(13);
+    expect(monthsLeft("2024-01-01", 12, "2026-12-01")).toBe(0);
+    expect(monthsLeft("", 12, "2026-12-01")).toBeNull();
+    expect(monthsLeft("2026-01-01", 0, "2026-12-01")).toBeNull();
+  });
+
+  it("estimates the monthly yield and the value at the end of the term", () => {
+    const line = investmentLines(
+      [{ id: 1, name: "CDB", kind: "investment", amountCents: 100_000_00, costCents: 0, indexer: "fixed", rateBps: 1200, termMonths: 12, startedOn: "2026-01-01" }],
+      { cdiPct: 10, ipcaPct: 5 },
+      "2026-07-01",
+    )[0];
+    expect(line.monthsLeft).toBe(6);
+    expect(line.monthlyYieldCents).toBe(Math.round(100_000_00 * (Math.pow(1.12, 1 / 12) - 1)));
+    expect(line.projectedCents).toBe(Math.round(100_000_00 * Math.pow(1.12, 0.5)));
+    expect(investmentSummary([line]).withRate).toBe(1);
   });
 });

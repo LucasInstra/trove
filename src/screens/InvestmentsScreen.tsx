@@ -1,10 +1,10 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icons";
 import { HoldingDialog, ScreenHeader } from "./PlannerScreens";
-import { investmentLines, investmentSummary } from "../domain/patrimony";
-import type { Holding, HoldingInput } from "../lib/api";
-import { formatCents, formatDate } from "../lib/format";
+import { DEFAULT_RATES, investmentLines, investmentSummary, type RateAssumptions } from "../domain/patrimony";
+import { api, type Holding, type HoldingInput } from "../lib/api";
+import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 const SERIES = ["#2563eb", "#0ea5e9", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed", "#14b8a6", "#ef4444"];
@@ -39,11 +39,53 @@ export function InvestmentsScreen({
   const [dialog, setDialog] = useState<{ holding: Holding | null } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Holding | null>(null);
 
-  const lines = investmentLines(holdings);
+  const [rates, setRates] = useState<RateAssumptions>(DEFAULT_RATES);
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([api.getSetting("rate_cdi"), api.getSetting("rate_ipca")])
+      .then(([cdi, ipca]) => {
+        if (!alive) return;
+        setRates({
+          cdiPct: Number(cdi) > 0 ? Number(cdi) : DEFAULT_RATES.cdiPct,
+          ipcaPct: Number(ipca) > 0 ? Number(ipca) : DEFAULT_RATES.ipcaPct,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const saveRate = (key: "cdiPct" | "ipcaPct", raw: string) => {
+    const value = Number(raw.replace(",", "."));
+    if (!(value > 0 && value < 100)) return;
+    setRates((current) => ({ ...current, [key]: value }));
+    void api.setSetting(key === "cdiPct" ? "rate_cdi" : "rate_ipca", String(value)).catch(() => undefined);
+  };
+
+  const lines = investmentLines(holdings, rates);
   const summary = investmentSummary(lines);
   const colorOf = (index: number) => SERIES[index % SERIES.length];
   const holdingOf = (id: number) => holdings.find((holding) => holding.id === id) ?? null;
   const up = summary.gainCents >= 0;
+  const terms = (line: (typeof lines)[number]): string => {
+    const parts: string[] = [];
+    if (line.annualRate !== null) {
+      const pct = line.rateBps / 100;
+      parts.push(
+        t(`investments.short_${line.indexer}`, {
+          rate: new Intl.NumberFormat(lang === "pt" ? "pt-BR" : "en-US", { maximumFractionDigits: 2 }).format(pct),
+        }),
+      );
+    }
+    if (line.monthsLeft !== null) {
+      parts.push(
+        line.monthsLeft > 0
+          ? t("investments.monthsLeft", { count: line.monthsLeft })
+          : t("investments.matured"),
+      );
+    }
+    return parts.length > 0 ? parts.join(" · ") : t("investments.noTerms");
+  };
 
   return (
     <section className="screen planner-screen">
@@ -69,6 +111,17 @@ export function InvestmentsScreen({
             {summary.untracked > 0
               ? t("investments.untracked", { count: summary.untracked })
               : t("investments.allTracked")}
+          </span>
+        </article>
+        <article className="card metric-card">
+          <span className="metric-label">{t("investments.monthlyYield")}</span>
+          <strong className="metric-value">
+            {summary.withRate > 0 ? `~${formatCents(summary.monthlyYieldCents)}` : "—"}
+          </strong>
+          <span className="metric-note">
+            {summary.withRate > 0
+              ? t("investments.yieldNote", { count: summary.withRate })
+              : t("investments.yieldNone")}
           </span>
         </article>
         <article className="card metric-card metric-card-secondary">
@@ -161,11 +214,7 @@ export function InvestmentsScreen({
                       <i className="alloc-dot" style={{ background: colorOf(index) }} />
                       <span>
                         <strong>{line.name}</strong>
-                        {holding ? (
-                          <small className="muted">
-                            {t("holdings.updatedOn", { date: formatDate(holding.updatedOn) })}
-                          </small>
-                        ) : null}
+                        <small className="muted">{terms(line)}</small>
                       </span>
                     </span>
                     <span className="num" role="cell">{formatCents(line.valueCents)}</span>
@@ -213,6 +262,41 @@ export function InvestmentsScreen({
                   </div>
                 );
               })}
+            </div>
+          </article>
+
+          <article className="card">
+            <header className="card-head">
+              <div className="card-title">
+                <h2>{t("investments.assumptions")}</h2>
+              </div>
+            </header>
+            <p className="muted small">{t("investments.assumptionsHint")}</p>
+            <div className="form-grid">
+              <label className="field">
+                <span>{t("investments.cdiYear")}</span>
+                <span className="input-affix">
+                  <input
+                    key={`cdi-${rates.cdiPct}`}
+                    defaultValue={String(rates.cdiPct)}
+                    inputMode="decimal"
+                    onBlur={(event) => saveRate("cdiPct", event.target.value)}
+                  />
+                  <span>%</span>
+                </span>
+              </label>
+              <label className="field">
+                <span>{t("investments.ipcaYear")}</span>
+                <span className="input-affix">
+                  <input
+                    key={`ipca-${rates.ipcaPct}`}
+                    defaultValue={String(rates.ipcaPct)}
+                    inputMode="decimal"
+                    onBlur={(event) => saveRate("ipcaPct", event.target.value)}
+                  />
+                  <span>%</span>
+                </span>
+              </label>
             </div>
           </article>
         </>

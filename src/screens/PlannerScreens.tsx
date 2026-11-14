@@ -375,6 +375,8 @@ export function HouseScreen({
 }) {
   const { t } = useLanguage();
   const housingBills = plan.housingBills;
+  const selfId = (people.find((person) => person.isSelf) ?? people[0])?.id ?? 0;
+  const payerOf = (billId: number) => shares.find((entry) => entry.billId === billId)?.personId ?? selfId;
 
   return (
     <section className="screen planner-screen">
@@ -440,6 +442,20 @@ export function HouseScreen({
                       {bill.name}
                     </button>
                   </span>
+                  {people.length > 1 ? (
+                    <select
+                      className="payer-select"
+                      value={payerOf(bill.id)}
+                      aria-label={t("split.changePayer", { name: bill.name })}
+                      onChange={(event) => onAssign(bill.id, Number(event.target.value))}
+                    >
+                      {people.map((person) => (
+                        <option key={person.id} value={person.id}>
+                          {person.isSelf ? t("split.you") : person.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                   <span className="bill-amount">{formatCents(bill.amountCents)}</span>
                 </li>
               ))}
@@ -740,6 +756,7 @@ export function PatrimonyScreen({
 }
 
 const HOLDING_KINDS = ["cash", "investment", "property", "other"] as const;
+const INDEXERS = ["none", "cdi", "selic", "ipca", "fixed"] as const;
 
 export function HoldingDialog({
   initial,
@@ -758,6 +775,11 @@ export function HoldingDialog({
   const [amount, setAmount] = useState(initial ? (initial.amountCents / 100).toFixed(2) : "");
   const [cost, setCost] = useState(initial?.costCents ? (initial.costCents / 100).toFixed(2) : "");
   const [updatedOn, setUpdatedOn] = useState(initial?.updatedOn ?? todayIso());
+  const [indexer, setIndexer] = useState<(typeof INDEXERS)[number]>(initial?.indexer ?? "none");
+  const [rate, setRate] = useState(initial?.rateBps ? String(initial.rateBps / 100) : "");
+  const [term, setTerm] = useState(initial?.termMonths ? String(initial.termMonths) : "");
+  const [startedOn, setStartedOn] = useState(initial?.startedOn ?? "");
+  const earns = kind === "investment" && indexer !== "none";
 
   return (
     <Dialog title={initial ? t("holdings.edit") : t("holdings.new")} onClose={onClose}>
@@ -775,6 +797,10 @@ export function HoldingDialog({
             amountCents: cents,
             costCents: kind === "investment" && cost.trim() !== "" ? parseCents(cost) : 0,
             updatedOn,
+            indexer: kind === "investment" ? indexer : "none",
+            rateBps: earns ? Math.max(0, Math.round((Number(rate.replace(",", ".")) || 0) * 100)) : 0,
+            termMonths: kind === "investment" ? Math.max(0, Math.round(Number(term) || 0)) : 0,
+            startedOn: kind === "investment" && Number(term) > 0 ? startedOn : "",
           });
         }}
       >
@@ -825,6 +851,67 @@ export function HoldingDialog({
             </span>
             <small className="field-hint">{t("investments.costHint")}</small>
           </label>
+        ) : null}
+        {kind === "investment" ? (
+          <>
+            <div className="form-grid">
+              <label className="field">
+                <span>{t("investments.indexer")}</span>
+                <select
+                  value={indexer}
+                  onChange={(event) => setIndexer(event.target.value as typeof indexer)}
+                >
+                  {INDEXERS.map((option) => (
+                    <option key={option} value={option}>
+                      {t(`investments.indexer_${option}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {earns ? (
+                <label className="field">
+                  <span>{t(`investments.rate_${indexer}`)}</span>
+                  <span className="input-affix">
+                    <input
+                      value={rate}
+                      onChange={(event) => setRate(event.target.value)}
+                      inputMode="decimal"
+                      placeholder={indexer === "cdi" || indexer === "selic" ? "100" : "12"}
+                    />
+                    <span>%</span>
+                  </span>
+                </label>
+              ) : null}
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>{t("investments.term")}</span>
+                <span className="input-affix">
+                  <input
+                    type="number"
+                    min={0}
+                    max={1200}
+                    value={term}
+                    onChange={(event) => setTerm(event.target.value)}
+                    placeholder="0"
+                  />
+                  <span>{t("investments.months")}</span>
+                </span>
+              </label>
+              {Number(term) > 0 ? (
+                <label className="field">
+                  <span>{t("investments.startedOn")}</span>
+                  <input
+                    type="date"
+                    value={startedOn}
+                    onChange={(event) => setStartedOn(event.target.value)}
+                    required
+                  />
+                </label>
+              ) : null}
+            </div>
+            <small className="field-hint">{t("investments.termHint")}</small>
+          </>
         ) : null}
         <label className="field">
           <span>{t("holdings.updatedOnLabel")}</span>

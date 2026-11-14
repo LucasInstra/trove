@@ -37,10 +37,18 @@ export function CompositionBar({ parts, format }: Props) {
         {parts.map((part) => (
           <span
             key={part.key}
-            className={`composition-part ${part.key}`}
+            className={`composition-part has-tip ${part.key}`}
             style={{ flexGrow: Math.max(0.001, part.sharePct) }}
-            title={`${t(LABELS[part.key])}: ${format(part.amountCents)}`}
-          />
+          >
+            <span className="col-tip" role="tooltip">
+              <strong>{t(LABELS[part.key])}</strong>
+              <span className="tip-row">
+                {SIGNS[part.key]}
+                {format(part.amountCents)}
+                <b>{Math.round(part.sharePct)}%</b>
+              </span>
+            </span>
+          </span>
         ))}
       </div>
       <ul className="composition-legend">
