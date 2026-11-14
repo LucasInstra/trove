@@ -382,3 +382,10 @@ body.is-layout-resizing, body.is-layout-resizing * {
   top: auto;
   bottom: -9px;
 }
+
+/* Each card names its first column and its width; the packed rows stack the cards of a column in order. */
+@media (min-width: 821px) {
+  .planner-grid > .grid-cell {
+    grid-column: var(--col, auto) / span var(--span, 1);
+  }
+}

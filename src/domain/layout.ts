@@ -90,6 +90,75 @@ export interface LayoutCard {
   mode: CardMode;
   /** Height in pixels chosen by the user; absent means the card sizes to its content. */
   height?: number;
+  /** First of the three columns the card sits in; absent means the grid places it. */
+  col?: number;
+}
+
+export const GRID_COLUMNS = 3;
+
+const clampCol = (span: number, col: unknown): number | undefined =>
+  typeof col === "number" && Number.isInteger(col) && col >= 1
+    ? Math.min(col, GRID_COLUMNS - span + 1)
+    : undefined;
+
+/**
+ * The column each card starts in. A card with a saved column keeps it; the others
+ * go where the columns are emptiest, in order, which for a fresh layout gives the
+ * same arrangement a plain left-to-right flow would.
+ */
+export function resolveColumns(cards: LayoutCard[]): Map<CardId, number> {
+  const fill = Array.from({ length: GRID_COLUMNS }, () => 0);
+  const placed = new Map<CardId, number>();
+  for (const card of cards) {
+    const col = clampCol(card.span, card.col);
+    if (col === undefined) continue;
+    placed.set(card.id, col);
+  }
+  for (const card of cards) {
+    let col = placed.get(card.id);
+    if (col === undefined) {
+      let best = 1;
+      let bestFill = Number.POSITIVE_INFINITY;
+      for (let start = 1; start <= GRID_COLUMNS - card.span + 1; start += 1) {
+        const level = Math.max(...fill.slice(start - 1, start - 1 + card.span));
+        if (level < bestFill) {
+          best = start;
+          bestFill = level;
+        }
+      }
+      col = best;
+      placed.set(card.id, col);
+    }
+    const level = Math.max(...fill.slice(col - 1, col - 1 + card.span)) + 1;
+    for (let index = col - 1; index < col - 1 + card.span; index += 1) fill[index] = level;
+  }
+  return placed;
+}
+
+/**
+ * Drops `id` into column `col`, right before `beforeId` (or at the end of the
+ * order when null). Every card in `resolved` gets its column written down, so
+ * placing one card never lets the others drift to a new spot.
+ */
+export function placeCard(
+  layout: LayoutCard[],
+  resolved: Map<CardId, number>,
+  id: CardId,
+  col: number,
+  beforeId: CardId | null,
+): LayoutCard[] {
+  const from = layout.findIndex((entry) => entry.id === id);
+  if (from < 0) return layout;
+  const stamped = layout.map((entry) => {
+    const own = resolved.get(entry.id);
+    const wanted = entry.id === id ? clampCol(entry.span, col) : own;
+    return wanted === undefined ? entry : { ...entry, col: wanted };
+  });
+  const [moved] = stamped.splice(from, 1);
+  const to = beforeId === null ? -1 : stamped.findIndex((entry) => entry.id === beforeId);
+  if (to < 0) stamped.push(moved);
+  else stamped.splice(to, 0, moved);
+  return stamped;
 }
 
 /** A stored height is kept only for cards that can be resized, and clamped to a sane range. */
@@ -193,11 +262,14 @@ export function parseLayout(raw: string | null | undefined): LayoutCard[] {
     seen.add(id);
     const card = entry as { span?: unknown; mode?: unknown; collapsed?: unknown; height?: unknown };
     const height = clampHeight(id, card.height);
+    const span = clampSpanFor(id, card.span, defaultSpan(id));
+    const col = clampCol(span, (card as { col?: unknown }).col);
     layout.push({
       id,
-      span: clampSpanFor(id, card.span, defaultSpan(id)),
+      span,
       mode: modeOf(card),
       ...(height === undefined ? {} : { height }),
+      ...(col === undefined ? {} : { col }),
     });
   }
 
@@ -255,7 +327,13 @@ export function setSpan(layout: LayoutCard[], id: CardId, span: number): LayoutC
   if (!range) return layout;
   const next = clampSpanFor(id, span, range.min);
   if (!layout.some((entry) => entry.id === id && entry.span !== next)) return layout;
-  return layout.map((entry) => (entry.id === id ? { ...entry, span: next } : entry));
+  return layout.map((entry) => {
+    if (entry.id !== id) return entry;
+    const col = entry.col === undefined ? undefined : clampCol(next, entry.col);
+    const { col: _col, ...rest } = entry;
+    void _col;
+    return { ...rest, span: next, ...(col === undefined ? {} : { col }) };
+  });
 }
 
 /** Puts one card back to its default width and to sizing by its content; its place and visibility stay. */
@@ -265,7 +343,10 @@ export function resetCard(layout: LayoutCard[], id: CardId): LayoutCard[] {
     if (entry.id !== id) return entry;
     const { height: _height, ...rest } = entry;
     void _height;
-    return { ...rest, span };
+    const col = entry.col === undefined ? undefined : clampCol(span, entry.col);
+    const { col: _col, ...bare } = rest;
+    void _col;
+    return { ...bare, span, ...(col === undefined ? {} : { col }) };
   });
 }
 
@@ -277,6 +358,12 @@ export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): Layou
 
 export function serializeLayout(layout: LayoutCard[]): string {
   return JSON.stringify(
-    layout.map(({ id, span, mode, height }) => ({ id, span, mode, ...(height ? { height } : {}) })),
+    layout.map(({ id, span, mode, height, col }) => ({
+      id,
+      span,
+      mode,
+      ...(height ? { height } : {}),
+      ...(col ? { col } : {}),
+    })),
   );
 }

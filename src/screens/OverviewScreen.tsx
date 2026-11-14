@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CompositionBar } from "../components/CompositionBar";
 import { BreakdownBar } from "../components/BreakdownBar";
 import { BalanceLine } from "../components/charts/BalanceLine";
@@ -14,6 +14,9 @@ import type { InvoiceWindow } from "../domain/invoice";
 import {
   isCardAvailable,
   moveCardNear,
+  placeCard,
+  resolveColumns,
+  GRID_COLUMNS,
   setSpan,
   setHeight,
   HEIGHT_CARDS,
@@ -140,6 +143,7 @@ interface OverviewProps {
   layout: LayoutCard[];
   layoutEditing: boolean;
   onLayoutMoveTo: (id: CardId, targetId: CardId, side?: "before" | "after") => void;
+  onLayoutSet: (next: LayoutCard[]) => void;
   onLayoutResize: (id: CardId, span: Span) => void;
   onLayoutHeight: (id: CardId, height: number | null) => void;
   onLayoutSpan: (id: CardId, span: number) => void;
@@ -185,6 +189,7 @@ export function OverviewScreen({
   layout,
   layoutEditing,
   onLayoutMoveTo,
+  onLayoutSet,
   onLayoutResize,
   onLayoutHeight,
   onLayoutSpan,
@@ -262,9 +267,15 @@ export function OverviewScreen({
   const visible = shown.filter(
     (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
   );
-  // A card with its own height leaves a hole in its row, so the grid packs the
-  // cards by measured height and the ones below move up into the hole.
-  const packed = visible.some((item) => item.height);
+  // The grid packs the cards by measured height, so a card with a height of its
+  // own never leaves a hole that the one below cannot fill.
+  // Every card starts in a column of its own choosing, so a drop can name the
+  // column and the card it goes above instead of a place in one long line.
+  const cols = resolveColumns(visible);
+  const baseVisible = layout.filter(
+    (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
+  );
+  const baseCols = resolveColumns(baseVisible);
   const shelved = layout.filter(
     (item) => item.mode === "hidden" && isCardAvailable(item.id, cardContext),
   );
@@ -819,7 +830,7 @@ export function OverviewScreen({
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
-    if (!grid || !packed) return;
+    if (!grid) return;
     const GAP = 14;
     const cells = Array.from(grid.querySelectorAll<HTMLElement>(":scope > .grid-cell"));
     // Measuring while the rows are still one pixel tall would shrink the page and
@@ -850,6 +861,54 @@ export function OverviewScreen({
     return () => document.body.classList.remove("is-layout-resizing");
   }, [resizingId]);
   const [resizeColumns, setResizeColumns] = useState(3);
+
+  const dropKey = useRef("");
+
+  // What the pointer means: a column and the card it goes above (or the end of
+  // that column) on a wide grid, a place next to a card on a single column.
+  type Drop =
+    | { kind: "col"; col: number; beforeId: CardId | null; markId: CardId | null; markSide: "before" | "after" }
+    | { kind: "near"; id: CardId; side: "before" | "after"; markId: CardId; markSide: "before" | "after" };
+
+  const dropAt = (x: number, y: number, dragged: CardId): Drop | null => {
+    const grid = gridRef.current;
+    if (!grid) return null;
+    const style = getComputedStyle(grid);
+    const columns = style.gridTemplateColumns.split(" ").filter(Boolean).length;
+    if (columns < GRID_COLUMNS) {
+      const landing = cardAt(x, y, dragCells.current, dragged);
+      return landing ? { kind: "near", ...landing, markId: landing.id, markSide: landing.side } : null;
+    }
+    const rect = grid.getBoundingClientRect();
+    if (x < rect.left || x > rect.right || y < rect.top - 40 || y > rect.bottom + 200) return null;
+    const gap = Number.parseFloat(style.columnGap) || 0;
+    const width = (rect.width - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
+    const draggedSpan = baseVisible.find((card) => card.id === dragged)?.span ?? 1;
+    const hovered = Math.floor((x - rect.left) / (width + gap)) + 1;
+    const col = Math.max(1, Math.min(hovered, GRID_COLUMNS - draggedSpan + 1));
+    const occupants = dragCells.current
+      .filter((cell) => {
+        if (cell.id === dragged) return false;
+        const start = baseCols.get(cell.id);
+        const span = baseVisible.find((card) => card.id === cell.id)?.span ?? 1;
+        return start !== undefined && start <= col + draggedSpan - 1 && start + span - 1 >= col;
+      })
+      .sort((a, b) => a.rect.top - b.rect.top);
+    const before = occupants.find((cell) => y < cell.rect.top + cell.rect.height / 2);
+    const last = occupants[occupants.length - 1];
+    return {
+      kind: "col",
+      col,
+      beforeId: before?.id ?? null,
+      markId: before?.id ?? last?.id ?? null,
+      markSide: before ? "before" : "after",
+    };
+  };
+
+  const applyDrop = (drop: Drop, id: CardId): LayoutCard[] =>
+    drop.kind === "col"
+      ? placeCard(layout, baseCols, id, drop.col, drop.beforeId)
+      : moveCardNear(layout, id, drop.id, drop.side);
 
   const snapshotDragCells = () =>
     Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-card]") ?? []).map((cell) => ({
@@ -984,7 +1043,7 @@ export function OverviewScreen({
   }, [dragId, resizingId]);
 
   const layoutPositionKey = visible
-    .map(({ id, span, mode }) => `${id}:${span}:${mode}`)
+    .map(({ id, span, mode }) => `${id}:${span}:${mode}:${cols.get(id) ?? 0}`)
     .join("|");
 
   useLayoutEffect(() => {
@@ -1066,7 +1125,7 @@ export function OverviewScreen({
       ) : null}
 
       <div
-        className={packed ? "planner-grid is-packed" : "planner-grid"}
+        className="planner-grid is-packed"
         ref={gridRef}
         onPointerLeave={() => setDropId(null)}
       >
@@ -1077,7 +1136,7 @@ export function OverviewScreen({
             ))}
           </div>
         ) : null}
-        {visible.map((item, index) => {
+        {visible.map((item) => {
           const span = item.span;
           const cellClass = [
             "grid-cell",
@@ -1094,7 +1153,13 @@ export function OverviewScreen({
           <div
             key={item.id}
             className={cellClass}
-            style={item.height ? { height: item.height } : undefined}
+            style={
+              {
+                "--col": cols.get(item.id),
+                "--span": item.span,
+                ...(item.height ? { height: item.height } : {}),
+              } as CSSProperties
+            }
             data-card={item.id}
             onPointerDown={(event) => {
               // The webview hands system drags to Rust, so HTML5 drag events
@@ -1123,11 +1188,13 @@ export function OverviewScreen({
                 state.active = true;
                 setDragId(state.id);
               }
-              const landing = cardAt(event.clientX, event.clientY, dragCells.current, state.id);
-              if (landing && (landing.id !== dropId || landing.side !== dropSide)) {
-                setDropId(landing.id);
-                setDropSide(landing.side);
-                setPreview(moveCardNear(layout, state.id, landing.id, landing.side));
+              const drop = dropAt(event.clientX, event.clientY, state.id);
+              const key = drop ? JSON.stringify(drop) : "";
+              if (drop && key !== dropKey.current) {
+                dropKey.current = key;
+                setDropId(drop.markId);
+                setDropSide(drop.markSide);
+                setPreview(applyDrop(drop, state.id));
               }
             }}
             onPointerUp={(event) => {
@@ -1137,10 +1204,12 @@ export function OverviewScreen({
               // The landing is read from where the pointer actually stopped, so
               // letting go over a gap or outside the grid cancels instead of
               // committing whatever was last hovered.
-              const landing = state.active
-                ? cardAt(event.clientX, event.clientY, dragCells.current, state.id)
-                : null;
-              if (landing) onLayoutMoveTo(state.id, landing.id, landing.side);
+              const drop = state.active ? dropAt(event.clientX, event.clientY, state.id) : null;
+              if (drop) {
+                const next = applyDrop(drop, state.id);
+                if (next !== layout) onLayoutSet(next);
+              }
+              dropKey.current = "";
               setDragId(null);
               setDropId(null);
               setPreview(null);
@@ -1168,15 +1237,26 @@ export function OverviewScreen({
                   aria-label={t("layout.drag", { name: cardName(item.id) })}
                   title={t("layout.dragHint")}
                   onKeyDown={(event) => {
-                    const above = visible[index - 1];
-                    const below = visible[index + 1];
-                    if (event.key === "ArrowUp" && above) {
+                    const col = cols.get(item.id) ?? 1;
+                    const stack = visible.filter((card) => cols.get(card.id) === col);
+                    const at = stack.findIndex((card) => card.id === item.id);
+                    const put = (to: number, beforeId: CardId | null) =>
+                      onLayoutSet(placeCard(layout, baseCols, item.id, to, beforeId));
+                    if (event.key === "ArrowUp" && stack[at - 1]) {
                       event.preventDefault();
-                      onLayoutMoveTo(item.id, above.id);
+                      put(col, stack[at - 1].id);
                     }
-                    if (event.key === "ArrowDown" && below) {
+                    if (event.key === "ArrowDown" && stack[at + 1]) {
                       event.preventDefault();
-                      onLayoutMoveTo(item.id, below.id);
+                      put(col, stack[at + 2]?.id ?? null);
+                    }
+                    if (event.key === "ArrowLeft" && col > 1) {
+                      event.preventDefault();
+                      put(col - 1, null);
+                    }
+                    if (event.key === "ArrowRight" && col + item.span - 1 < GRID_COLUMNS) {
+                      event.preventDefault();
+                      put(col + 1, null);
                     }
                     if (event.key === "Home" && visible[0]) {
                       event.preventDefault();

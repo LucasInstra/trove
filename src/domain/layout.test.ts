@@ -6,6 +6,8 @@ import {
   moveCardTo,
   resetCard,
   moveCardNear,
+  resolveColumns,
+  placeCard,
   parseLayout,
   serializeLayout,
   setMode,
@@ -320,5 +322,41 @@ describe("moveCardNear", () => {
     expect(ids(moveCardNear(layout, "kpis", "recent", "after")).sort()).toEqual(ids(layout).sort());
     expect(moveCardNear(layout, "forecast", "kpis", "after")).toBe(layout);
     expect(moveCardNear(layout, "kpis", "kpis", "after")).toBe(layout);
+  });
+});
+
+describe("columns", () => {
+  it("spreads an unplaced layout over the three columns", () => {
+    const cols = resolveColumns(parseLayout(null).filter((card) => card.mode !== "hidden"));
+    expect(cols.get("kpis")).toBe(1);
+    expect(cols.get("forecast")).toBe(2);
+    expect(cols.get("inout")).toBe(3);
+    for (const card of parseLayout(null)) {
+      if (card.mode === "hidden") continue;
+      const col = cols.get(card.id) ?? 0;
+      expect(col).toBeGreaterThanOrEqual(1);
+      expect(col + card.span - 1).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("places a card in a column before another and writes every column down", () => {
+    const layout = parseLayout(null);
+    const visible = layout.filter((card) => card.mode !== "hidden");
+    const cols = resolveColumns(visible);
+    const next = placeCard(layout, cols, "kpis", 3, "recent");
+    const ids = next.map((card) => card.id);
+    expect(ids.indexOf("kpis")).toBe(ids.indexOf("recent") - 1);
+    expect(next.find((card) => card.id === "kpis")?.col).toBe(3);
+    expect(next.find((card) => card.id === "forecast")?.col).toBe(cols.get("forecast"));
+    expect(placeCard(layout, cols, "kpis", 2, null).at(-1)?.id).toBe("kpis");
+  });
+
+  it("keeps a saved column inside the card's width and survives a round trip", () => {
+    const wide = parseLayout(JSON.stringify([{ id: "bills", span: 2, mode: "full", col: 3 }]));
+    expect(wide.find((card) => card.id === "bills")?.col).toBe(2);
+    const stored = serializeLayout(placeCard(parseLayout(null), new Map([["kpis", 1]]), "kpis", 3, null));
+    expect(parseLayout(stored).find((card) => card.id === "kpis")?.col).toBe(3);
+    const narrow = parseLayout(JSON.stringify([{ id: "kpis", span: 1, mode: "full", col: 3 }]));
+    expect(setSpan(narrow, "kpis", 3).find((card) => card.id === "kpis")?.col).toBe(1);
   });
 });

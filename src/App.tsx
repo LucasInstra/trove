@@ -879,6 +879,7 @@ export function App() {
                 onLayoutMoveTo={(id: CardId, targetId: CardId, side?: "before" | "after") => {
                   saveLayout(side ? moveCardNear(layout, id, targetId, side) : moveCardTo(layout, id, targetId));
                 }}
+                onLayoutSet={saveLayout}
                 onLayoutResize={(id: CardId, span: Span) => {
                   saveLayout(setSpan(layout, id, span));
                 }}
