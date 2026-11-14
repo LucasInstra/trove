@@ -1085,3 +1085,46 @@ input[type="month"]:focus-visible,
 .account-delta .delta-line {
   white-space: nowrap;
 }
+
+/* ---- Dark theme: flat, borderless panels on near-black ------------------- */
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .account-card,
+[data-theme="dark"] .entity-card,
+[data-theme="dark"] .planner-metrics {
+  border-color: transparent;
+  background: var(--surface);
+}
+
+[data-theme="dark"] .card:hover {
+  border-color: var(--line);
+}
+
+/* The top bar sits flat on the page instead of floating as a pill. */
+[data-theme="dark"] .floating-bar {
+  min-height: 48px;
+  padding-left: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .sidebar-rail {
+  border-right-color: var(--line);
+  background: var(--paper);
+}
+
+/* The lead card is the one outlined in the accent. */
+[data-theme="dark"] .anchor-card {
+  border: 2px solid var(--primary);
+  background: var(--surface);
+  padding: 22px;
+}
+
+[data-theme="dark"] .segmented {
+  background: var(--paper);
+}
+
+[data-theme="dark"] .segmented button.active {
+  background: var(--surface-soft);
+}
