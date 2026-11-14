@@ -7,7 +7,7 @@ export interface LedgerRow {
   amountCents: number;
 }
 
-export type RecurrenceStatus = "due" | "overdue" | "scheduled";
+type RecurrenceStatus = "due" | "overdue" | "scheduled";
 
 export interface RecurringCharge {
   label: string;

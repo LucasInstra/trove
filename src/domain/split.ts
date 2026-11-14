@@ -8,7 +8,7 @@
 
 import type { Bill, Person, Share } from "../lib/api";
 
-export interface SplitLine {
+interface SplitLine {
   bill: Bill;
   person: Person | null;
   amountCents: number;

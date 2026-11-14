@@ -136,7 +136,7 @@ export interface RuleInput {
   priority: number;
 }
 
-export interface BudgetLine {
+interface BudgetLine {
   categoryId: number | null;
   name: string;
   color: string;
@@ -248,14 +248,14 @@ export interface CsvMapping {
   decimalSep: string;
 }
 
-export interface CsvRow {
+interface CsvRow {
   lineNo: number;
   postedOn: string;
   description: string;
   amountCents: number;
 }
 
-export interface CsvIssue {
+interface CsvIssue {
   lineNo: number;
   message: string;
 }

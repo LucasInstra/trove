@@ -117,7 +117,7 @@ const GLYPHS: Record<string, ReactNode> = {
   ),
 };
 
-export const GOAL_ICONS = Object.keys(GLYPHS);
+const GOAL_ICONS = Object.keys(GLYPHS);
 
 export function GoalIcon({
   name,

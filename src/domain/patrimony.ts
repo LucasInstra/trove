@@ -50,8 +50,6 @@ export function totalWealth(reservesCents: number, accumulatedCents: number, hol
   return reservesCents + accumulatedCents + holdingsCents;
 }
 
-export type Indexer = "none" | "cdi" | "selic" | "ipca" | "fixed";
-
 /** Yearly market rates, in percent, used to estimate what an investment earns. */
 export interface RateAssumptions {
   cdiPct: number;

@@ -64,7 +64,7 @@ export function spanOptions(id: CardId): Span[] {
 }
 
 /** Off the dashboard, or on it. */
-export const CARD_MODES = ["hidden", "full"] as const;
+const CARD_MODES = ["hidden", "full"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
 /** Cards whose content is a list or a chart can be made taller or shorter by hand. */

@@ -16,7 +16,7 @@ export function parseCents(raw: string): number {
 }
 
 /** "24" becomes 24 parcels; anything else becomes a regular bill. */
-export function parseInstallments(raw: string): number | null {
+function parseInstallments(raw: string): number | null {
   const value = Number.parseInt(raw.trim(), 10);
   return Number.isInteger(value) && value >= 2 ? value : null;
 }

@@ -2,7 +2,7 @@ import { freeToSpend, paceOf } from "./budgets";
 import type { RecurringCharge } from "./recurrence";
 import type { BudgetStatus, CategoryTotal, MonthTotals } from "../lib/api";
 
-export interface ReportCategory {
+interface ReportCategory {
   name: string;
   totalCents: number;
   effectiveCents: number | null;

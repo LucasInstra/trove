@@ -1,5 +1,5 @@
 /** Ready-made looks for a card, modelled on the cards people actually carry. */
-export type CardTexture = "plain" | "waves" | "carbon" | "metal" | "glow" | "stripes";
+type CardTexture = "plain" | "waves" | "carbon" | "metal" | "glow" | "stripes";
 
 export type CardDesign = {
   id: string;

@@ -1,6 +1,6 @@
 import { daysInMonth } from "./month";
 
-export type PaceStatus = "ok" | "watch" | "over";
+type PaceStatus = "ok" | "watch" | "over";
 
 export interface Pace {
   expectedCents: number;

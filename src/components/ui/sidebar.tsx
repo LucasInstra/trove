@@ -24,30 +24,6 @@ function Sidebar({
   );
 }
 
-function SidebarBrand({
-  mark,
-  name,
-  tagline,
-  className,
-}: {
-  mark: string;
-  name: string;
-  tagline: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex items-center gap-2.5 px-2", className)}>
-      <span className="grid size-8 place-items-center rounded-sm bg-primary text-[15px] font-bold text-primary-foreground">
-        {mark}
-      </span>
-      <div className="flex min-w-0 flex-col leading-tight">
-        <strong className="truncate text-[13.5px] font-semibold">{name}</strong>
-        <span className="truncate text-2xs text-faint">{tagline}</span>
-      </div>
-    </div>
-  );
-}
-
 function SidebarProfile({
   initials,
   name,
@@ -145,4 +121,4 @@ function SidebarFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElem
   return <div className={cn("mt-auto flex flex-col gap-3", className)} {...props} />;
 }
 
-export { Sidebar, SidebarBrand, SidebarGroup, SidebarItem, SidebarFooter, SidebarProfile };
+export { Sidebar, SidebarGroup, SidebarItem, SidebarFooter, SidebarProfile };

@@ -33,7 +33,7 @@ export function AnchorCard({ children, className }: { children: ReactNode; class
 }
 
 /** A warm paper surface for plan screens, how-it-works and import summaries. */
-export function PaperBand({
+function PaperBand({
   children,
   className,
   as: Tag = "section",

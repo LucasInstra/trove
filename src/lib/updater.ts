@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BUILD_NUMBER } from "./build";
 import { isNewerRelease, readBuild } from "./release";
 
-export type UpdateStatus =
+type UpdateStatus =
   | "idle"
   | "checking"
   | "current"

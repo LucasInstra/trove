@@ -1,5 +1,5 @@
-export type RuleTarget = "merchant" | "description" | "both";
-export type RuleSign = "any" | "in" | "out";
+type RuleTarget = "merchant" | "description" | "both";
+type RuleSign = "any" | "in" | "out";
 
 export interface RuleLike {
   pattern: string;
