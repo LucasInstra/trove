@@ -1430,22 +1430,31 @@ input[type="month"]:focus-visible,
   color: var(--chart-housing);
 }
 
-/* The housing card: white like the rest, with the vivid red as its accent. */
+/* The housing card: white like the rest. Green while under the income ceiling,
+   the vivid red once it is over. */
 .housing-card {
   border-left: 1px solid var(--line);
   background: var(--surface);
 }
 
+.housing-card .meter-fill {
+  background: var(--chart-green);
+}
+
+.housing-card .meter-fill.over {
+  background: var(--chart-housing);
+}
+
 .housing-card .card-figure .delta-line {
+  background: color-mix(in srgb, var(--positive) 10%, var(--surface));
+  color: var(--positive);
+}
+
+.housing-card .card-figure .delta-line.down {
   background: color-mix(in srgb, var(--chart-housing) 10%, var(--surface));
   color: var(--chart-housing);
 }
 
 .housing-card .meter-mark {
   background: var(--ink);
-}
-
-.housing-card .meter-fill,
-.housing-card .meter-fill.over {
-  background: var(--chart-housing);
 }

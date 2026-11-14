@@ -51,6 +51,7 @@
   --chart-teal: #0fb5a8;
   --chart-violet: #7c4dff;
   --chart-housing: var(--chart-out);
+  --chart-green: #16a34a;
 
   /* Shadows: one for cards, one for things that float above them */
   --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
@@ -149,6 +150,7 @@
   --chart-teal: #2dd4bf;
   --chart-violet: #a78bfa;
   --chart-housing: var(--chart-out);
+  --chart-green: #22c55e;
   --clay: #e8795a;
 
   --fill-green: #16a34a;
