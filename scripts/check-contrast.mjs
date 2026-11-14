@@ -72,5 +72,32 @@ for (const [name, tokens] of [["light", light], ["dark", dark]]) {
     );
   }
 }
-console.log(failed ? `\n${failed} pair(s) below 4.5:1` : "\nall pairs >= 4.5:1");
+// User-chosen colours: card designs from src/domain/cardDesigns.ts.
+// White text on the lightest gradient stop (theme.css mixes 82-90% with white)
+// and on the base colour. The lightest stop is a highlight corner, so it only warns.
+// Below 3:1 fails; 3 to 4.5 is listed as a warning (large text only).
+const mix = (a, b, pct) => {
+  const [x, y] = [parseInt(a.slice(1), 16), parseInt(b.slice(1), 16)];
+  const ch = (s) => Math.round(((x >> s) & 255) * pct + ((y >> s) & 255) * (1 - pct));
+  return "#" + [16, 8, 0].map((s) => ch(s).toString(16).padStart(2, "0")).join("");
+};
+const designs = readFileSync(
+  fileURLToPath(new URL("../src/domain/cardDesigns.ts", import.meta.url)),
+  "utf8",
+);
+console.log("\ncard designs");
+for (const m of designs.matchAll(/name: "([^"]+)", color: "(#[0-9a-fA-F]{6})"/g)) {
+  const [, name, color] = m;
+  for (const [label, bg, fg] of [
+    ["white on lightest stop", mix(color, "#ffffff", 0.82), "#ffffff"],
+    ["white on base", color, "#ffffff"],
+  ]) {
+    const value = ratio(fg, bg);
+    if (value >= 4.5) continue;
+    const hard = value < 3 && !label.includes("lightest");
+    if (hard) failed += 1;
+    console.log(`${hard ? "FAIL" : "warn"} ${value.toFixed(2).padStart(5)}:1  ${name}: ${label}`);
+  }
+}
+console.log(failed ? `\n${failed} pair(s) failing` : "\nno failures (warnings are 3 to 4.5:1)");
 process.exit(failed ? 1 : 0);
