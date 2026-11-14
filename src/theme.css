@@ -7,73 +7,6 @@
  * the brand and progress, red for over budget or late, everything else neutral.
  */
 
-:root {
-  --bg: #f1f4f9;
-  --surface: #ffffff;
-  --surface-soft: #f6f8fb;
-  --bg-sunken: #eef1f6;
-  --ink: #0f172a;
-  --muted: #5b6577;
-  --faint: #8b94a5;
-  --line: #e6eaf1;
-  --line-strong: #d5dbe6;
-  --border: #e6eaf1;
-  --primary: #1d63ed;
-  --primary-strong: #1d4ed8;
-  --primary-soft: #e8effd;
-  --primary-foreground: #ffffff;
-  --positive: #16a34a;
-  --negative: #b8432f;
-  --warning: #b7791f;
-  --bills-segment: #93b4f8;
-  --hero: #ffffff;
-  --hero-text: #0f172a;
-  --shadow-soft: rgba(15, 23, 42, 0.05);
-  --bar-rest: #e8ecf3;
-  --chart-line: #2563eb;
-  --chart-fill: rgba(37, 99, 235, 0.12);
-  --window-control: #5b6577;
-  --window-hover: #e8ecf3;
-  --window-active: #dce2ec;
-  --shadow-card-lift: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
-  --hero-glow: transparent;
-  --line-hover: var(--line-strong);
-  --radius: 16px;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-}
-
-[data-theme="dark"] {
-  --bg: #0b1120;
-  --surface: #131a2b;
-  --surface-soft: #18213a;
-  --bg-sunken: #1b2540;
-  --ink: #e8edf7;
-  --muted: #9aa5bd;
-  --faint: #75809a;
-  --line: #22304d;
-  --line-strong: #2d3d60;
-  --border: #22304d;
-  --primary: #2563eb;
-  --primary-strong: #93b4f8;
-  --primary-soft: #1b2740;
-  --primary-foreground: #ffffff;
-  --positive: #4ade80;
-  --negative: #e0806c;
-  --warning: #d9a54a;
-  --bills-segment: #1d4ed8;
-  --hero: #131a2b;
-  --hero-text: #e8edf7;
-  --bar-rest: #22304d;
-  --chart-line: #93b4f8;
-  --chart-fill: rgba(147, 180, 248, 0.14);
-  --window-control: #9aa5bd;
-  --window-hover: #1b2540;
-  --window-active: #24315a;
-  --shadow-card-lift: none;
-  --line-hover: var(--line-strong);
-}
-
 /* Figures line up in columns everywhere. */
 body {
   font-variant-numeric: tabular-nums;
@@ -99,7 +32,7 @@ body {
 .account-card:hover,
 .entity-card:hover {
   transform: none;
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
 }
 
 .entity-card:hover {
@@ -413,11 +346,11 @@ button.primary:hover:not(:disabled) {
 }
 
 .composition-part.housing {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 60%, var(--surface)), var(--warning));
+  background: var(--warning);
 }
 
 .composition-part.free {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, var(--surface)), var(--primary));
+  background: var(--primary);
 }
 
 .composition-dot.housing {
@@ -438,7 +371,7 @@ button.primary:hover:not(:disabled) {
 
 .goals-card {
   border-bottom-color: var(--primary);
-  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--primary) 6%, var(--surface)));
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
 }
 
 /* ---- Spacing and shell fixes ---------------------------------------------- */
@@ -673,13 +606,13 @@ select:not([multiple]) {
   animation: fade-in 700ms ease 200ms both;
 }
 
-/* Card title chips: a soft gradient and inner ring instead of a flat square. */
+/* Card title chips: a tinted circle-ish square with an inner ring. */
 .card-icon {
   width: 28px;
   height: 28px;
   border: 0;
   border-radius: 9px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 18%, var(--surface)), var(--primary-soft));
+  background: var(--primary-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
   transition: transform 180ms var(--ease-out);
 }
@@ -724,7 +657,7 @@ select:not([multiple]) {
 .card:hover,
 .account-card:hover {
   border-color: var(--line-strong);
-  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
+  box-shadow: var(--shadow-card);
 }
 
 button:active:not(:disabled) {
@@ -986,10 +919,6 @@ button:active:not(:disabled) {
 }
 
 /* ---- Reference pass: big figures, 3D art, rounder surfaces ------------- */
-
-:root {
-  --radius: 20px;
-}
 
 .card,
 .account-card,

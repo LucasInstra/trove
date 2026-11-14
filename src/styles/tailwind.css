@@ -2,12 +2,12 @@
  * Tailwind v4 for the new components.
  *
  * The preflight is deliberately not imported: the app still carries its own
- * reset in `styles.css`, which loads in the `legacy` layer, below the theme and
+ * reset in `styles.css`, which loads in the `base` layer, below the theme and
  * the utilities, so a utility class always wins over an old rule.
  *
- * The colour tokens point at the CSS variables the app already uses, which is
- * what keeps light and dark working: the utilities read `--surface` and the
- * theme switch flips that variable underneath.
+ * Every token here points at a CSS variable from `tokens.css`, which is what
+ * keeps light and dark working: the utilities read `--surface` and the theme
+ * switch flips that variable underneath.
  */
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
@@ -25,23 +25,37 @@
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
 
-  --text-xs: 11px;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 12px;
   --text-xs--line-height: 16px;
-  --text-sm: 12px;
-  --text-sm--line-height: 17px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
   --text-base: 13px;
-  --text-base--line-height: 19px;
-  --text-lg: 15px;
-  --text-lg--line-height: 21px;
-  --text-xl: 17px;
-  --text-xl--line-height: 23px;
+  --text-base--line-height: 18px;
+  --text-md: 15px;
+  --text-md--line-height: 22px;
+  --text-lg: 18px;
+  --text-lg--line-height: 24px;
+  --text-xl: 26px;
+  --text-xl--line-height: 30px;
+  --text-2xl: 34px;
+  --text-2xl--line-height: 38px;
+  --text-3xl: 46px;
+  --text-3xl--line-height: 48px;
+  --text-hero: 64px;
+  --text-hero--line-height: 64px;
 
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--ff-sans);
+  --font-display: var(--ff-display);
+  --font-hand: var(--ff-hand);
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-soft: var(--surface-soft);
-  --color-sunken: var(--bg-sunken);
+  --color-sunken: var(--sunken);
+  --color-paper: var(--paper);
+  --color-hero-band: var(--hero-band);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
@@ -53,6 +67,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-positive: var(--positive);
   --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-clay: var(--clay);
   --color-bar-rest: var(--bar-rest);
   --color-hero: var(--hero);
   --color-hero-text: var(--hero-text);
@@ -60,12 +76,13 @@
   --color-window-active: var(--window-active);
   --color-window-close: var(--window-close);
 
-  --radius-tile: 14px;
-  --radius-card: 18px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-tile: 12px;
+  --radius-card: 20px;
 
   --shadow-tile: 0 1px 2px var(--shadow-soft);
-  --shadow-raised: 0 10px 24px rgba(17, 24, 39, 0.14);
-
-  --text-2xs: 11px;
-  --text-2xs--line-height: 14px;
+  --shadow-raised: var(--shadow-float);
 }

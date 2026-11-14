@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PlanNotification } from "../domain/notifications";
 import { monthName } from "../lib/format";
+import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 
@@ -37,7 +38,7 @@ export function TopBar({
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="topbar">
+    <header className="topbar floating-bar">
       <div>
         <div className="title-row">
         <button
@@ -49,7 +50,7 @@ export function TopBar({
           <Icon name="chevron-left" size={18} />
         </button>
         <h1>
-          {monthName(month, lang)}
+          <BrushUnderline>{monthName(month, lang)}</BrushUnderline>
           <span className="title-year">{month.slice(0, 4)}</span>
         </h1>
         <button

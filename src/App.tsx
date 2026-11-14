@@ -35,7 +35,7 @@ import {
   HealthScreen,
   HouseScreen,
   PatrimonyScreen,
-  ScreenHeader,
+  PageHeader,
   ReserveScreen,
   RetirementScreen,
 } from "./screens/PlannerScreens";
@@ -106,7 +106,6 @@ type Route =
   | "transactions"
   | "flow"
   | "cards"
-  | "house"
   | "goals"
   | "patrimony"
   | "categories"
@@ -118,7 +117,6 @@ const ROUTES: readonly Route[] = [
   "transactions",
   "flow",
   "cards",
-  "house",
   "goals",
   "patrimony",
   "categories",
@@ -132,7 +130,6 @@ const MENU: Array<{ route: Route; icon: IconName }> = [
   { route: "transactions", icon: "ledger" },
   { route: "flow", icon: "arrow-left-right" },
   { route: "cards", icon: "card" },
-  { route: "house", icon: "home" },
   { route: "goals", icon: "target" },
   { route: "patrimony", icon: "bank" },
 ];
@@ -968,7 +965,7 @@ export function App() {
                   />
                 ) : (
                   <section className="screen planner-screen">
-                    <ScreenHeader
+                    <PageHeader
                       eyebrow={t("nav.flow")}
                       title={t("tab.flowTrends")}
                       description={t("flow.trendsDescription")}
@@ -1021,12 +1018,47 @@ export function App() {
                 eyebrow={t("nav.goals")}
                 tabs={[
                   { id: "goals", label: t("tab.goals") },
+                  { id: "house", label: t("nav.house") },
                   { id: "retirement", label: t("nav.retirement") },
                 ]}
                 active={tabOf("goals", "goals")}
                 onTab={(id) => setTab("goals", id)}
               >
-                {tabOf("goals", "goals") === "goals" ? (
+                {tabOf<string>("goals", "goals") === "house" ? (
+                  <HouseScreen
+                                    plan={plan}
+                                    categories={categories}
+                                    housingCategoryId={housingCategoryId}
+                                    housingScope={housingScope}
+                                    people={planner.people}
+                                    shares={planner.shares}
+                                    splitSettled={splitSettled}
+                                    trackSettlement={trackSettlement}
+                                    onSavePeople={(inputs) => void savePeople(inputs)}
+                                    onTrackSettlement={(value) => {
+                                      setTrackSettlement(value);
+                                      void api.setSetting("split_track", value ? "1" : "0");
+                                    }}
+                                    onCategory={(categoryId) => void saveHousingCategory(categoryId)}
+                                    onScope={(scope) => {
+                                      setHousingScope(scope);
+                                      void api.setSetting("housing_scope", scope);
+                                    }}
+                                    onEditCeiling={() => setDialog({ kind: "ceiling" })}
+                                    onAddBill={() => setDialog({ kind: "bill", bill: null })}
+                                    onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+                                    onAssign={(billId, personId) => {
+                                      void api.setShare({ billId, personId }).then(() => {
+                                        void refreshData();
+                                      });
+                                    }}
+                                    onSettle={() => {
+                                      if (!month) return;
+                                      setSplitSettled(true);
+                                      void api.setSetting(`split_settled_${month}`, "1");
+                                    }}
+                                  />
+                ) : tabOf("goals", "goals") === "goals" ? (
                   <ReserveScreen
                     plan={plan}
                     onAdd={() => setDialog({ kind: "goal", goal: null })}
@@ -1075,44 +1107,6 @@ export function App() {
                     history={recurrence}
                   />
                 )}
-              </SectionPage>
-            ) : null}
-
-            {route === "house" ? (
-              <SectionPage eyebrow={t("nav.house")} tabs={[]} active="" onTab={() => {}}>
-                <HouseScreen
-                  plan={plan}
-                  categories={categories}
-                  housingCategoryId={housingCategoryId}
-                  housingScope={housingScope}
-                  people={planner.people}
-                  shares={planner.shares}
-                  splitSettled={splitSettled}
-                  trackSettlement={trackSettlement}
-                  onSavePeople={(inputs) => void savePeople(inputs)}
-                  onTrackSettlement={(value) => {
-                    setTrackSettlement(value);
-                    void api.setSetting("split_track", value ? "1" : "0");
-                  }}
-                  onCategory={(categoryId) => void saveHousingCategory(categoryId)}
-                  onScope={(scope) => {
-                    setHousingScope(scope);
-                    void api.setSetting("housing_scope", scope);
-                  }}
-                  onEditCeiling={() => setDialog({ kind: "ceiling" })}
-                  onAddBill={() => setDialog({ kind: "bill", bill: null })}
-                  onEditBill={(bill) => setDialog({ kind: "bill", bill })}
-                  onAssign={(billId, personId) => {
-                    void api.setShare({ billId, personId }).then(() => {
-                      void refreshData();
-                    });
-                  }}
-                  onSettle={() => {
-                    if (!month) return;
-                    setSplitSettled(true);
-                    void api.setSetting(`split_settled_${month}`, "1");
-                  }}
-                />
               </SectionPage>
             ) : null}
 
@@ -1185,7 +1179,7 @@ export function App() {
         <BillDialog
           bill={dialog.bill}
           categories={categories}
-          defaultCategoryId={route === "house" ? housingCategoryId : null}
+          defaultCategoryId={route === "goals" && tabOf<string>("goals", "goals") === "house" ? housingCategoryId : null}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveBill(input)}
           onDelete={(id) => void removeBill(id)}

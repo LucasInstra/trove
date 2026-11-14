@@ -7,6 +7,9 @@ import { ScoreCard } from "../components/ScoreCard";
 import { GoalIcon } from "../components/GoalIcon";
 import { LineChart } from "../components/charts/LineChart";
 import { Icon } from "../components/Icons";
+import { Money } from "../components/Money";
+import { PlanEmpty, Polaroid } from "../components/editorial";
+import type { Icon3DName } from "../components/Icon3D";
 import { useScreenFrame } from "../components/SectionPage";
 import { cardLimitUsage, summarizeCards, summarizeGoals } from "../domain/planner";
 import { freeToSpend, paceOf } from "../domain/budgets";
@@ -46,20 +49,23 @@ import {
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 
-export function ScreenHeader({
+export function PageHeader({
   eyebrow,
   title,
   description,
   action,
+  polaroid,
 }: {
   eyebrow: string;
   title: string;
   description: string;
   action?: { label: string; onClick: () => void };
+  /** Plan screens only: the pinned picture with its handwritten caption. */
+  polaroid?: { icon: Icon3DName; caption: string; tilt?: number };
 }) {
   const frame = useScreenFrame();
   return (
-    <header className="planner-screen-head">
+    <header className={polaroid ? "planner-screen-head has-polaroid" : "planner-screen-head"}>
       <div className="planner-screen-title">
         {(frame?.eyebrow ?? eyebrow) !== title ? (
           <span className="eyebrow">{frame?.eyebrow ?? eyebrow}</span>
@@ -73,6 +79,7 @@ export function ScreenHeader({
           {action.label}
         </button>
       ) : null}
+      {polaroid ? <Polaroid icon={polaroid.icon} caption={polaroid.caption} tilt={polaroid.tilt} /> : null}
       {frame?.tabs ? <div className="planner-screen-tabs">{frame.tabs}</div> : null}
     </header>
   );
@@ -112,7 +119,7 @@ export function CardsScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("planner.section")}
         title={t("nav.cards")}
         description={t("planner.cardsDescription")}
@@ -210,7 +217,7 @@ export function CardsScreen({
                   >
                     <div
                       className="meter-fill"
-                      style={{ width: `${Math.max(usedPct, usedPct > 0 ? 2 : 0)}%`, background: "var(--entity-color, var(--primary))" }}
+                      style={{ width: `${Math.max(usedPct, usedPct > 0 ? 2 : 0)}%`, background: usedPct > 80 ? "var(--negative)" : "var(--primary)" }}
                     />
                   </div>
                 </div>
@@ -243,11 +250,12 @@ export function ReserveScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("planner.section")}
         title={t("nav.reserve")}
         description={t("planner.reserveDescription")}
         action={{ label: t("planner.addGoal"), onClick: onAdd }}
+        polaroid={{ icon: "plane", caption: t("polaroid.goals"), tilt: -2.5 }}
       />
       <div className="planner-metrics">
         <article className="card metric-card metric-card-primary">
@@ -265,7 +273,13 @@ export function ReserveScreen({
       </div>
 
       {plan.goals.length === 0 ? (
-        <EmptyList label={t("planner.noGoals")} action={onAdd} />
+        <PlanEmpty
+          icon="shield"
+          caption={t("polaroid.reserve")}
+          label={t("planner.noGoals")}
+          actionLabel={t("planner.addGoal")}
+          onAction={onAdd}
+        />
       ) : (
         <div className="entity-list">
           {plan.goals.map(({ goal, paidCents, sharePct }) => (
@@ -380,10 +394,11 @@ export function HouseScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("planner.section")}
         title={t("nav.house")}
         description={t("planner.houseDescription")}
+        polaroid={{ icon: "house", caption: t("polaroid.house"), tilt: 2 }}
       />
       <article className="card house-settings-card">
         <div className="house-settings-copy">
@@ -557,11 +572,15 @@ export function PatrimonyScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.strategyGroup")}
         title={t("nav.patrimony")}
         description={t("patrimony.description")}
       />
+      <div className="net-worth-hero">
+        <span className="metric-label">{t("nav.patrimony")}</span>
+        <Money cents={total} variant="hero" />
+      </div>
       <div className="planner-metrics">
         <article className="card metric-card metric-card-primary">
           <span className="metric-label">{t("planner.savedSoFar")}</span>
@@ -976,10 +995,11 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.strategyGroup")}
         title={t("nav.retirement")}
         description={t("retirement.description")}
+        polaroid={{ icon: "umbrella", caption: t("polaroid.retirement"), tilt: -1.5 }}
       />
       <div className="planner-metrics">
         <article className="card metric-card metric-card-primary">
@@ -1152,7 +1172,7 @@ export function HealthScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.strategyGroup")}
         title={t("nav.health")}
         description={t("health.description")}
@@ -1349,7 +1369,7 @@ export function FlowsScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.strategyGroup")}
         title={t("nav.flows")}
         description={t("flows.description")}
@@ -1626,7 +1646,7 @@ export function DebtsScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.strategyGroup")}
         title={t("nav.debts")}
         description={t("debts.description")}

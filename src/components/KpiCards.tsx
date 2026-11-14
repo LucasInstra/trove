@@ -1,3 +1,4 @@
+import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Money } from "./Money";
 import { Sparkline } from "./charts/Sparkline";
@@ -108,7 +109,7 @@ export function KpisCard({
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <Icon3D name="chart-up" size={30} />
+          <IconBubble name="chart-up" size="sm" />
           <h2>{t("kpi.title")}</h2>
         </div>
       </header>

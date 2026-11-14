@@ -1,16 +1,4 @@
-:root {
-  --shadow-card-lift: 0 10px 24px rgba(17, 24, 39, 0.09);
-  --hero-glow: color-mix(in srgb, var(--primary) 12%, transparent);
-  --line-hover: color-mix(in srgb, var(--primary) 30%, var(--line-strong));
-}
-
-[data-theme="dark"] {
-  --shadow-card-lift: 0 10px 24px rgba(0, 0, 0, 0.32);
-  --hero-glow: color-mix(in srgb, var(--primary) 22%, transparent);
-  --line-hover: color-mix(in srgb, var(--primary) 50%, var(--line-strong));
-}
-
-@layer legacy {
+@layer base {
   /* 150ms ease-out interactions; transforms never change packed card geometry. */
   button {
     transition:
@@ -63,9 +51,7 @@
 
   /* Forecast spotlight. The rings are decoration, not part of the grid measure. */
   .account-card {
-    background:
-      radial-gradient(ellipse at 94% 4%, var(--hero-glow), transparent 42%),
-      linear-gradient(135deg, var(--surface), var(--primary-soft));
+    background: var(--primary-soft);
     box-shadow: var(--shadow-card-lift);
   }
 
@@ -102,11 +88,11 @@
   /* Distinct dashboard card families: bills, credit, housing, goals and split. */
   .bills-card {
     border-top: 3px solid var(--bills-segment);
-    background: linear-gradient(180deg, var(--surface-soft), var(--surface) 30%);
+    background: var(--surface);
   }
 
   .cards-card {
-    background: linear-gradient(150deg, var(--surface), var(--primary-soft));
+    background: var(--primary-soft);
   }
 
   .housing-card {
@@ -132,11 +118,7 @@
 
   .goals-card {
     border-bottom: 3px solid var(--positive);
-    background: linear-gradient(
-      180deg,
-      var(--surface),
-      color-mix(in srgb, var(--positive) 6%, var(--surface))
-    );
+    background: color-mix(in srgb, var(--positive) 6%, var(--surface));
   }
 
   .split-card {
@@ -166,28 +148,16 @@
   }
 
   .composition-part.housing {
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--primary) 62%, var(--surface)),
-      var(--primary)
-    );
+    background: var(--primary);
   }
 
   .composition-part.bills,
   .composition-part.spent {
-    background: linear-gradient(
-      90deg,
-      var(--bills-segment),
-      color-mix(in srgb, var(--bills-segment) 55%, var(--primary))
-    );
+    background: var(--bills-segment);
   }
 
   .composition-part.free {
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--positive) 55%, var(--surface)),
-      var(--positive)
-    );
+    background: var(--positive);
   }
 
   .composition-legend li {
@@ -257,12 +227,11 @@
   }
 
   .metric-card-primary {
-    background:
-      radial-gradient(ellipse at 95% 0%, var(--hero-glow), transparent 52%), var(--surface);
+    background: var(--surface);
   }
 
   .metric-card-secondary {
-    background: linear-gradient(140deg, var(--surface-soft), var(--surface));
+    background: var(--surface-soft);
   }
 
   .metric-label {

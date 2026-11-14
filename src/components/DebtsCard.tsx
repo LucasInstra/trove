@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icons";
+import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Money } from "./Money";
 import { parseCents } from "./PlannerDialogs";
@@ -132,7 +133,7 @@ export function DebtsCard({
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <Icon3D name="receipt" size={30} />
+          <IconBubble name="receipt" size="sm" />
           <h2>{t("debts.title")}</h2>
         </div>
         <button type="button" className="round-button" onClick={onAdd} aria-label={t("debts.newDebt")}>

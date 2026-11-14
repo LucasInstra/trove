@@ -14,6 +14,7 @@ import { useLanguage } from "../lib/language";
 import { CreditCardArt } from "./CreditCardArt";
 import { Icon } from "./Icons";
 import { Money } from "./Money";
+import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Progress } from "./ui/progress";
 import { InvoiceDialog } from "./InvoiceDialog";
@@ -751,7 +752,7 @@ export function SplitCard({
         <div className="card-title">
           <h2>{t("split.title")}</h2>
         </div>
-        <Icon3D name="scale" size={30} />
+        <IconBubble name="scale" size="sm" />
       </header>
 
       <div className="card-figure">

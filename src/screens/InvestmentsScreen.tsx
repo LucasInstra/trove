@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icons";
-import { HoldingDialog, ScreenHeader } from "./PlannerScreens";
+import { HoldingDialog, PageHeader } from "./PlannerScreens";
 import { DEFAULT_RATES, investmentLines, investmentSummary, type RateAssumptions } from "../domain/patrimony";
 import { api, type Holding, type HoldingInput } from "../lib/api";
 import { formatCents } from "../lib/format";
@@ -88,7 +88,7 @@ export function InvestmentsScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.patrimony")}
         title={t("investments.title")}
         description={t("investments.description")}

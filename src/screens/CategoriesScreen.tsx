@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icons";
-import { ScreenHeader } from "./PlannerScreens";
+import { PageHeader } from "./PlannerScreens";
 import type { Category, CategoryInput, Rule, RuleInput } from "../lib/api";
 import { RulesManager } from "../components/RulesManager";
 import { categoryName } from "../lib/i18n";
@@ -201,7 +201,7 @@ export function CategoriesScreen({
 
   return (
     <section className="screen planner-screen">
-      <ScreenHeader
+      <PageHeader
         eyebrow={t("nav.settingsGroup")}
         title={t("nav.categories")}
         description={t("categories.description")}

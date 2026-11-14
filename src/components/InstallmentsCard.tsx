@@ -1,3 +1,4 @@
+import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Money } from "./Money";
 import { installmentOf } from "../domain/installment";
@@ -56,7 +57,7 @@ export function InstallmentsCard({
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <Icon3D name="credit-card" size={30} />
+          <IconBubble name="credit-card" size="sm" />
           <h2>{t("planner.installments")}</h2>
         </div>
       </header>

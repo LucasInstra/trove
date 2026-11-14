@@ -1,43 +1,9 @@
+@layer base, theme, utilities;
+
 /* Everything below is the sheet written before Tailwind. It lives in a layer so
    the utilities of the new components win at equal specificity, without having
    to port every screen at once. */
-@layer legacy {
-
-:root {
-  --bg: #f1f3f7;
-  --surface: #ffffff;
-  --surface-soft: #f5f6f9;
-  --bg-sunken: #f3f4f6;
-  --ink: #111827;
-  --muted: #6b7280;
-  --faint: #98a1ae;
-  --line: #e9ecf1;
-  --line-strong: #dde2ea;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --primary-soft: #e8effd;
-  --positive: #16a34a;
-  --negative: #dc2626;
-  --bills-segment: #93b4f8;
-  --primary-foreground: #ffffff;
-  --hero: #ffffff;
-  --hero-text: #111827;
-  --shadow-soft: rgba(17, 24, 39, 0.04);
-  --bar-rest: #e6eaf0;
-  --chart-line: #2563eb;
-  --chart-fill: rgba(37, 99, 235, 0.12);
-  --window-control: #6b7280;
-  --window-hover: #e9ebef;
-  --window-active: #dde0e6;
-  --window-close: #e81123;
-  --window-close-foreground: #ffffff;
-  --credit-start: #2b2b2d;
-  --credit-end: #111111;
-  --border: #eef0f3;
-  color-scheme: light;
-  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 13px;
-}
+@layer base {
 
 * {
   box-sizing: border-box;
@@ -332,7 +298,7 @@ button.primary:hover:not(:disabled) {
   border-radius: 22px;
   background: var(--hero);
   color: var(--hero-text);
-  box-shadow: 0 1px 3px rgba(26, 25, 23, 0.12);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -445,7 +411,7 @@ button.primary:hover:not(:disabled) {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(20, 18, 26, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .card-head {
@@ -935,7 +901,7 @@ button.primary:hover:not(:disabled) {
   border: 1px solid var(--line);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(20, 18, 26, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .tx-row {
@@ -2322,38 +2288,8 @@ select.tx-category {
 
 /* ---------- Dark theme ---------- */
 
-[data-theme="dark"] {
-  --bg: #0f1115;
-  --surface: #161a20;
-  --surface-soft: #1d222a;
-  --bg-sunken: #1f242c;
-  --ink: #eef1f6;
-  --muted: #9aa3b0;
-  --faint: #7c8592;
-  --line: #262c36;
-  --line-strong: #333b47;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --primary-soft: #1b2740;
-  --positive: #4ade80;
-  --negative: #f87171;
-  --bills-segment: #93b4f8;
-  --primary-foreground: #ffffff;
-  --hero: #161a20;
-  --hero-text: #eef1f6;
-  --shadow-soft: rgba(0, 0, 0, 0.4);
-  --bar-rest: #262c36;
-  --chart-line: #93b4f8;
-  --chart-fill: rgba(147, 180, 248, 0.14);
-  --window-control: #9aa3b0;
-  --window-hover: #232830;
-  --window-active: #2b313a;
-  --border: #2a3038;
-  color-scheme: dark;
-}
-
 [data-theme="dark"] .card {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 [data-theme="dark"] .alert {
@@ -2417,7 +2353,7 @@ select.tx-category {
 .card {
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .planner-grid {
@@ -2433,7 +2369,7 @@ select.tx-category {
   border-radius: 16px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .account-card::after {
@@ -3038,7 +2974,7 @@ select.tx-category {
 .upcoming-tile.active {
   border: 2px solid var(--primary);
   padding: 47px 11px 11px;
-  background-image: linear-gradient(to top, var(--primary-soft), transparent 72%);
+  background-color: var(--primary-soft);
 }
 
 .upcoming-month {
@@ -3449,7 +3385,7 @@ select.tx-category {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .title-row {
@@ -3699,7 +3635,7 @@ button:disabled {
 
 .card,
 .topbar {
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .account-figure {
@@ -4127,7 +4063,7 @@ button.primary:hover:not(:disabled) {
 
 .collapsed-card:hover {
   border-color: var(--line-strong);
-  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .collapsed-card-title {

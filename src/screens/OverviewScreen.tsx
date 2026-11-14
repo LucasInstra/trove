@@ -3,6 +3,7 @@ import { CompositionBar } from "../components/CompositionBar";
 import { BreakdownBar } from "../components/BreakdownBar";
 import { BalanceLine } from "../components/charts/BalanceLine";
 import { Icon3D } from "../components/Icon3D";
+import { AnchorCard, IconBubble } from "../components/editorial";
 import { Icon } from "../components/Icons";
 import { Money } from "../components/Money";
 import { BillsCard, CardsCard, GoalsCard, HousingCard, SplitCard } from "../components/PlannerCards";
@@ -371,7 +372,7 @@ export function OverviewScreen({
     debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} />,
     score: <ScoreCard plan={plan} />,
     forecast: (
-      <article className="account-card">
+      <AnchorCard>
         <div className="account-top">
           <span className="account-label">{t("overview.forecast")}</span>
           <button
@@ -386,7 +387,7 @@ export function OverviewScreen({
         </div>
 
         <div className="account-main">
-          <Money cents={plan.forecastCents} className="account-value" />
+          <Money cents={plan.forecastCents} className="account-value" variant="hero" />
           {plan.incomeCents > 0 ? (
             <div className="account-delta">
               <span className={plan.forecastCents >= 0 ? "delta-line" : "delta-line down"}>
@@ -415,7 +416,7 @@ export function OverviewScreen({
             <strong>{formatCents(plan.plannedCents || plan.realizedCents)}</strong>
           </span>
         </div>
-      </article>
+      </AnchorCard>
     ),
     bills: <BillsCard plan={plan} people={people} housingCategoryId={housingCategoryId} onToggle={onToggleBill} onAdd={onAddBill} onEdit={onEditBill} />,
     cards: (
@@ -452,7 +453,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <Icon3D name="pie" size={30} />
+            <IconBubble name="pie" size="sm" />
             <h2>{t("ledger.whereMoney")}</h2>
           </div>
           <span className="muted">{monthLabel(month, lang)}</span>
@@ -528,7 +529,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <Icon3D name="chart-up" size={30} />
+            <IconBubble name="chart-up" size="sm" />
             <h2>{isWide("series") ? t("ledger.lastTwelve") : t("ledger.lastSix")}</h2>
           </div>
           <div className="card-nav">
@@ -682,7 +683,7 @@ export function OverviewScreen({
       <article className="card overview-chart">
         <header className="card-head">
           <div className="card-title">
-            <Icon3D name="chart-up" size={30} />
+            <IconBubble name="chart-up" size="sm" />
             <h2>{t("overview.inout")}</h2>
           </div>
           <span className="muted">
@@ -766,7 +767,7 @@ export function OverviewScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <Icon3D name="receipt" size={30} />
+            <IconBubble name="receipt" size="sm" />
             <h2>{t("overview.recent")}</h2>
           </div>
           <span className="muted">{monthLabel(month, lang)}</span>

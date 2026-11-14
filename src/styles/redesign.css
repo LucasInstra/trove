@@ -1,0 +1,524 @@
+/*
+ * The redesign, last in the cascade and outside any layer so it wins over the
+ * older sheets without touching them. Tokens live in tokens.css; this file only
+ * spends them. Warm frame, cold data: paper, polaroid and the dark anchor card
+ * stay at the edges, tables and charts stay neutral.
+ */
+
+/* ---- Type ---------------------------------------------------------------- */
+
+body {
+  font-family: var(--ff-sans);
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+.planner-screen-title h1 {
+  font-family: var(--ff-display);
+  font-size: 26px;
+  line-height: 30px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-display);
+}
+
+h2,
+h3 {
+  letter-spacing: -0.01em;
+}
+
+.card-head h2,
+.card-title h2,
+.card-with-art .card-title h2 {
+  font-family: var(--ff-sans);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+/* Eyebrow: small caps in the one blue, closed by a sparkle. */
+.eyebrow {
+  color: var(--primary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eyebrow::after {
+  content: " ✦";
+}
+
+/* The one big number of a screen: display face, tight tracking, small cents. */
+.money-hero {
+  font-family: var(--ff-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-display);
+  line-height: 48px;
+}
+
+.money-hero,
+.account-value.money-hero {
+  font-size: 46px;
+}
+
+.net-worth-hero {
+  display: grid;
+  gap: 2px;
+  padding: 4px 4px 0;
+}
+
+.money-hero .money-cents {
+  font-family: var(--ff-sans);
+  font-size: 0.62em;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.money-cents {
+  font-size: 0.62em;
+  font-weight: 500;
+}
+
+/* ---- Surfaces: one shadow for every card, the border darkens on hover ---- */
+
+.card,
+.account-card,
+.entity-card,
+.planner-metrics {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--dur) var(--ease);
+}
+
+.card:hover,
+.account-card:hover,
+.entity-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-card);
+  transform: none;
+}
+
+/* A panel inside a panel sits flat. */
+.card .card,
+.planner-metrics > .metric-card {
+  box-shadow: none;
+}
+
+/* Two cards per dashboard carry the tint. */
+.cards-card,
+.goals-card {
+  background: var(--primary-soft);
+}
+
+/* ---- Anchor card: the one dark card of the Overview ---------------------- */
+
+.anchor-card {
+  border-color: transparent;
+  background: var(--hero-band);
+  color: var(--hero-band-text);
+}
+
+[data-theme="dark"] .anchor-card {
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+.anchor-card :is(.account-label, .account-meta, .account-meta-label, .muted, .small) {
+  color: var(--anchor-muted);
+}
+
+.anchor-card :is(.account-value, .account-meta strong, .money-prefix) {
+  color: var(--hero-band-text);
+}
+
+.anchor-card .account-edit {
+  color: var(--anchor-muted);
+}
+
+.anchor-card .account-delta .delta-line {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--anchor-positive);
+}
+
+.anchor-card .account-delta .delta-line.down {
+  color: var(--anchor-negative);
+}
+
+.anchor-card .account-delta .delta-line svg {
+  color: inherit;
+}
+
+.anchor-card .composition-legend li {
+  border-color: var(--anchor-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--hero-band-text);
+}
+
+.anchor-card .composition-legend :is(.composition-item, .composition-value) {
+  color: var(--hero-band-text);
+}
+
+.anchor-card .composition-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---- Metric strip -------------------------------------------------------- */
+
+.planner-metrics {
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+.metric-label {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.metric-value {
+  font-size: 22px;
+  font-weight: 650;
+}
+
+/* ---- Floating bar: the top bar as a pill --------------------------------- */
+
+.floating-bar {
+  min-height: 56px;
+  padding: 8px 10px 8px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: var(--shadow-float);
+}
+
+.floating-bar .title-row h1,
+.floating-bar h1 {
+  font-family: var(--ff-display);
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+}
+
+.floating-bar .title-year {
+  font-family: var(--ff-display);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.brush-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.brush-stroke {
+  position: absolute;
+  left: -2%;
+  bottom: -5px;
+  width: 104%;
+  height: 7px;
+  color: color-mix(in srgb, var(--primary) 55%, transparent);
+  pointer-events: none;
+}
+
+/* ---- Buttons ------------------------------------------------------------- */
+
+button.primary,
+.primary,
+.topbar-primary {
+  border-color: var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-button-primary);
+}
+
+button.primary:hover:not(:disabled),
+.primary:hover:not(:disabled),
+.topbar-primary:hover:not(:disabled) {
+  border-color: var(--primary-strong);
+  background: var(--primary-strong);
+}
+
+:is(.primary, .outline-button, .icon-button, .round-button, .titlebar-button) {
+  transition:
+    transform var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+:is(.primary, .outline-button, .icon-button, .round-button):active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ---- Shell --------------------------------------------------------------- */
+
+.titlebar-mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-family: var(--ff-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.titlebar-drag {
+  flex: 1;
+}
+
+.sidebar-rail {
+  background: var(--surface);
+}
+
+.sidebar-group-label {
+  color: var(--faint);
+}
+
+.dialog-sheet {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+}
+
+.chart-tip,
+.col-tip,
+.bell-panel {
+  box-shadow: var(--shadow-float);
+}
+
+/* ---- Icon bubble: a 3D render in a tinted circle ------------------------- */
+
+.icon-bubble {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+}
+
+.icon-bubble-sm {
+  width: 36px;
+  height: 36px;
+}
+
+.icon-bubble-md {
+  width: 56px;
+  height: 56px;
+}
+
+.icon-bubble-lg {
+  width: 72px;
+  height: 72px;
+}
+
+.card-title .icon-bubble {
+  margin: -4px 0;
+}
+
+/* ---- Paper band and polaroid: the warm frame ----------------------------- */
+
+.paper-band {
+  padding: 24px 32px;
+  border: 1px solid color-mix(in srgb, var(--clay) 14%, var(--line));
+  border-radius: var(--radius-xl);
+  background: var(--paper);
+}
+
+/* A plan screen opens on paper, with the polaroid pinned to the right. */
+.planner-screen-head.has-polaroid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title photo"
+    "action photo"
+    "tabs photo";
+  grid-template-rows: auto auto 1fr;
+  align-items: center;
+  column-gap: 32px;
+  padding: 24px 32px;
+  border: 1px solid color-mix(in srgb, var(--clay) 14%, var(--line));
+  border-radius: var(--radius-xl);
+  background: var(--paper);
+}
+
+.planner-screen-head.has-polaroid > .planner-screen-title {
+  grid-area: title;
+}
+
+.planner-screen-head.has-polaroid > .planner-screen-tabs {
+  grid-area: tabs;
+  align-self: end;
+  margin-top: 16px;
+}
+
+.planner-screen-head.has-polaroid > button.primary {
+  grid-area: action;
+  justify-self: start;
+  margin-top: 14px;
+}
+
+.planner-screen-head.has-polaroid > .polaroid {
+  grid-area: photo;
+}
+
+.polaroid {
+  position: relative;
+  width: 184px;
+  margin: 8px 6px 4px;
+  padding: 8px 8px 44px;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 10px 24px rgba(15, 23, 42, 0.1);
+  transform: rotate(var(--polaroid-tilt, -2.5deg));
+  animation: polaroid-in 220ms var(--ease) 1 both;
+}
+
+.polaroid::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: var(--clay);
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.polaroid-photo {
+  display: grid;
+  place-items: center;
+  height: 108px;
+  background: var(--primary-soft);
+}
+
+[data-theme="dark"] .polaroid-photo {
+  background: #dfe8fb;
+}
+
+.polaroid figcaption {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  font-family: var(--ff-hand);
+  font-size: 13.5px;
+  line-height: 16px;
+  color: #2b2b2b;
+  text-align: center;
+}
+
+@keyframes polaroid-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) rotate(calc(var(--polaroid-tilt, -2.5deg) + 0.5deg));
+  }
+}
+
+.plan-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 32px;
+}
+
+.plan-empty-copy {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  font-family: var(--ff-display);
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.plan-empty-copy strong {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* ---- Focus: one visible ring, also where a control draws its own border -- */
+
+input[type="checkbox"]:focus-visible,
+select:not([multiple]):focus-visible,
+input[type="date"]:focus-visible,
+input[type="month"]:focus-visible,
+.field > input:focus-visible,
+.field > select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.search:focus-within,
+.input-affix:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---- Motion -------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .polaroid {
+    animation: none;
+  }
+
+  :is(.primary, .outline-button, .icon-button, .round-button):active:not(:disabled) {
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Layout ceilings and rhythm ------------------------------------------ */
+
+.route-view {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.chart-box {
+  max-width: 1100px;
+}
+
+.planner-grid {
+  gap: 16px;
+}
+
+/* ---- Charts: 250ms, once ------------------------------------------------- */
+
+.flow-bar,
+.composition-part,
+.spark path.spark-area,
+.spark path.spark-line,
+.chart-area {
+  animation-duration: 250ms;
+  animation-delay: 0ms;
+}
+
+.flow-col:nth-child(n) .flow-bar {
+  animation-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-bar,
+  .composition-part,
+  .spark path.spark-area,
+  .spark path.spark-line,
+  .chart-area {
+    animation: none;
+  }
+}

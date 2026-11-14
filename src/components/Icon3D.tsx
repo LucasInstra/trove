@@ -1,3 +1,15 @@
+import plane from "@/assets/icons3d/plane.png";
+import shield from "@/assets/icons3d/shield.png";
+import umbrella from "@/assets/icons3d/umbrella.png";
+import safe from "@/assets/icons3d/safe.png";
+import sprout from "@/assets/icons3d/sprout.png";
+import wallet from "@/assets/icons3d/wallet.png";
+import bank from "@/assets/icons3d/bank.png";
+import calendar from "@/assets/icons3d/calendar.png";
+import checklist from "@/assets/icons3d/checklist.png";
+import trophy from "@/assets/icons3d/trophy.png";
+import coins from "@/assets/icons3d/coins.png";
+import gear from "@/assets/icons3d/gear.png";
 import chartUp from "@/assets/icons3d/chart-up.png";
 import creditCard from "@/assets/icons3d/credit-card.png";
 import house from "@/assets/icons3d/house.png";
@@ -15,7 +27,7 @@ import { cn } from "@/lib/utils";
  * controls and the sidebar.
  *
  * The imports are explicit on purpose: a glob would bundle all 24 renders for
- * the eight the app actually shows.
+ * the ones the app actually shows.
  */
 const ICONS = {
   "chart-up": chartUp,
@@ -26,6 +38,18 @@ const ICONS = {
   receipt,
   scale,
   target,
+  plane,
+  shield,
+  umbrella,
+  safe,
+  sprout,
+  wallet,
+  bank,
+  calendar,
+  checklist,
+  trophy,
+  coins,
+  gear,
 } as const;
 
 export type Icon3DName = keyof typeof ICONS;

@@ -1,4 +1,5 @@
 import { Donut } from "./Donut";
+import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { computeScore, type Score, type ScoreBreakdown } from "../domain/score";
 import type { MonthPlan } from "../domain/projection";
@@ -47,7 +48,7 @@ export function ScoreCard({ plan, compact = false }: { plan: MonthPlan; compact?
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <Icon3D name="chart-up" size={30} />
+          <IconBubble name="chart-up" size="sm" />
           <h2>{t("score.title")}</h2>
         </div>
       </header>

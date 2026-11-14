@@ -37,7 +37,7 @@ function SidebarBrand({
 }) {
   return (
     <div className={cn("flex items-center gap-2.5 px-2", className)}>
-      <span className="grid size-8 place-items-center rounded-[9px] bg-primary text-[15px] font-bold text-primary-foreground">
+      <span className="grid size-8 place-items-center rounded-sm bg-primary text-[15px] font-bold text-primary-foreground">
         {mark}
       </span>
       <div className="flex min-w-0 flex-col leading-tight">
@@ -70,7 +70,7 @@ function SidebarProfile({
       type="button"
       onClick={onClick}
       className={cn(
-        "sidebar-profile flex w-full items-center justify-start gap-2.5 rounded-[12px] border-0 bg-transparent px-1 py-1 text-left transition-colors hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none",
+        "sidebar-profile flex w-full items-center justify-start gap-2.5 rounded-md border-0 bg-transparent px-1 py-1 text-left transition-colors hover:bg-surface-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         className,
       )}
       title={name}
@@ -115,7 +115,7 @@ function SidebarGroup({
 }
 
 const sidebarItemVariants = cva(
-  "sidebar-item flex h-9 w-full items-center justify-start gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&_svg]:shrink-0",
+  "sidebar-item flex h-9 w-full items-center justify-start gap-2.5 rounded-md border-0 bg-transparent px-2.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&_svg]:shrink-0",
   {
     variants: {
       active: {

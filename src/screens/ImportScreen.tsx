@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
+import { IconBubble } from "../components/editorial";
 import { CsvImport } from "../components/CsvImport";
 import { api, type ImportReport, type ImportRow } from "../lib/api";
 import { fileName, formatCents, formatDate, formatDateTime } from "../lib/format";
@@ -114,14 +115,12 @@ export function ImportScreen({
       ) : (
       <div className="import-grid">
         <button type="button" className="dropzone" onClick={() => void pickFile()} disabled={busy}>
-          <span className="drop-icon">
-            <Icon name="import" size={22} />
-          </span>
+          <IconBubble name="checklist" size="md" />
           <strong>{busy ? t("import.reading") : t("import.dropTitle")}</strong>
           <span className="muted">{t("import.dropDesc")}</span>
         </button>
 
-        <aside className="card how">
+        <aside className="how paper-band">
           <h2>{t("import.howTitle")}</h2>
           <ol className="steps">
             <li>
@@ -184,9 +183,10 @@ export function ImportScreen({
       ) : null}
 
       {reports.length > 0 ? (
-        <div className="card report">
+        <div className="card report paper-band">
           <div className="report-head">
             <div className="report-title">
+              <IconBubble name="trophy" size="md" />
               <div>
                 <h2>{t("import.reportTitle", { count: inserted })}</h2>
                 <p className="muted">

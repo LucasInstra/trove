@@ -179,8 +179,8 @@ const planner = {
   ],
   payments: [] as { id: number; billId: number; month: string; paidOn: string; amountCents: number }[],
   cards: [
-    { id: 1, accountId: 2, accountName: "Nubank", brand: "mastercard", last4: "9876", limitCents: 800000, closingDay: 3, dueDay: 10, color: "#8a05be", texture: "waves" },
-    { id: 2, accountId: 4, accountName: "Itaú Cartão", brand: "visa", last4: "4410", limitCents: 1200000, closingDay: 20, dueDay: 27, color: "#ec7000", texture: "glow" },
+    { id: 1, accountId: 2, accountName: "Nubank", brand: "mastercard", last4: "9876", limitCents: 800000, closingDay: 3, dueDay: 10, color: "#1846e1", texture: "glow" },
+    { id: 2, accountId: 4, accountName: "Itaú Cartão", brand: "visa", last4: "4410", limitCents: 1200000, closingDay: 20, dueDay: 27, color: "#3a3f4b", texture: "metal" },
   ],
   goals: [
     { id: 1, name: "Reserva de emergência", kind: "reserve", targetCents: 4500000, monthlyCents: 150000, startsOn: "2025-06-01", accountId: 1, color: "#16a34a", icon: "shield" },

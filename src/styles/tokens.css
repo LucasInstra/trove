@@ -1,0 +1,167 @@
+/*
+ * The only place a colour, radius, shadow, font or motion token is defined.
+ * Every token has its light and dark value here; nothing else in the app
+ * declares a custom property at :root. Names the older sheets still read are
+ * kept as aliases at the bottom of each block.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-soft: #f7f8fa;
+  --sunken: #eceff4;
+  --paper: #faf7f2;
+  --hero-band: #0b1120;
+  --hero-band-text: #e8edf7;
+  --anchor-muted: #b4bdd0;
+  --anchor-faint: #9aa5bb;
+  --anchor-positive: #4ade80;
+  --anchor-negative: #ff9a85;
+  --anchor-line: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --ink: #0d0d0d;
+  --muted: #4d5766;
+  --faint: #69707d;
+
+  /* Lines */
+  --line: #e6eaf1;
+  --line-strong: #cfd6e2;
+
+  /* Colour: one blue, one green, one red, one amber */
+  --primary: #1846e1;
+  --primary-strong: #1239b8;
+  --primary-soft: #e8effd;
+  --primary-foreground: #ffffff;
+  --positive: #0f7a3d;
+  --negative: #a53a26;
+  --warning: #a16207;
+  --clay: #d9603b;
+
+  /* Decorative fills only: illustrations and chart marks, never text */
+  --fill-green: #16a34a;
+  --fill-blue: #008af9;
+  --bills-segment: #93b4f8;
+
+  /* Shadows: one for cards, one for things that float above them */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-float: 0 2px 4px rgba(15, 23, 42, 0.06), 0 14px 32px rgba(15, 23, 42, 0.14);
+  --shadow-button-primary: 0 1px 2px rgba(24, 70, 225, 0.24), 0 8px 20px -8px rgba(24, 70, 225, 0.45);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Type */
+  --ff-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --ff-display: "Bricolage Grotesque", "Inter", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --ff-hand: "Gloria Hallelujah", "Segoe Print", "Comic Sans MS", cursive;
+  --tracking-display: -0.03em;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 150ms;
+
+  /* Window chrome */
+  --window-hover: #e8ecf3;
+  --window-active: #dce2ec;
+  --window-close: #e81123;
+  --window-close-foreground: #ffffff;
+
+  /* Credit card art (card art only) */
+  --credit-start: #2b2b2d;
+  --credit-end: #111111;
+  --card-blue-start: #1846e1;
+  --card-blue-end: #0b2a8a;
+  --card-graphite-start: #3a3f4b;
+  --card-graphite-end: #161922;
+
+  /* Aliases read by the older sheets and by Tailwind */
+  --bg-sunken: var(--sunken);
+  --border: var(--line);
+  --hero: var(--surface);
+  --hero-text: var(--ink);
+  --bar-rest: var(--line);
+  --chart-line: var(--primary);
+  --chart-fill: color-mix(in srgb, var(--primary) 12%, transparent);
+  --window-control: var(--muted);
+  --shadow-soft: rgba(15, 23, 42, 0.05);
+  --shadow-card-lift: var(--shadow-card);
+  --shadow-rest: var(--shadow-card);
+  --shadow-raised: var(--shadow-float);
+  --shadow-sheet: var(--shadow-float);
+  --hero-glow: transparent;
+  --line-hover: var(--line-strong);
+  --radius: var(--radius-lg);
+  --radius-control: var(--radius-md);
+  --ease-out: var(--ease);
+  --ease-settle: var(--ease);
+  --press-in: 90ms;
+  --press-out: var(--dur);
+  --glass: var(--surface);
+  --glass-edge: transparent;
+
+  font-family: var(--ff-sans);
+  font-size: 13px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b1120;
+  --surface: #141b2b;
+  --surface-soft: #1a2338;
+  --sunken: #0f1626;
+  --paper: #1b2130;
+  --hero-band: #0b1120;
+  --hero-band-text: #e8edf7;
+
+  --ink: #e8edf7;
+  --muted: #a7b1c4;
+  --faint: #8b96aa;
+
+  --line: #253148;
+  --line-strong: #364563;
+
+  --primary: #6d9bff;
+  --primary-strong: #9dbbff;
+  --primary-soft: #1b2740;
+  --primary-foreground: #0b1120;
+  --positive: #4ade80;
+  --negative: #e0806c;
+  --warning: #e0a84a;
+  --clay: #e8795a;
+
+  --fill-green: #16a34a;
+  --fill-blue: #008af9;
+  --bills-segment: #1d4ed8;
+
+  --shadow-card: none;
+  --shadow-float: 0 2px 4px rgba(0, 0, 0, 0.35), 0 14px 32px rgba(0, 0, 0, 0.5);
+  --shadow-button-primary: none;
+
+  --window-hover: #1a2338;
+  --window-active: #24315a;
+
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+  --chart-fill: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+/* One focus ring for the keyboard, everywhere. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+    --press-in: 0ms;
+  }
+}
