@@ -31,7 +31,7 @@ export function InstallmentsCard({
     return (
       <article className="card card-compact">
         <div className="compact-head">
-          <Icon3D name="credit-card" size={22} />
+          <Icon3D name="coin-steps" size={22} />
           <span className="compact-title">
             {first
               ? `${first.bill.name} ${first.installment.current}/${first.installment.total}`
@@ -56,7 +56,7 @@ export function InstallmentsCard({
     <article className="card">
       <header className="card-head">
         <div className="card-title">
-          <Icon3D name="credit-card" size={30} />
+          <Icon3D name="coin-steps" size={30} />
           <h2>{t("planner.installments")}</h2>
         </div>
       </header>
