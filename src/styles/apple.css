@@ -164,3 +164,21 @@ td,
     border-color: var(--line-strong, currentColor);
   }
 }
+
+/* Test switch for comparing looks (see LookToggle). */
+.look-toggle {
+  position: fixed;
+  top: 5px;
+  left: 50%;
+  z-index: 1000;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border: 1px solid var(--line-strong, #ccc);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}

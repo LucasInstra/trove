@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { LookToggle } from "./components/LookToggle";
 import { LanguageProvider } from "./lib/language";
 import "./styles.css";
 import "./styles/tailwind.css";
@@ -17,6 +18,7 @@ if (!container) throw new Error("root element is missing");
 createRoot(container).render(
   <StrictMode>
     <LanguageProvider>
+      <LookToggle />
       <App />
     </LanguageProvider>
   </StrictMode>,
