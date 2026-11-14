@@ -68,6 +68,8 @@ export interface TransactionRow {
   manual: boolean;
   notes: string;
   origin: string;
+  /** The file it was imported from, or "manual". */
+  source: string;
   transferGroup: string | null;
   refundOf: number | null;
   hasRefund: boolean;
@@ -217,6 +219,20 @@ export interface ImportReport {  accountId: number;
   categorized: number;
   ledgerBalanceCents: number | null;
   ledgerBalanceOn: string | null;
+}
+
+export interface OfxPreview {
+  accountName: string;
+  accountLabel: string;
+  isCreditCard: boolean;
+  total: number;
+  newCount: number;
+  duplicates: number;
+  firstOn: string | null;
+  lastOn: string | null;
+  ledgerBalanceCents: number | null;
+  ledgerBalanceOn: string | null;
+  sample: Array<{ postedOn: string; description: string; amountCents: number }>;
 }
 
 export interface CsvMapping {
@@ -460,6 +476,7 @@ export const EMPTY_PLANNER: PlannerState = {
 };
 
 export const api = {
+  previewOfx: (path: string) => invoke<OfxPreview>("preview_ofx", { path }),
   importOfx: (path: string) => invoke<ImportReport>("import_ofx", { path }),
   previewCsv: (path: string, mapping: CsvMapping) =>
     invoke<CsvPreview>("preview_csv", { path, mapping }),

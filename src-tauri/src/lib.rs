@@ -21,6 +21,12 @@ fn connection(app: &tauri::AppHandle) -> Result<Connection, String> {
 }
 
 #[tauri::command]
+fn preview_ofx(app: tauri::AppHandle, path: String) -> Result<db::OfxPreview, String> {
+    let connection = connection(&app)?;
+    db::preview_ofx(&connection, Path::new(&path))
+}
+
+#[tauri::command]
 fn import_ofx(app: tauri::AppHandle, path: String) -> Result<db::ImportReport, String> {
     let mut connection = connection(&app)?;
     db::import_ofx(&mut connection, Path::new(&path))
@@ -605,6 +611,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             import_ofx,
+            preview_ofx,
             preview_csv,
             import_csv,
             list_csv_profiles,

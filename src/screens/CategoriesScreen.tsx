@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icons";
 import { PageHeader } from "./PlannerScreens";
@@ -156,12 +156,18 @@ export function CategoriesScreen({
       .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name));
 
   const row = (category: Category, depth: number) => (
-    <li key={category.id} className="installment" data-depth={depth}>
+    <li key={category.id} className="installment category-node" data-depth={depth} style={{ "--depth": depth } as CSSProperties}>
       <div className="installment-head">
         <span className="installment-name">
-          <span className="dot" style={{ background: category.color }} />
           {category.emoji ? <span className="cat-emoji" aria-hidden="true">{category.emoji}</span> : null}
-          {categoryName(t, category.name)}
+          <span className="cat-chip" style={{ "--chip": category.color } as CSSProperties}>
+            {categoryName(t, category.name)}
+          </span>
+          {childrenOf(category.id).length > 0 ? (
+            <span className="muted small">
+              {t("categories.children", { count: childrenOf(category.id).length })}
+            </span>
+          ) : null}
         </span>
         <span className="kind-pill" data-kind={category.kind}>
           {t(`categories.kind_${category.kind}` as const)}
@@ -199,6 +205,16 @@ export function CategoriesScreen({
     </li>
   );
 
+  // Depth-first, so a grandchild sits right under its parent; the guard keeps a
+  // corrupt parent loop from recursing forever.
+  const tree = (category: Category, depth: number, seen: Set<number>): React.ReactNode[] =>
+    seen.has(category.id)
+      ? []
+      : [
+          row(category, depth),
+          ...childrenOf(category.id).flatMap((child) => tree(child, depth + 1, new Set([...seen, category.id]))),
+        ];
+
   return (
     <section className="screen planner-screen">
       <PageHeader
@@ -217,7 +233,7 @@ export function CategoriesScreen({
       {roots.length > 0 ? (
         <article className="card">
           <ul className="installment-list list-rows">
-            {roots.flatMap((root) => [row(root, 0), ...childrenOf(root.id).map((child) => row(child, 1))])}
+            {roots.flatMap((root) => tree(root, 0, new Set()))}
           </ul>
         </article>
       ) : null}

@@ -522,3 +522,286 @@ input[type="month"]:focus-visible,
     animation: none;
   }
 }
+
+/* ---- 0.5.0: chips, tree, bulk bar, provenance, import steps, onboarding -- */
+
+[hidden] {
+  display: none !important;
+}
+
+/* Category chip: the colour at 15% behind the name, the name pulled toward ink
+   so it stays readable on any category colour. */
+.cat-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 9px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--chip, var(--muted)) 15%, transparent);
+  color: color-mix(in srgb, var(--chip, var(--muted)) 62%, var(--ink));
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Category tree: each level steps in, with an elbow joining it to its parent. */
+.list-rows > li.category-node .installment-name {
+  position: relative;
+  padding-left: calc(var(--depth, 0) * 26px);
+}
+
+.list-rows > li.category-node[data-depth="0"] .installment-name::before {
+  content: none;
+}
+
+.list-rows > li.category-node:not([data-depth="0"]) .installment-name::before {
+  left: calc(var(--depth, 1) * 26px - 20px);
+}
+
+.list-rows > li.category-node:not([data-depth="0"]) .installment-name {
+  padding-left: calc(var(--depth, 1) * 26px);
+}
+
+/* Bulk bar: floats at the bottom of the window while rows are selected. */
+.bulk-bar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  margin-top: 12px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+}
+
+.ledger-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ledger-summary {
+  position: relative;
+}
+
+.ledger-summary > .ledger-summary-prov {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 0;
+  border-left: 0;
+}
+
+.tx-sub .cat-chip {
+  margin-right: 2px;
+}
+
+/* Provenance */
+.prov-facts {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.prov-facts > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.prov-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.prov-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.prov-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prov-list li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.prov-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.prov-main {
+  display: grid;
+  min-width: 0;
+}
+
+.prov-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prov-count {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Import: four steps and a preview before anything is written. */
+.import-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-stepper li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--faint);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.import-stepper li.is-active {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.import-stepper li.is-done {
+  color: var(--muted);
+}
+
+.import-stepper-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+}
+
+.import-stepper li.is-active .import-stepper-dot {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.import-stepper li.is-done .import-stepper-dot {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.import-preview {
+  display: grid;
+  gap: 16px;
+}
+
+.import-preview-counts {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.import-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Onboarding: the one dark surface of the first launch. */
+.onboarding {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 40px;
+  padding: 48px;
+  border-radius: var(--radius-xl);
+  background: var(--hero-band);
+  color: var(--hero-band-text);
+}
+
+[data-theme="dark"] .onboarding {
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.onboarding .eyebrow {
+  color: var(--anchor-positive);
+}
+
+.onboarding h1 {
+  margin: 8px 0 12px;
+  font-size: 46px;
+  line-height: 48px;
+  color: var(--hero-band-text);
+}
+
+.onboarding p {
+  max-width: 46ch;
+  color: var(--anchor-muted);
+}
+
+.onboarding-steps {
+  display: grid;
+  gap: 6px;
+  margin: 20px 0 24px;
+  padding-left: 20px;
+  color: var(--hero-band-text);
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.onboarding-actions .outline-button,
+.onboarding-actions .ghost {
+  border-color: var(--anchor-line);
+  background: transparent;
+  color: var(--hero-band-text);
+}
+
+.onboarding-photos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.onboarding-photos .polaroid {
+  width: 164px;
+}
+
+@media (max-width: 900px) {
+  .onboarding {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 28px;
+  }
+}

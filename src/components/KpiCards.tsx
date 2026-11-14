@@ -1,4 +1,7 @@
+import { useState } from "react";
+import { Icon } from "./Icons";
 import { IconBubble } from "./editorial";
+import { Provenance } from "./Provenance";
 import { Icon3D } from "./Icon3D";
 import { Money } from "./Money";
 import { Sparkline } from "./charts/Sparkline";
@@ -79,6 +82,7 @@ export function KpisCard({
   span?: number;
 }) {
   const { lang, t } = useLanguage();
+  const [showOrigin, setShowOrigin] = useState(false);
   const kpis = computeKpis(plan, series, month);
   const prevLabel = kpis.prevMonth ? monthShort(kpis.prevMonth, lang) : null;
   const trail = 6;
@@ -112,7 +116,17 @@ export function KpisCard({
           <IconBubble name="chart-up" size="sm" />
           <h2>{t("kpi.title")}</h2>
         </div>
+        <button
+          type="button"
+          className="icon-button"
+          title={t("prov.open")}
+          aria-label={t("prov.open")}
+          onClick={() => setShowOrigin(true)}
+        >
+          <Icon name="info" size={15} />
+        </button>
       </header>
+      {showOrigin ? <Provenance month={month} onClose={() => setShowOrigin(false)} /> : null}
       <div className={span < 3 ? "kpi-grid is-two" : "kpi-grid"}>
         <Tile label={t("kpi.income")} datum={kpis.income} prevLabel={prevLabel} spark={incomeSpark} sparkMonths={sparkMonths} tone="up" />
         <Tile label={t("kpi.expense")} datum={kpis.expense} prevLabel={prevLabel} invert spark={expenseSpark} sparkMonths={sparkMonths} tone="down" />

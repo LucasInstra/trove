@@ -57,6 +57,7 @@ type Row = {
   manual: boolean;
   notes: string;
   origin: string;
+  source: string;
   transferGroup: string | null;
   refundOf: number | null;
   hasRefund: boolean;
@@ -97,6 +98,12 @@ const push = (month: string, day: number, description: string, categoryId: numbe
     manual: accountId === 3,
     notes: "",
     origin: accountId === 3 ? "manual" : accountId === 2 ? "csv" : "ofx",
+    source:
+      accountId === 3
+        ? "manual"
+        : accountId === 2
+          ? "C:\Users\demo\Downloads\fatura-nubank-nov2026.csv"
+          : "C:\Users\demo\Downloads\extrato-itau-nov2026.ofx",
     transferGroup: null,
     refundOf: null,
     hasRefund: false,
@@ -290,6 +297,34 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     { id: 1, path: "C:\\Users\\demo\\Downloads\\extrato-itau-nov2026.ofx", accountName: "Itaú Conta", importedAt: `${MONTH}-13T10:00:00Z`, inserted: 42, duplicates: 3 },
     { id: 2, path: "C:\\Users\\demo\\Downloads\\fatura-nubank-nov2026.csv", accountName: "Nubank", importedAt: `${MONTH}-12T09:00:00Z`, inserted: 31, duplicates: 0 },
   ],
+  preview_ofx: () => ({
+    accountName: "Itaú Conta",
+    accountLabel: "12345-6",
+    isCreditCard: false,
+    total: 45,
+    newCount: 42,
+    duplicates: 3,
+    firstOn: `${MONTH}-01`,
+    lastOn: `${MONTH}-13`,
+    ledgerBalanceCents: 482310,
+    ledgerBalanceOn: `${MONTH}-13`,
+    sample: [
+      { postedOn: `${MONTH}-13`, description: "IFOOD *RESTAURANTE", amountCents: -4890 },
+      { postedOn: `${MONTH}-12`, description: "PIX RECEBIDO", amountCents: 120000 },
+      { postedOn: `${MONTH}-10`, description: "MERCADO EXTRA", amountCents: -23760 },
+    ],
+  }),
+  import_ofx: () => ({
+    accountId: 1,
+    accountName: "Itaú Conta",
+    accountLabel: "12345-6",
+    inserted: 42,
+    duplicates: 3,
+    skipped: 0,
+    categorized: 30,
+    ledgerBalanceCents: 482310,
+    ledgerBalanceOn: `${MONTH}-13`,
+  }),
   list_csv_profiles: () => [],
   demo_loaded: () => true,
   load_demo_data: () => null,

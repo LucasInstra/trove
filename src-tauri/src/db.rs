@@ -252,6 +252,8 @@ pub struct TransactionRow {
     pub manual: bool,
     pub notes: String,
     pub origin: String,
+    /// The file the row was imported from, or 'manual'.
+    pub source: String,
     pub transfer_group: Option<String>,
     pub refund_of: Option<i64>,
     pub has_refund: bool,
@@ -1023,6 +1025,89 @@ pub fn import_ofx(connection: &mut Connection, path: &Path) -> Result<ImportRepo
         categorized,
         ledger_balance_cents: statement.ledger_balance_cents,
         ledger_balance_on: statement.ledger_balance_on,
+    })
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfxPreviewRow {
+    pub posted_on: String,
+    pub description: String,
+    pub amount_cents: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfxPreview {
+    pub account_name: String,
+    pub account_label: String,
+    pub is_credit_card: bool,
+    pub total: i64,
+    pub new_count: i64,
+    pub duplicates: i64,
+    pub first_on: Option<String>,
+    pub last_on: Option<String>,
+    pub ledger_balance_cents: Option<i64>,
+    pub ledger_balance_on: Option<String>,
+    pub sample: Vec<OfxPreviewRow>,
+}
+
+/// What importing a file would do, without writing anything: how many entries
+/// are new, how many the database already holds, and a few rows to eyeball.
+pub fn preview_ofx(connection: &Connection, path: &Path) -> Result<OfxPreview, String> {
+    let bytes = std::fs::read(path).map_err(|problem| problem.to_string())?;
+    let statement = ofx::parse(&decode(&bytes)).map_err(|problem| problem.to_string())?;
+    let account_key = format!("{}-{}", statement.account.bank_id, statement.account.acct_id);
+
+    let mut seen = std::collections::HashMap::new();
+    let mut duplicates = 0i64;
+    for entry in &statement.transactions {
+        let key = occurrence_key(
+            &mut seen,
+            ofx::dedupe_key(
+                &account_key,
+                &entry.fitid,
+                &entry.posted_on,
+                entry.amount_cents,
+                &entry.description,
+            ),
+        );
+        let known: bool = connection
+            .query_row(
+                "select exists(select 1 from transactions where dedupe_key = ?1)",
+                params![key],
+                |row| row.get(0),
+            )
+            .map_err(|problem| problem.to_string())?;
+        if known {
+            duplicates += 1;
+        }
+    }
+
+    let total = statement.transactions.len() as i64;
+    let mut dates: Vec<&str> = statement.transactions.iter().map(|entry| entry.posted_on.as_str()).collect();
+    dates.sort_unstable();
+    Ok(OfxPreview {
+        account_name: account_label(&statement.account),
+        account_label: statement.account.acct_id.clone(),
+        is_credit_card: statement.account.is_credit_card,
+        total,
+        new_count: total - duplicates,
+        duplicates,
+        first_on: dates.first().map(|value| value.to_string()),
+        last_on: dates.last().map(|value| value.to_string()),
+        ledger_balance_cents: statement.ledger_balance_cents,
+        ledger_balance_on: statement.ledger_balance_on.clone(),
+        sample: statement
+            .transactions
+            .iter()
+            .take(8)
+            .map(|entry| OfxPreviewRow {
+                posted_on: entry.posted_on.clone(),
+                description: entry.description.clone(),
+                amount_cents: entry.amount_cents,
+            })
+            .collect(),
     })
 }
 
@@ -2499,7 +2584,7 @@ pub fn list_transactions(
         .prepare(
             "select t.id, t.account_id, a.name, t.posted_on, t.amount_cents, t.description,
                     t.merchant, t.category_id, c.name, c.color, t.trntype, t.origin, t.notes,
-                    t.transfer_group, t.refund_of,
+                    t.transfer_group, t.refund_of, t.source,
                     exists(select 1 from transactions r where r.refund_of = t.id and r.deleted_at is null)
              from transactions t
              join accounts a on a.id = t.account_id
@@ -2543,7 +2628,8 @@ pub fn list_transactions(
                 origin,
                 transfer_group: row.get(13)?,
                 refund_of: row.get(14)?,
-                has_refund: row.get(15)?,
+                has_refund: row.get(16)?,
+                source: row.get(15)?,
                 tags: Vec::new(),
             })
         })
@@ -4331,6 +4417,34 @@ mod tests {
             list_categories(&connection).expect("should list").len(),
             SEED_CATEGORIES.len()
         );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn preview_counts_new_and_known_entries_without_writing() {
+        let path = temporary_database("preview");
+        let file = path.with_extension("ofx");
+        std::fs::write(&file, STATEMENT).expect("should write the fixture");
+
+        let mut connection = open(&path).expect("should open");
+        let before = preview_ofx(&connection, &file).expect("preview");
+        assert_eq!((before.total, before.new_count, before.duplicates), (2, 2, 0));
+        assert_eq!(
+            list_transactions(&connection, None, None, None, 50, None)
+                .expect("should list")
+                .len(),
+            0,
+            "a preview writes nothing"
+        );
+        assert_eq!(list_accounts(&connection).expect("should list").len(), 0);
+
+        import_ofx(&mut connection, &file).expect("import");
+        let after = preview_ofx(&connection, &file).expect("preview again");
+        assert_eq!((after.new_count, after.duplicates), (0, 2));
+        let rows = list_transactions(&connection, None, None, None, 50, None).expect("should list");
+        assert!(rows.iter().all(|row| row.source == file.to_string_lossy()));
+
+        let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_file(&path);
     }
 

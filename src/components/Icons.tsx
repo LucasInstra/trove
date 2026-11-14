@@ -8,6 +8,7 @@ export type IconName =
   | "left"
   | "right"
   | "file"
+  | "info"
   | "check"
   | "trend"
   | "card"
@@ -85,6 +86,12 @@ const ICONS: Record<IconName, ReactNode> = {
     <>
       <path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z" />
       <path d="M14 3.5v5h5" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5.5M12 7.6v.1" />
     </>
   ),
   check: <path d="m4.5 12.5 5 5L19.5 7" />,

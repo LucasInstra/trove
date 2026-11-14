@@ -100,6 +100,7 @@ import {
 } from "./domain/layout";
 import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
+import { Onboarding } from "./components/Onboarding";
 
 type Route =
   | "overview"
@@ -209,6 +210,21 @@ export function App() {
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [onboarded, setOnboarded] = useState(() => {
+    try {
+      return window.localStorage.getItem("trove.onboarded") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const finishOnboarding = () => {
+    setOnboarded(true);
+    try {
+      window.localStorage.setItem("trove.onboarded", "1");
+    } catch {
+      // the welcome simply shows again next launch
+    }
+  };
   const [userName, setUserName] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -842,7 +858,22 @@ export function App() {
           ) : null}
 
           <div className="route-view" key={route}>
-            {route === "overview" ? (
+            {route === "overview" && !loading && !onboarded && accounts.length === 0 ? (
+              <Onboarding
+                busy={false}
+                onImport={() => {
+                  finishOnboarding();
+                  setRoute("import");
+                }}
+                onDemo={() => {
+                  finishOnboarding();
+                  void loadDemo();
+                }}
+                onDismiss={finishOnboarding}
+              />
+            ) : null}
+
+            {route === "overview" && (loading || onboarded || accounts.length > 0) ? (
               <OverviewScreen
                 plan={plan}
                 cards={cards}
@@ -1138,6 +1169,11 @@ export function App() {
                 accounts={accounts}
                 onSaveUserName={setUserName}
                 onLoadDemo={loadDemo}
+                theme={theme}
+                onTheme={(next) => {
+                  setTheme(next);
+                  saveTheme(next);
+                }}
                 onCreateAccount={(name) => void createManualAccount(name)}
                 onRenameAccount={(id, name) => void renameManualAccount(id, name)}
                 onArchiveAccount={(id) => void archiveAccount(id)}

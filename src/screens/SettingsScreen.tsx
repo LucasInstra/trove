@@ -4,6 +4,9 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
 import { fileName } from "../lib/format";
 import { AccountsManager } from "../components/AccountsManager";
+import { SectionPage } from "../components/SectionPage";
+import { PageHeader } from "./PlannerScreens";
+import type { Theme } from "../lib/theme";
 import { BUILD_LABEL, BUILD_NUMBER } from "../lib/build";
 import { LANGUAGES, type Lang } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
@@ -39,6 +42,8 @@ export function SettingsScreen({
   onArchiveAccount,
   onSaveUserName,
   onLoadDemo,
+  theme,
+  onTheme,
 }: {
   updater: UpdaterState;
   accounts: Account[];
@@ -47,6 +52,8 @@ export function SettingsScreen({
   onArchiveAccount: (id: number) => void;
   onSaveUserName: (name: string | null) => void;
   onLoadDemo: () => Promise<void>;
+  theme: Theme;
+  onTheme: (theme: Theme) => void;
 }) {
   const { lang, setLang, t } = useLanguage();
   const [databasePath, setDatabasePath] = useState("");
@@ -57,6 +64,8 @@ export function SettingsScreen({
   const [nameError, setNameError] = useState("");
   const [demoLoaded, setDemoLoaded] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
+  const [tab, setTab] = useState<"account" | "appearance" | "language" | "updates" | "about">("account");
+  const [pathCopied, setPathCopied] = useState(false);
 
   useEffect(() => {
     api
@@ -154,14 +163,46 @@ export function SettingsScreen({
   };
 
   return (
-    <section className="screen">
-      <header className="topbar">
-        <div>
-          <h1>{t("settings.title")}</h1>
-        </div>
-      </header>
+    <section className="screen planner-screen">
+      <SectionPage
+        eyebrow={t("nav.settingsGroup")}
+        tabs={[
+          { id: "account", label: t("settings.tabAccount") },
+          { id: "appearance", label: t("settings.tabAppearance") },
+          { id: "language", label: t("settings.tabLanguage") },
+          { id: "updates", label: t("settings.tabUpdates") },
+          { id: "about", label: t("settings.tabAbout") },
+        ]}
+        active={tab}
+        onTab={setTab}
+      >
+      <PageHeader
+        eyebrow={t("nav.settingsGroup")}
+        title={t("settings.title")}
+        description={t("settings.description")}
+      />
 
-      <article className="card">
+      <article className="card" hidden={tab !== "appearance"}>
+        <header className="card-head">
+          <h2>{t("settings.appearance")}</h2>
+        </header>
+        <p className="muted">{t("settings.appearanceDesc")}</p>
+        <div className="segmented wide">
+          {(["light", "dark"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={theme === option ? "active" : ""}
+              aria-pressed={theme === option}
+              onClick={() => onTheme(option)}
+            >
+              {option === "light" ? t("settings.themeLight") : t("settings.themeDark")}
+            </button>
+          ))}
+        </div>
+      </article>
+
+      <article className="card" hidden={tab !== "account"}>
         <header className="card-head">
           <h2>{t("settings.demo")}</h2>
         </header>
@@ -184,7 +225,7 @@ export function SettingsScreen({
         </button>
       </article>
 
-      <article className="card">
+      <article className="card" hidden={tab !== "language"}>
         <header className="card-head">
           <h2>{t("settings.language")}</h2>
         </header>
@@ -203,7 +244,7 @@ export function SettingsScreen({
         </div>
       </article>
 
-      <article className="card">
+      <article className="card" hidden={tab !== "account"}>
         <header className="card-head">
           <h2>{t("settings.profile")}</h2>
         </header>
@@ -249,7 +290,7 @@ export function SettingsScreen({
         ) : null}
       </article>
 
-      <article className="card">
+      <article className="card" hidden={tab !== "updates"}>
         <header className="card-head">
           <h2>{t("settings.updates")}</h2>
           <span className="pill">build {BUILD_NUMBER}</span>
@@ -292,19 +333,36 @@ export function SettingsScreen({
         </div>
       </article>
 
-      <AccountsManager
-        accounts={accounts}
-        onCreate={onCreateAccount}
-        onRename={onRenameAccount}
-        onArchive={onArchiveAccount}
-      />
+      <div hidden={tab !== "account"}>
+        <AccountsManager
+          accounts={accounts}
+          onCreate={onCreateAccount}
+          onRename={onRenameAccount}
+          onArchive={onArchiveAccount}
+        />
+      </div>
 
-      <article className="card">
+      <article className="card" hidden={tab !== "account"}>
         <header className="card-head">
           <h2>{t("settings.data")}</h2>
         </header>
         <p className="muted">{t("settings.dataDesc")}</p>
         <code className="path">{databasePath || "..."}</code>
+        <div className="row">
+          <button
+            type="button"
+            className="outline-button small-button"
+            disabled={!databasePath}
+            onClick={() => {
+              void navigator.clipboard
+                .writeText(databasePath)
+                .then(() => setPathCopied(true))
+                .catch(() => setPathCopied(false));
+            }}
+          >
+            {pathCopied ? t("settings.pathCopied") : t("settings.copyPath")}
+          </button>
+        </div>
         <div className="row">
           <button type="button" onClick={() => void doBackup()} disabled={dataBusy}>
             {t("settings.backup")}
@@ -334,12 +392,13 @@ export function SettingsScreen({
         ) : null}
       </article>
 
-      <article className="card">
+      <article className="card" hidden={tab !== "about"}>
         <header className="card-head">
           <h2>{t("settings.about")}</h2>
         </header>
         <p className="muted">{t("settings.aboutDesc")}</p>
       </article>
+      </SectionPage>
     </section>
   );
 }

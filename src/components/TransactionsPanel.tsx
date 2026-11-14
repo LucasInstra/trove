@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Icon } from "./Icons";
 import { Dialog } from "./Dialog";
+import { Provenance } from "./Provenance";
 import { dayLabel, formatCents, formatSignedCents, monthLabel } from "../lib/format";
 import { api } from "../lib/api";
 import { categoryName } from "../lib/i18n";
@@ -75,6 +76,7 @@ export function TransactionsPanel({
   const [bulkCategory, setBulkCategory] = useState("");
   const [bulkTag, setBulkTag] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [provRows, setProvRows] = useState<TransactionRow[] | null>(null);
   const confirmDeleteRow = rows.find((row) => row.id === confirmDeleteId) ?? null;
   const visibleIds = new Set(rows.map((row) => row.id));
   const keptSelection = selected.filter((id) => visibleIds.has(id));
@@ -151,6 +153,17 @@ export function TransactionsPanel({
               {formatSignedCents(incomeCents - expenseCents)}
             </dd>
           </div>
+          <div className="ledger-summary-prov">
+            <button
+              type="button"
+              className="icon-button"
+              title={t("prov.open")}
+              aria-label={t("prov.open")}
+              onClick={() => setProvRows(real)}
+            >
+              <Icon name="info" size={15} />
+            </button>
+          </div>
         </dl>
       ) : null}
 
@@ -200,18 +213,29 @@ export function TransactionsPanel({
       </div>
 
       {rows.length > 0 ? (
-        <div className="segmented kind-filter" role="group" aria-label={t("ledger.kindFilter")}>
-          {(["all", "in", "out"] as const).map((option) => (
+        <div className="ledger-filters">
+          <div className="segmented kind-filter" role="group" aria-label={t("ledger.kindFilter")}>
+            {(["all", "in", "out"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={kind === option ? "active" : undefined}
+                aria-pressed={kind === option}
+                onClick={() => setKind(option)}
+              >
+                {t(`ledger.kind_${option}`)}
+              </button>
+            ))}
+          </div>
+          {shownCount > 0 && keptSelection.length === 0 ? (
             <button
-              key={option}
               type="button"
-              className={kind === option ? "active" : undefined}
-              aria-pressed={kind === option}
-              onClick={() => setKind(option)}
+              className="ghost small-button"
+              onClick={() => setSelected(shownGroups.flatMap((group) => group.rows.map((row) => row.id)))}
             >
-              {t(`ledger.kind_${option}`)}
+              {t("bulk.selectAll", { count: shownCount })}
             </button>
-          ))}
+          ) : null}
         </div>
       ) : null}
 
@@ -401,7 +425,10 @@ export function TransactionsPanel({
                           {row.hasRefund ? <em className="pill-soft">{t("refund.refunded")}</em> : null}
                         </span>
                         <span className="tx-sub">
-                          {(row.categoryName ? categoryName(t, row.categoryName) : null) ?? t("ledger.noCategory")} · {row.accountName}
+                          <span className="cat-chip" style={{ "--chip": color } as CSSProperties}>
+                            {(row.categoryName ? categoryName(t, row.categoryName) : null) ?? t("ledger.noCategory")}
+                          </span>{" "}
+                          · {row.accountName}
                         </span>
                         {row.tags.length > 0 ? (
                           <span className="tx-tags">
@@ -436,6 +463,15 @@ export function TransactionsPanel({
                         {formatSignedCents(row.amountCents)}
                       </span>
                       <span className="tx-actions">
+                        <button
+                          type="button"
+                          className="icon-button"
+                          title={t("prov.open")}
+                          aria-label={`${t("prov.open")}: ${row.description}`}
+                          onClick={() => setProvRows([row])}
+                        >
+                          <Icon name="info" size={15} />
+                        </button>
                         {row.transferGroup == null && row.refundOf == null && !row.hasRefund ? (
                           <button
                             type="button"
@@ -491,6 +527,8 @@ export function TransactionsPanel({
           {t("ledger.total", { amount: formatCents(groups.reduce((total, group) => total + group.total, 0)) })}
         </p>
       ) : null}
+
+      {provRows ? <Provenance rows={provRows} onClose={() => setProvRows(null)} /> : null}
 
       {confirming ? (
         <Dialog
