@@ -206,7 +206,7 @@ O site precisa parecer o mesmo produto do app, senão o usuário cai em outra ma
 | Tinta | `#101828` | `#101828` |
 | Fundo de página | `#ffffff` | `#f4f5f7` |
 | Banda de papel | `#faf7f2` | `#faf7f2` |
-| Banda escura | `#0b1120` | `#0b1120` |
+| Banda escura | `#010e16` | `#010e16` |
 | Display | Bricolage Grotesque (ou Satoshi) | idem |
 | UI | Inter | Inter |
 | Raio | 12 botão, 16 card, 24 banda | idem |

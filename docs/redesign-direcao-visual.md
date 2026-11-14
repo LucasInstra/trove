@@ -118,7 +118,7 @@ Um azul só, o do botão do site.
 | `--surface-soft` | `#f7f8fa` | | cabeçalho de tabela, faixa |
 | `--sunken` | `#eceff4` | | poço, desabilitado |
 | `--paper` | `#faf7f2` | | superfície editorial, banda de plano |
-| `--hero-band` | `#0b1120` | | card âncora, onboarding |
+| `--hero-band` | `#010e16` | 18.9:1 com branco | card âncora, onboarding |
 | `--ink` | `#0d0d0d` | 18.9:1 | texto principal |
 | `--muted` | `#4d5766` | 7.4:1 | texto secundário |
 | `--faint` | `#69707d` | 4.96:1 | metadado, eixo |
@@ -135,21 +135,45 @@ Um azul só, o do botão do site.
 
 **Tema escuro**
 
+Medido em `visorfinance.app`. Importante: o site **não tem modo escuro**. Zero regras `.dark`, zero `prefers-color-scheme: dark`, nenhum alternador, e emular dark no navegador não muda nada. O único escuro real do site é a banda "Experiência Desktop", e é dela que vêm os valores abaixo.
+
 | Token | Valor |
 |---|---|
-| `--bg` | `#0b1120` |
-| `--surface` | `#141b2b` |
-| `--surface-soft` | `#1a2338` |
-| `--paper` | `#1b2130` |
-| `--hero-band` | `#0b1120` |
-| `--ink` | `#e8edf7` |
-| `--muted` | `#a7b1c4` |
-| `--faint` | `#8b96aa` |
-| `--line` | `#253148` |
-| `--primary` | `#6d9bff` |
-| `--primary-soft` | `#1b2740` |
+| `--bg` | `#010e16` |
+| `--surface` | `#121d24` |
+| `--surface-soft` | `#18232b` |
+| `--sunken` | `#0a151d` |
+| `--paper` | `#0f1a22` |
+| `--hero-band` | `#010e16` |
+| `--ink` | `#ffffff` |
+| `--muted` | `#a9b6be` |
+| `--faint` | `#8a99a2` |
+| `--line` | `#1d2831` |
+| `--line-strong` | `#303a41` |
+| `--primary` | `#1846e1` |
+| `--primary-on-dark` | `#5eb7ff` |
+| `--primary-soft` | `#16273a` |
 | `--positive` | `#4ade80` |
 | `--negative` | `#e0806c` |
+| `--warning` | `#e0b15a` |
+| `--clay` | `#e07a52` |
+
+Como esses valores aparecem no Visor:
+
+- `#010e16` é o fundo da seção, sólido, sem gradiente.
+- `#121d24` não existe como hex no CSS deles. É `rgba(255,255,255,.07)` sobre `#010e16`, composto, com `backdrop-filter: blur(9px)`. Card sem borda, sem sombra, raio 12, padding 28.
+- `#ffffff` no título (24px, peso 500) e no corpo (14px, entrelinha 21).
+- `#5eb7ff` nos eyebrows: 14px, peso 700, caixa alta, `letter-spacing: 0.98px`.
+- `#1846e1` no CTA, com texto branco por cima.
+
+Duas adaptações deliberadas para o app:
+
+1. O card escuro vira **sólido** `#121d24` em vez de translúcido com blur. Trinta cards com `backdrop-filter` custam caro e o efeito quase não aparece em superfície chapada. O `rgba(255,255,255,.07)` com blur fica reservado para dialog e popover.
+2. O azul tem dois papéis e um matiz só: `#1846e1` como preenchimento com texto branco (`6.6:1`), e `#5eb7ff` como texto, ícone e link sobre escuro (`7.8:1`). Não são dois azuis de marca, é o mesmo azul com uma variante de contraste, exatamente como o site faz.
+
+Contraste da rampa: branco sobre `#010e16` mede 18.9:1, `#5eb7ff` sobre `#121d24` mede 7.8:1, `#a9b6be` mede 8.0:1, `#8a99a2` mede 5.7:1.
+
+Nota sobre a separação de superfície: no escuro do Visor, `#121d24` sobre `#010e16` dá 1.19:1, sem borda nenhuma. Funciona lá porque são apenas três cards grandes. No Trove, com tabela e dezenas de painéis, a borda `--line` continua necessária; o preenchimento translúcido cuida do resto.
 
 O card âncora escuro no tema claro vira `--surface-soft` no tema escuro, para não desaparecer no fundo.
 
