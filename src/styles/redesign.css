@@ -966,11 +966,6 @@ input[type="month"]:focus-visible,
   color: var(--muted);
 }
 
-/* The month is a title, not a link. */
-.floating-bar .brush-stroke {
-  display: none;
-}
-
 /* Navigation icons share one size. */
 .sidebar-nav svg,
 .nav-item svg {
