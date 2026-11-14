@@ -222,7 +222,6 @@ export function CardsCard({
   onEdit,
   lean = false,
   compact = false,
-  wide = false,
 }: CardsProps) {
   const { lang, t } = useLanguage();
   const [rows, setRows] = useState<Record<number, TransactionRow[]>>({});
@@ -327,7 +326,7 @@ export function CardsCard({
   const window = invoiceWindow(entry.meta.closingDay, entry.meta.dueDay, activeMonth);
   const entryOpen = window.to >= today;
   const lines = list ? invoiceLines(list, window) : [];
-  const canScroll = cards.length > 1 && !wide && !lean;
+  const canScroll = cards.length > 1;
 
   // The step comes from the card the browser laid out, so a change in the CSS
   // width cannot desync the arrows from the snap points.
@@ -346,7 +345,8 @@ export function CardsCard({
   const onScroll = () => {
     const track = trackRef.current;
     if (!track) return;
-    const next = Math.round(track.scrollLeft / cardStep());
+    // The trailing "add" slide is not a card, so the index stops at the last real one.
+    const next = Math.min(cards.length - 1, Math.round(track.scrollLeft / cardStep()));
     if (next !== activeCard) setActiveCard(next);
   };
 
@@ -407,7 +407,7 @@ export function CardsCard({
       </button>
 
       <div
-        className={wide ? "cards-track as-grid" : "cards-track"}
+        className="cards-track"
         ref={trackRef}
         onScroll={onScroll}
       >
@@ -425,6 +425,10 @@ export function CardsCard({
             </button>
           );
         })}
+        <button type="button" className="credit-card credit-card-add" onClick={onAdd}>
+          <Icon name="plus" size={20} />
+          <span>{t("planner.addCard")}</span>
+        </button>
       </div>
 
       {lean ? null : (

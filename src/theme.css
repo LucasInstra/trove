@@ -915,7 +915,7 @@ button:active:not(:disabled) {
 
 /* The overview carousel shows the same card art; the button is just its frame. */
 .credit-card.credit-card-real {
-  flex: 0 0 min(100%, 280px);
+  flex: 0 0 min(84%, 280px);
   min-width: 0;
   height: auto;
   padding: 0;
@@ -942,8 +942,30 @@ button:active:not(:disabled) {
   transform: perspective(800px) rotateX(3deg) rotateY(-5deg) translateY(-2px);
 }
 
-.cards-track.as-grid .credit-card.credit-card-real {
-  flex: 1 1 240px;
+.credit-card.credit-card-add {
+  flex: 0 0 min(84%, 280px);
+  height: auto;
+  aspect-ratio: 1.586;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.credit-card.credit-card-add:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  box-shadow: none;
 }
 
 .card-art-right {

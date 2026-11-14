@@ -625,23 +625,6 @@ button.primary:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
 }
 
-/* A card that takes more than one column shows every credit card at once
-   instead of a carousel, each at the same full size. */
-.cards-track.as-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-  overflow: visible;
-  scroll-snap-type: none;
-}
-
-.cards-track.as-grid .credit-card {
-  flex: initial;
-  width: auto;
-  min-width: 0;
-  height: 176px;
-}
-
 .goal-list.two-col {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 18px;
@@ -3616,8 +3599,8 @@ select.tx-category {
 /* The credit card keeps its full size; it only shrinks when the dashboard card
    is narrower than the card itself. */
 .cards-track .credit-card {
-  flex: 0 0 min(280px, 100%);
-  width: min(280px, 100%);
+  flex: 0 0 min(280px, 84%);
+  width: min(280px, 84%);
   height: 176px;
 }
 
