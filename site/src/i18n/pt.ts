@@ -9,7 +9,6 @@ export const pt = {
   },
   skip: "Ir para o conteúdo",
   nav: {
-    product: "Produto",
     features: "Recursos",
     security: "Segurança",
     faq: "FAQ",
@@ -26,61 +25,16 @@ export const pt = {
     cta: "Baixar para Windows",
     ctaSecondary: "Ver como funciona",
     proof: "Grátis por enquanto, open source (MIT) · sem cadastro · atualizações pelo GitHub",
-    tagImported: "importado de extrato.ofx",
-    tagManual: "manual",
     alt: "Tela de resumo do Trove com saldo previsto, resumo do mês, receitas contra gastos e últimas transações.",
-  },
-  promises: [
-    { title: "Sem conta", text: "Nada de login, e-mail ou senha." },
-    { title: "Sem servidor", text: "O banco é um arquivo SQLite na sua máquina." },
-    { title: "Sem telemetria", text: "Nenhum evento, nenhum pixel, nenhum cookie." },
-  ],
-  problem: {
-    eyebrow: "O problema",
-    h2: "Planilha quebra. App que pede senha do banco assusta. Assinatura cobra para você ver o seu próprio dinheiro.",
-    cards: [
-      {
-        title: "A planilha",
-        text: "Fórmula quebra, categoria vira bagunça, e no terceiro mês ninguém abre mais.",
-      },
-      {
-        title: "A senha",
-        text: "Conectar conta em app de terceiro é entregar a chave do cofre para quem você não conhece.",
-      },
-      {
-        title: "A assinatura",
-        text: "Você paga todo mês para consultar dados que já são seus.",
-      },
-    ],
-    close: "O Trove faz o caminho contrário: você baixa o extrato no banco e importa aqui. O dado não sai da máquina.",
-  },
-  how: {
-    eyebrow: "Como funciona",
-    h2: "Três passos, uma vez por mês.",
-    steps: [
-      {
-        title: "Baixe o extrato.",
-        text: "No site ou no app do seu banco, exporte o OFX do mês. O arquivo já existe, você só não sabia.",
-      },
-      {
-        title: "Importe com prévia.",
-        text: "O Trove mostra o que entra, o que já existe e o que é duplicata antes de gravar qualquer coisa.",
-      },
-      {
-        title: "Veja o mês.",
-        text: "Categorias, contas, cartões e projeção no mesmo lugar. Cada número aponta para o arquivo que o gerou.",
-      },
-    ],
-    close: "CSV também funciona, com perfil configurável por banco.",
   },
   features: {
     eyebrow: "Recursos",
     h2: "O que cabe dentro.",
+    lead: "O Trove faz o caminho contrário: você baixa o extrato no banco e importa aqui. O dado não sai da máquina.",
     items: [
       {
         title: "Dashboard que é seu",
         text: "Arraste os cards, escolha a largura de cada um e o nível de detalhe. Card largo mostra mais conteúdo, não o mesmo conteúdo esticado.",
-        solid: true,
       },
       {
         title: "Importação que não duplica",
@@ -97,7 +51,6 @@ export const pt = {
       {
         title: "Fluxo e projeção",
         text: "Orçamento com carryover, livre para gastar, detecção de recorrência e previsão de 3, 6 e 12 meses.",
-        solid: true,
       },
       {
         title: "Patrimônio",
@@ -128,22 +81,13 @@ export const pt = {
         text: "O app fala com o GitHub para checar atualização. Nada mais.",
       },
     ],
-    diagram: { db: "trove.db", app: "Trove", you: "Você", only: "só atualização", github: "GitHub" },
+    diagram: { bank: "Seu banco", file: "extrato.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "só atualização" },
     close: "Não existe servidor nosso para vazar, porque não existe servidor nosso.",
   },
   proof: {
-    eyebrow: "Prova",
-    h2: "Nada de depoimento. Só o que dá para conferir.",
-    items: [
-      { title: "Capturas reais", text: "Telas do app, geradas pelo próprio repositório a partir de dados de exemplo." },
-      { title: "Código aberto", text: "Licença MIT, no GitHub, para ler, copiar e auditar." },
-      { title: "Changelog público", text: "Cada versão com o que mudou, direto das notas de release." },
-    ],
-    shots: [
-      { key: "transactions", alt: "Tela de transações do Trove com a lista de lançamentos e filtros.", label: "Transações" },
-      { key: "flow", alt: "Tela de fluxo de caixa do Trove com orçamento e projeção.", label: "Fluxo de caixa" },
-      { key: "cards", alt: "Tela de cartões do Trove com faturas e limites.", label: "Cartões" },
-    ],
+    eyebrow: "O app de verdade",
+    h2: "Esta é a tela que você vai usar.",
+    sub: "Capturas geradas pelo próprio repositório, a partir de dados de exemplo.",
     stars: (n: number) => `${n} ${n === 1 ? "estrela" : "estrelas"} no GitHub`,
     repo: "Ver o repositório",
     version: (v: string) => `Versão atual: ${v}`,
@@ -151,6 +95,7 @@ export const pt = {
   who: {
     eyebrow: "Para quem é",
     h2: "Sem meias palavras.",
+    lead: "Um app de nicho, feito para quem prefere um arquivo seu a uma conta em nuvem.",
     yesTitle: "É para você se:",
     yes: [
       "usa Windows;",
@@ -308,6 +253,47 @@ export const pt = {
       },
     ],
   },
+  demo: {
+    label: "Prévia animada: o Trove importa um extrato, mostra duplicatas, categoriza e fecha o mês.",
+    steps: ["Importar", "Prévia", "Categorizar", "Mês fechado"],
+    file: "extrato-dezembro.ofx",
+    fileMeta: "OFX · 50 lançamentos",
+    drop: "Solte o extrato aqui",
+    previewTitle: "Prévia da importação",
+    newLabel: "novos",
+    dupLabel: "já existem",
+    rows: [
+      { name: "IFOOD", cat: "Restaurantes", tone: "violet" },
+      { name: "UBER", cat: "Transporte", tone: "teal" },
+      { name: "HORTIFRUTI", cat: "Mercado", tone: "green" },
+      { name: "CINEMARK", cat: "Lazer", tone: "amber" },
+    ],
+    closedTitle: "Dezembro fechado",
+    free: "54% da renda livre",
+    balance: { int: "R$ 3.734", dec: ",01" },
+    floatTx: { name: "UBER", cat: "Transporte", amount: "−R$ 33,53" },
+    floatBar: { title: "Renda do mês", free: "54% livre" },
+  },
+  seals: [
+    { key: "mit", title: "MIT", text: "código aberto" },
+    { key: "sqlite", title: "SQLite", text: "um arquivo seu" },
+    { key: "telemetry", title: "Sem telemetria", text: "nenhum evento" },
+    { key: "signed", title: "Atualização assinada", text: "verificada pelo app" },
+  ],
+  frag: {
+    layout: ["Saldo previsto", "Contas a pagar", "Gráficos"],
+    import: { fresh: "42 novos", dup: "8 já existem" },
+    transfer: { a: "Conta corrente", b: "Poupança", off: "fora dos totais", amount: "R$ 500,00" },
+    flow: { free: "54% livre", caption: "Previsão de 6 meses" },
+    net: { value: "R$ 128.400,00", caption: "Patrimônio" },
+  },
+  quote: {
+    text: "Todo número na tela responde a uma pergunta:",
+    hand: "de onde isso veio?",
+    note: "Lançamentos importados guardam o arquivo e a linha que os gerou. Os manuais são marcados como manuais.",
+  },
+  tabs: { label: "Tema dos prints", light: "Claro", dark: "Escuro" },
+  polaroids: ["Reserva de emergência", "Uma viagem no fim do ano", "Casa própria", "Sobra no fim do mês", "Tudo no seu PC", "Contas em dia"],
   fmtDate: (iso: string) =>
     new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }),
   fmtSize: (b: number) => `${(b / 1048576).toFixed(1).replace(".", ",")} MB`,

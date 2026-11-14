@@ -1,5 +1,4 @@
-// Copies what the site shares with the app: the design tokens, the two fonts and
-// the 3D icons it shows. Nothing is edited by hand, so the two never drift apart.
+// Copies what the site shares with the app: the design tokens, and the fonts it uses. Nothing is edited by hand, so the two never drift apart.
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,15 +25,17 @@ mkdirSync(fontDir, { recursive: true });
 for (const f of [
   "bricolage-grotesque-latin-wght-normal.woff2",
   "inter-latin-wght-normal.woff2",
+  "gloria-hallelujah-latin-400-normal.woff2",
   "LICENSE-Bricolage-OFL.txt",
   "LICENSE-Inter-OFL.txt",
+  "LICENSE-Gloria-OFL.txt",
 ]) {
   cpSync(join(app, "assets", "fonts", f), join(fontDir, f));
 }
 
 const iconDir = join(site, "src", "assets", "icons3d");
 mkdirSync(iconDir, { recursive: true });
-for (const f of ["piggy", "checklist", "coins", "safe", "phone"]) {
+for (const f of ["piggy", "plane", "house", "coins", "safe", "checklist"]) {
   cpSync(join(app, "assets", "icons3d", `${f}.png`), join(iconDir, `${f}.png`));
 }
-console.log("site: tokens, fonts and icons synced from the app");
+console.log("site: tokens, fonts and polaroid icons synced from the app");

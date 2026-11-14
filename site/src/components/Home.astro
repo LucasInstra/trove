@@ -1,14 +1,16 @@
 ---
-import { Image } from "astro:assets";
-import Shot from "./Shot.astro";
 import type { Strings } from "../i18n/pt";
 import { pageUrl } from "../lib/urls";
 import { REPO_URL } from "../lib/github";
+import Shot from "./Shot.astro";
+import Icon from "./Icon.astro";
+import { Image } from "astro:assets";
 import piggy from "../assets/icons3d/piggy.png";
-import checklist from "../assets/icons3d/checklist.png";
+import plane from "../assets/icons3d/plane.png";
+import house from "../assets/icons3d/house.png";
 import coins from "../assets/icons3d/coins.png";
 import safe from "../assets/icons3d/safe.png";
-import phone from "../assets/icons3d/phone.png";
+import checklist from "../assets/icons3d/checklist.png";
 
 interface Props {
   t: Strings;
@@ -17,45 +19,132 @@ interface Props {
 }
 const { t, stars, version } = Astro.props;
 const dl = pageUrl(t, "download");
-const check = "M5 12.5l4.5 4.5L19 7.5";
+const d = t.demo;
+const f = t.frag;
+const h1Words = t.hero.h1.split(" ");
+const h1Head = h1Words.slice(0, -2).join(" ");
+const h1Tail = h1Words.slice(-2).join(" ");
+const polaroids = [
+  { img: piggy, bg: "#ffe9ee" },
+  { img: plane, bg: "#e4efff" },
+  { img: house, bg: "#e6f6d8" },
+  { img: coins, bg: "#fff0d6" },
+  { img: safe, bg: "#efe6ff" },
+  { img: checklist, bg: "#dff5f2" },
+];
+const sealIcons: Record<string, string> = { mit: "shield", sqlite: "db", telemetry: "lock", signed: "refresh" };
+// The composition bar of the forecast card, as a graphic: share and colour of each part.
+const parts = [
+  { w: 13, c: "var(--bills-segment)" },
+  { w: 34, c: "var(--chart-out)" },
+  { w: 12, c: "var(--faint)" },
+  { w: 41, c: "var(--primary)" },
+];
+const toneVar: Record<string, string> = {
+  violet: "var(--chart-violet)",
+  teal: "var(--chart-teal)",
+  green: "var(--chart-green)",
+  amber: "var(--chart-planned)",
+};
 ---
 
+<!-- Hero: copy on the left, the product as an interface on the right -->
 <section class="hero">
-  <div class="wrap wide">
-    <p class="eyebrow">{t.hero.eyebrow}</p>
-    <h1>{t.hero.h1}</h1>
-    <p class="sub">{t.hero.sub}</p>
-    <div class="cta-row">
-      <a class="btn" href={dl}>{t.hero.cta}</a>
-      <a class="btn ghost" href="#product">{t.hero.ctaSecondary}</a>
+  <div class="stickers" aria-hidden="true">
+    {
+      polaroids.map((p, i) => (
+        <figure class={`polaroid s${i}`}>
+          <div class="photo" style={`background:${p.bg}`}>
+            <Image src={p.img} alt="" width={96} height={96} format="webp" loading="lazy" />
+          </div>
+          <figcaption>{t.polaroids[i]}</figcaption>
+        </figure>
+      ))
+    }
+  </div>
+  <div class="wrap wide hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">{t.hero.eyebrow}</p>
+      <h1>{h1Head} <span class="ul">{h1Tail}</span></h1>
+      <p class="sub">{t.hero.sub}</p>
+      <div class="cta-row">
+        <a class="btn" href={dl}>{t.hero.cta}</a>
+        <a class="btn ghost" href="#features">{t.hero.ctaSecondary}</a>
+      </div>
     </div>
-    <p class="micro">{t.hero.proof}</p>
-    <div class="shot-stage">
-      <div class="frame">
-        <Shot route="overview" lang={t.code} alt={t.hero.alt} widths={[900, 1800]} sizes="(min-width: 948px) 900px, 100vw" eager />
+
+    <div class="stage" role="img" aria-label={d.label}>
+      <div class="demo" aria-hidden="true">
+        <div class="demo-top">
+          <span class="demo-title"><b>t</b> trove</span>
+          <ol class="demo-steps">
+            {d.steps.map((s, i) => <li style={`--i:${i}`}>{s}</li>)}
+          </ol>
+        </div>
+        <div class="demo-body">
+          <div class="layer" style="--i:0">
+            <div class="drop">
+              <span class="drop-ic"><Icon name="file" size={22} /></span>
+              <span class="drop-file">{d.file}</span>
+              <span class="drop-meta">{d.fileMeta}</span>
+            </div>
+            <p class="drop-hint">{d.drop}</p>
+          </div>
+          <div class="layer" style="--i:1">
+            <p class="layer-title">{d.previewTitle}</p>
+            <div class="counts">
+              <div><b class="num">42</b><span>{d.newLabel}</span></div>
+              <div class="dim"><b class="num">8</b><span>{d.dupLabel}</span></div>
+            </div>
+            <div class="skel"><i></i><i></i><i></i></div>
+          </div>
+          <div class="layer" style="--i:2">
+            <ul class="rows">
+              {
+                d.rows.map((r) => (
+                  <li>
+                    <span class="rname">{r.name}</span>
+                    <span class="chip" style={`--tone:${toneVar[r.tone]}`}>{r.cat}</span>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+          <div class="layer" style="--i:3">
+            <p class="layer-title">{d.closedTitle}</p>
+            <p class="big num">{t.demo.balance.int}<small>{t.demo.balance.dec}</small></p>
+            <div class="cbar">{parts.map((p) => <i style={`flex:${p.w};background:${p.c}`}></i>)}</div>
+            <p class="drop-hint">{d.free}</p>
+          </div>
+        </div>
       </div>
-      <div class="tags" aria-hidden="true">
-        <span class="tag imported">{t.hero.tagImported}</span>
-        <span class="tag">{t.hero.tagManual}</span>
+
+      <div class="fcard tx" aria-hidden="true">
+        <span class="fic" style="--tone:var(--chart-teal)"><Icon name="trend" size={18} /></span>
+        <div>
+          <b>{d.floatTx.name}</b>
+          <span>{d.floatTx.cat}</span>
+        </div>
+        <em class="num">{d.floatTx.amount}</em>
       </div>
-      <span class="float a"><Image src={piggy} alt="" width={72} height={72} /></span>
-      <span class="float b"><Image src={checklist} alt="" width={72} height={72} /></span>
-      <span class="float c"><Image src={coins} alt="" width={72} height={72} /></span>
+      <div class="fcard pace" aria-hidden="true">
+        <span class="fl">{d.floatBar.title}</span>
+        <div class="cbar">{parts.map((p) => <i style={`flex:${p.w};background:${p.c}`}></i>)}</div>
+        <b class="num">{d.floatBar.free}</b>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="promises" aria-label="Trove">
+<!-- Seals: thin strip of verifiable facts -->
+<section class="seals" aria-label="Trove">
   <div class="wrap wide">
     <ul>
       {
-        t.promises.map((p) => (
+        t.seals.map((s) => (
           <li>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d={check} />
-            </svg>
-            <strong>{p.title}</strong>
-            <span>{p.text}</span>
+            <span class="seal-ic"><Icon name={sealIcons[s.key]} size={18} /></span>
+            <span><b>{s.title}</b> {s.text}</span>
           </li>
         ))
       }
@@ -63,54 +152,87 @@ const check = "M5 12.5l4.5 4.5L19 7.5";
   </div>
 </section>
 
-<section class="problem">
-  <div class="wrap">
-    <p class="eyebrow">{t.problem.eyebrow}</p>
-    <h2>{t.problem.h2}</h2>
-    <div class="cards3">
-      {
-        t.problem.cards.map((c) => (
-          <div class="card">
-            <h3>{c.title}</h3>
-            <p>{c.text}</p>
-          </div>
-        ))
-      }
-    </div>
-    <p class="close">{t.problem.close}</p>
-  </div>
-</section>
-
-<section class="how" id="product">
-  <div class="wrap">
-    <p class="eyebrow">{t.how.eyebrow}</p>
-    <h2>{t.how.h2}</h2>
-    <ol class="steps">
-      {
-        t.how.steps.map((s, i) => (
-          <li>
-            <span class="step-n" aria-hidden="true">{i + 1}</span>
-            <h3>{s.title}</h3>
-            <p>{s.text}</p>
-          </li>
-        ))
-      }
-    </ol>
-    <p class="close" style="margin-top:36px">{t.how.close}</p>
-  </div>
-</section>
-
+<!-- Features: a bento of different widths, each with a piece of the interface -->
 <section id="features">
-  <div class="wrap">
+  <div class="wrap wide">
     <p class="eyebrow">{t.features.eyebrow}</p>
     <h2>{t.features.h2}</h2>
+    <p class="sub">{t.features.lead}</p>
     <div class="bento">
       {
-        t.features.items.map((f) => (
-          <div class:list={["bento-card", { solid: f.solid }]}>
-            <h3>{f.title}</h3>
-            <p>{f.text}</p>
-          </div>
+        t.features.items.map((item, i) => (
+          <article class={`bcard b${i}`}>
+            <div class="frag" aria-hidden="true">
+              {i === 0 && (
+                <div class="shuf">
+                  <div class="mini m0" style="--p0:0%;--p1:34.5%;--p2:69%">
+                    <span class="fl">{f.layout[0]}</span>
+                    <b class="num">{t.demo.balance.int}</b>
+                    <div class="cbar">{parts.map((p) => <i style={`flex:${p.w};background:${p.c}`}></i>)}</div>
+                  </div>
+                  <div class="mini m1" style="--p0:34.5%;--p1:69%;--p2:0%">
+                    <span class="fl">{f.layout[1]}</span>
+                    <i class="sk"></i><i class="sk s"></i>
+                  </div>
+                  <div class="mini m2" style="--p0:69%;--p1:0%;--p2:34.5%">
+                    <span class="fl">{f.layout[2]}</span>
+                    <div class="mbars">{[40, 70, 50, 85].map((x) => <i style={`height:${x}%`}></i>)}</div>
+                  </div>
+                </div>
+              )}
+              {i === 1 && (
+                <div class="reel">
+                  <div class="reel-track">
+                    {[0, 1, 2, 0, 1, 2].map((n) => (
+                      <div class="fcard-s">
+                        <span class="fic" style="--tone:var(--primary)"><Icon name="file" size={16} /></span>
+                        <b>2026-{10 + n}.ofx</b>
+                        <span class="chips"><span class="chip" style="--tone:var(--chart-teal)">{f.import.fresh}</span><span class="chip" style="--tone:var(--faint)">{f.import.dup}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {i === 2 && (
+                <div class="cyc">
+                  {d.rows.map((r, k) => (
+                    <div class="cy" style={`--i:${k};--tone:${toneVar[r.tone]}`}>
+                      <span class="cy-ic"><Icon name={["fork", "car", "cart", "film"][k]} size={26} /></span>
+                      <b>{r.name}</b>
+                      <span class="chip" style={`--tone:${toneVar[r.tone]}`}>{r.cat}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {i === 3 && (
+                <div class="xfer">
+                  <div class="acct"><Icon name="bank" size={18} /><span>{f.transfer.a}</span></div>
+                  <div class="wire"><i class="coin"></i><span class="num">{t.frag.transfer.amount}</span></div>
+                  <div class="acct"><Icon name="wallet" size={18} /><span>{f.transfer.b}</span></div>
+                  <span class="chip" style="--tone:var(--faint)">{f.transfer.off}</span>
+                </div>
+              )}
+              {i === 4 && (
+                <div class="bars">
+                  <div class="bar-row">
+                    {[38, 52, 46, 64, 58, 80].map((h, k) => <i style={`height:${h}%;--k:${k}`}></i>)}
+                  </div>
+                  <span class="line"><b class="num">{f.flow.free}</b>{f.flow.caption}</span>
+                </div>
+              )}
+              {i === 5 && (
+                <div class="net">
+                  <b class="num big">{f.net.value}</b>
+                  <svg viewBox="0 0 160 48" preserveAspectRatio="none" aria-hidden="true"><path d="M0 40 C20 38 30 30 50 32 S80 18 100 20 S130 8 160 4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" /></svg>
+                  <span>{f.net.caption}</span>
+                </div>
+              )}
+            </div>
+            <div class="btext">
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </div>
+          </article>
         ))
       }
     </div>
@@ -120,6 +242,57 @@ const check = "M5 12.5l4.5 4.5L19 7.5";
   </div>
 </section>
 
+<!-- Showcase: the real app, dark band with three cards and a cropped screenshot -->
+<div class="band-dark showcase-band" data-theme="dark">
+  <div class="band-dark-in">
+    <p class="eyebrow">{t.proof.eyebrow}</p>
+    <h2>{t.proof.h2}</h2>
+    <p class="sub">{t.proof.sub}</p>
+    <p class="proof-links">
+      {stars !== null && stars > 0 && <span>{t.proof.stars(stars)}</span>}
+      {version && <span>{t.proof.version(version)}</span>}
+      <a href={REPO_URL}>{t.proof.repo}</a>
+    </p>
+    <div class="showcase">
+      <input class="sr" type="radio" name="shot-theme" id="st-light" checked />
+      <input class="sr" type="radio" name="shot-theme" id="st-dark" />
+      <fieldset class="tabs">
+        <legend class="sr">{t.tabs.label}</legend>
+        <label for="st-light">{t.tabs.light}</label>
+        <label for="st-dark">{t.tabs.dark}</label>
+      </fieldset>
+      <div class="shots">
+        <div class="frame main">
+          <Shot route="overview" lang={t.code} alt={t.hero.alt} widths={[900, 1800]} sizes="(min-width: 1100px) 1100px, 100vw" />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Who it is for: 50/50 -->
+<section class="who">
+  <div class="wrap wide split">
+    <div>
+      <p class="eyebrow">{t.who.eyebrow}</p>
+      <h2>{t.who.h2}</h2>
+      <p class="sub">{t.who.lead}</p>
+    </div>
+    <div class="who-stack">
+      <div class="who-card yes">
+        <h3><span class="who-ic"><Icon name="check" size={16} /></span>{t.who.yesTitle}</h3>
+        <ul>{t.who.yes.map((x) => <li>{x}</li>)}</ul>
+      </div>
+      <div class="who-card no">
+        <h3><span class="who-ic"><Icon name="x" size={16} /></span>{t.who.noTitle}</h3>
+        <ul>{t.who.no.map((x) => <li>{x}</li>)}</ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Where the data lives: the dark band, with the local-first diagram -->
 <div class="band-dark" id="security" data-theme="dark">
   <div class="band-dark-in">
     <p class="eyebrow">{t.data.eyebrow}</p>
@@ -135,90 +308,45 @@ const check = "M5 12.5l4.5 4.5L19 7.5";
         ))
       }
     </div>
-    <svg class="diagram" viewBox="0 0 760 200" role="img" aria-label={`${t.data.diagram.db} – ${t.data.diagram.app} – ${t.data.diagram.you}; ${t.data.diagram.app} → ${t.data.diagram.github} (${t.data.diagram.only})`}>
+    <div class="diagram-wrap">
+    <svg class="diagram" viewBox="0 0 900 210" role="img" aria-label={`${t.data.diagram.bank} → ${t.data.diagram.file} → ${t.data.diagram.app} → ${t.data.diagram.db}; ${t.data.diagram.app} → ${t.data.diagram.github} (${t.data.diagram.only})`}>
       <g fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="8" y="20" width="170" height="64" rx="14" />
-        <rect x="295" y="20" width="170" height="64" rx="14" />
-        <rect x="582" y="20" width="170" height="64" rx="14" />
-        <path d="M178 52h117M465 52h117" />
-        <path d="M380 84v52" stroke-dasharray="5 5" />
-        <rect x="295" y="136" width="170" height="52" rx="14" stroke-dasharray="5 5" />
+        <rect x="6" y="20" width="182" height="72" rx="16" />
+        <rect x="246" y="20" width="182" height="72" rx="16" />
+        <rect x="486" y="20" width="182" height="72" rx="16" stroke="var(--primary-text)" stroke-width="2" />
+        <rect x="712" y="20" width="182" height="72" rx="16" />
+        <path d="M188 56h58M428 56h58M668 56h44" />
+        <path d="M578 92v56" stroke-dasharray="5 5" />
+        <rect x="486" y="148" width="182" height="52" rx="16" stroke-dasharray="5 5" />
       </g>
       <g fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="17" font-weight="600" text-anchor="middle">
-        <text x="93" y="58">{t.data.diagram.db}</text>
-        <text x="380" y="58">{t.data.diagram.app}</text>
-        <text x="667" y="58">{t.data.diagram.you}</text>
-        <text x="380" y="168">{t.data.diagram.github}</text>
+        <text x="97" y="62">{t.data.diagram.bank}</text>
+        <text x="337" y="62">{t.data.diagram.file}</text>
+        <text x="577" y="62">{t.data.diagram.app}</text>
+        <text x="803" y="62">{t.data.diagram.db}</text>
+        <text x="577" y="180">{t.data.diagram.github}</text>
       </g>
-      <text x="392" y="116" fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="14" opacity="0.8">{t.data.diagram.only}</text>
+      <text x="592" y="126" fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="14" opacity="0.8">{t.data.diagram.only}</text>
     </svg>
-    <p class="close" style="margin-top:36px">{t.data.close}</p>
+    </div>
+    <p class="data-quote">{t.quote.text} <span class="hand">{t.quote.hand}</span></p>
+    <p class="data-note">{t.quote.note}</p>
+    <p class="close">{t.data.close}</p>
   </div>
 </div>
 
-<section>
-  <div class="wrap">
-    <p class="eyebrow">{t.proof.eyebrow}</p>
-    <h2>{t.proof.h2}</h2>
-    <div class="proof-items">
-      {
-        t.proof.items.map((p) => (
-          <div class="card">
-            <h3>{p.title}</h3>
-            <p>{p.text}</p>
-          </div>
-        ))
-      }
-    </div>
-    <div class="strip" role="region" aria-label={t.proof.eyebrow} tabindex="0">
-      {
-        t.proof.shots.map((s) => (
-          <figure>
-            <div class="frame">
-              <Shot route={s.key} lang={t.code} alt={s.alt} widths={[560, 1120]} sizes="560px" />
-            </div>
-            <figcaption>{s.label}</figcaption>
-          </figure>
-        ))
-      }
-    </div>
-    <p class="proof-links">
-      {stars !== null && stars > 0 && <span>{t.proof.stars(stars)}</span>}
-      {version && <span>{t.proof.version(version)}</span>}
-      <a href={REPO_URL}>{t.proof.repo}</a>
-    </p>
-  </div>
-</section>
 
-<section class="who" style="padding-top:0">
-  <div class="wrap">
-    <p class="eyebrow">{t.who.eyebrow}</p>
-    <h2>{t.who.h2}</h2>
-    <div class="who-grid">
-      <div class="who-card yes">
-        <Image src={safe} alt="" width={72} height={72} />
-        <h3>{t.who.yesTitle}</h3>
-        <ul>{t.who.yes.map((x) => <li>{x}</li>)}</ul>
-      </div>
-      <div class="who-card no">
-        <Image src={phone} alt="" width={72} height={72} />
-        <h3>{t.who.noTitle}</h3>
-        <ul>{t.who.no.map((x) => <li>{x}</li>)}</ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="faq" style="padding-top:0">
+<!-- FAQ -->
+<section id="faq">
   <div class="wrap">
     <p class="eyebrow">{t.faq.eyebrow}</p>
     <h2>{t.faq.h2}</h2>
     <div class="faq-list">
       {
-        t.faq.items.map((f) => (
+        t.faq.items.map((q) => (
           <details>
-            <summary>{f.q}</summary>
-            <p>{f.a}</p>
+            <summary>{q.q}</summary>
+            <p>{q.a}</p>
           </details>
         ))
       }
@@ -226,12 +354,15 @@ const check = "M5 12.5l4.5 4.5L19 7.5";
   </div>
 </section>
 
+<!-- Final call -->
 <section class="final">
-  <div class="wrap">
-    <h2>{t.cta.h2}</h2>
-    <div class="cta-row">
-      <a class="btn" href={dl}>{t.cta.button}</a>
+  <div class="wrap wide">
+    <div class="final-in">
+      <h2>{t.cta.h2}</h2>
+      <div class="cta-row">
+        <a class="btn light" href={dl}>{t.cta.button} <Icon name="arrow" size={18} /></a>
+      </div>
+      <p class="micro">{t.cta.micro}</p>
     </div>
-    <p class="micro">{t.cta.micro}</p>
   </div>
 </section>

@@ -12,7 +12,5 @@ export default defineConfig({
   output: "static",
   trailingSlash: "always",
   build: { inlineStylesheets: "always" },
-  // The CSS minifier folds animation-timeline into the animation shorthand, which browsers drop.
-  vite: { build: { cssMinify: false } },
   integrations: [sitemap({ i18n: { defaultLocale: "pt", locales: { pt: "pt-BR", en: "en" } } })],
 });
