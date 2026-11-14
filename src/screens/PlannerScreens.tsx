@@ -96,11 +96,13 @@ export function CardsScreen({
   month,
   onAdd,
   onEdit,
+  onMove,
 }: {
   cards: { meta: CardMeta; usageCents: number; window: { from: string; to: string } }[];
   month: string;
   onAdd: () => void;
   onEdit: (card: CardMeta) => void;
+  onMove: (id: number, delta: -1 | 1) => void;
 }) {
   const { lang, t } = useLanguage();
   const summary = summarizeCards(cards);
@@ -134,7 +136,7 @@ export function CardsScreen({
         <EmptyList label={t("planner.noCards")} action={onAdd} />
       ) : (
         <div className="entity-list">
-          {cards.map(({ meta, usageCents }) => {
+          {cards.map(({ meta, usageCents }, position) => {
             const { availableCents, usedPct } = cardLimitUsage(meta, usageCents);
             return (
               <article
@@ -151,13 +153,35 @@ export function CardsScreen({
                         {meta.accountName} · ···· {meta.last4 || "0000"}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className="outline-button entity-edit"
-                      onClick={() => onEdit(meta)}
-                    >
-                      {t("common.edit")}
-                    </button>
+                    <div className="entity-actions">
+                      <button
+                        type="button"
+                        className="round-button"
+                        disabled={position === 0}
+                        aria-label={t("planner.moveCardUp")}
+                        title={t("planner.moveCardUp")}
+                        onClick={() => onMove(meta.id, -1)}
+                      >
+                        <Icon name="chevron-up" size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="round-button"
+                        disabled={position === cards.length - 1}
+                        aria-label={t("planner.moveCardDown")}
+                        title={t("planner.moveCardDown")}
+                        onClick={() => onMove(meta.id, 1)}
+                      >
+                        <Icon name="chevron-down" size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="outline-button entity-edit"
+                        onClick={() => onEdit(meta)}
+                      >
+                        {t("common.edit")}
+                      </button>
+                    </div>
                   </div>
                   <div className="entity-figures">
                     <span>

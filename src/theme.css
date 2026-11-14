@@ -1234,3 +1234,9 @@ button:active:not(:disabled) {
 .planner-grid {
   grid-auto-flow: row dense;
 }
+
+.entity-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

@@ -262,6 +262,11 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   ],
   list_csv_profiles: () => [],
   card_usage: () => 412300,
+  reorder_cards: (args) => {
+    const ids = args.ids as number[];
+    planner.cards.sort((left, right) => ids.indexOf(left.id) - ids.indexOf(right.id));
+    return null;
+  },
   get_setting: (args) => settings[args.key as string] ?? null,
   set_setting: (args) => {
     settings[args.key as string] = args.value as string;

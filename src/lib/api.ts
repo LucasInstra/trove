@@ -535,6 +535,7 @@ export const api = {
   setBillPaid: (billId: number, month: string, paid: boolean) =>
     invoke<void>("set_bill_paid", { billId, month, paid }),
   saveCard: (input: CardInput) => invoke<number>("save_card", { input }),
+  reorderCards: (ids: number[]) => invoke<void>("reorder_cards", { ids }),
   saveGoal: (input: GoalInput) => invoke<number>("save_goal", { input }),
   cardUsage: (accountId: number, from: string, to: string) =>
     invoke<number>("card_usage", { accountId, from, to }),

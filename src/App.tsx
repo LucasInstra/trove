@@ -627,6 +627,16 @@ export function App() {
     await mutateAndRefresh(() => api.setBillPaid(billId, month, paid));
   };
 
+  // `delta` moves a card one place up (-1) or down (+1) in the user's order.
+  const moveCard = (id: number, delta: -1 | 1) => {
+    const ids = planner.cards.map((meta) => meta.id);
+    const from = ids.indexOf(id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    void mutateAndRefresh(() => api.reorderCards(ids));
+  };
+
   const saveCard = (input: CardInput) =>
     mutateAndRefresh(
       async () => {
@@ -956,6 +966,7 @@ export function App() {
                     month={month ?? currentMonth()}
                     onAdd={() => setDialog({ kind: "card", card: null })}
                     onEdit={(card) => setDialog({ kind: "card", card })}
+                    onMove={moveCard}
                   />
                 ) : (
                   <DebtsScreen
