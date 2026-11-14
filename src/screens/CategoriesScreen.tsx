@@ -156,13 +156,16 @@ export function CategoriesScreen({
       .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name));
 
   const row = (category: Category, depth: number) => (
-    <li key={category.id} className="installment" style={depth > 0 ? { paddingLeft: 24 } : undefined}>
+    <li key={category.id} className="installment" data-depth={depth}>
       <div className="installment-head">
         <span className="installment-name">
           <span className="dot" style={{ background: category.color }} />
-          {category.emoji ? `${category.emoji} ` : ""}{categoryName(t, category.name)}
+          {category.emoji ? <span className="cat-emoji" aria-hidden="true">{category.emoji}</span> : null}
+          {categoryName(t, category.name)}
         </span>
-        <span className="muted small">{t(`categories.kind_${category.kind}` as const)}</span>
+        <span className="kind-pill" data-kind={category.kind}>
+          {t(`categories.kind_${category.kind}` as const)}
+        </span>
         <span className="tx-actions">
           <button
             type="button"
@@ -213,7 +216,7 @@ export function CategoriesScreen({
 
       {roots.length > 0 ? (
         <article className="card">
-          <ul className="installment-list">
+          <ul className="installment-list list-rows">
             {roots.flatMap((root) => [row(root, 0), ...childrenOf(root.id).map((child) => row(child, 1))])}
           </ul>
         </article>
@@ -226,7 +229,7 @@ export function CategoriesScreen({
               <h2>{t("categories.archived")}</h2>
             </div>
           </header>
-          <ul className="installment-list">
+          <ul className="installment-list list-rows two-col">
             {archived.map((category) => (
               <li key={category.id} className="installment">
                 <div className="installment-head">

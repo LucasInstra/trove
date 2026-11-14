@@ -192,8 +192,8 @@ const planner = {
   ],
   reads: [],
   people: [
-    { id: 1, name: "Lucas", color: "#2563eb", isSelf: true, weightPct: 60 },
-    { id: 2, name: "Ana", color: "#ec4899", isSelf: false, weightPct: 40 },
+    { id: 1, name: "Lucas", color: "#2563eb", isSelf: true, weightPct: 60, incomeCents: 750000 },
+    { id: 2, name: "Ana", color: "#ec4899", isSelf: false, weightPct: 40, incomeCents: 500000 },
   ],
   shares: [{ billId: 1, personId: 2 }],
   debts: [{ id: 1, personId: 2, personName: "Ana", label: "Jantar", amountCents: 8500, month: MONTH, settledOn: null }],
@@ -229,8 +229,10 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   list_categories: () => categories,
   list_tags: () => tags,
   list_holdings: () => [
-    { id: 1, name: "Tesouro Selic", kind: "investment", amountCents: 3200000, updatedOn: `${MONTH}-01` },
-    { id: 2, name: "Carro", kind: "property", amountCents: 6500000, updatedOn: `${MONTH}-01` },
+    { id: 3, name: "Fundo IVVB11", kind: "investment", amountCents: 1450000, updatedOn: `${MONTH}-01`, costCents: 1600000 },
+    { id: 4, name: "CDB Nubank", kind: "investment", amountCents: 820000, updatedOn: `${MONTH}-01`, costCents: 800000 },
+    { id: 1, name: "Tesouro Selic", kind: "investment", amountCents: 3200000, updatedOn: `${MONTH}-01`, costCents: 2900000 },
+    { id: 2, name: "Carro", kind: "property", amountCents: 6500000, updatedOn: `${MONTH}-01`, costCents: 0 },
   ],
   list_transactions: (args) => {
     const search = (args.search as string | null)?.toLowerCase();

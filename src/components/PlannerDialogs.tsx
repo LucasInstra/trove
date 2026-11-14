@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CARD_DESIGNS, designOf } from "../domain/cardDesigns";
 import { Dialog } from "./Dialog";
+import { GoalIconPicker } from "./GoalIcon";
 import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
 import { monthLabel, todayIso } from "../lib/format";
 import { categoryName } from "../lib/i18n";
@@ -254,12 +255,15 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
   );
 }
 
+const GOAL_COLORS = ["#16a34a", "#0ea5e9", "#2563eb", "#7c3aed", "#ec4899", "#ef4444", "#f59e0b", "#8a6a2f"];
+
 export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClose: () => void; onSave: (input: GoalInput) => void }) {
   const { t } = useLanguage();
   const [name, setName] = useState(goal?.name ?? "");
   const [target, setTarget] = useState(goal ? (goal.targetCents / 100).toFixed(2) : "");
   const [monthly, setMonthly] = useState(goal ? (goal.monthlyCents / 100).toFixed(2) : "");
   const [color, setColor] = useState(goal?.color ?? "#8a6a2f");
+  const [icon, setIcon] = useState(goal?.icon ?? "target");
 
   return (
     <Dialog title={t("planner.goalTitle")} onClose={onClose}>
@@ -276,21 +280,49 @@ export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClo
             startsOn: goal?.startsOn ?? todayIso(),
             accountId: null,
             color,
+            icon,
           });
         }}
       >
         <Field label={t("planner.name")}>
           <input value={name} onChange={(event) => setName(event.target.value)} required />
         </Field>
-        <Field label={t("planner.target")}>
-          <input value={target} onChange={(event) => setTarget(event.target.value)} inputMode="decimal" required />
-        </Field>
-        <Field label={t("planner.monthly")}>
-          <input value={monthly} onChange={(event) => setMonthly(event.target.value)} inputMode="decimal" />
-        </Field>
-        <Field label={t("planner.color")}>
-          <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
-        </Field>
+        <div className="form-grid">
+          <Field label={t("planner.target")}>
+            <input value={target} onChange={(event) => setTarget(event.target.value)} inputMode="decimal" required />
+          </Field>
+          <Field label={t("planner.monthly")}>
+            <input value={monthly} onChange={(event) => setMonthly(event.target.value)} inputMode="decimal" />
+          </Field>
+        </div>
+        <div className="field">
+          <span>{t("goal.icon")}</span>
+          <GoalIconPicker
+            value={icon}
+            color={color}
+            label={t("goal.icon")}
+            onChange={setIcon}
+            nameOf={(name) => t(`goal.icon_${name}`)}
+          />
+        </div>
+        <div className="field">
+          <span>{t("planner.color")}</span>
+          <span className="color-swatches" role="radiogroup" aria-label={t("planner.color")}>
+            {GOAL_COLORS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className="color-swatch"
+                role="radio"
+                aria-checked={color === option}
+                aria-label={option}
+                data-selected={color === option || undefined}
+                style={{ background: option }}
+                onClick={() => setColor(option)}
+              />
+            ))}
+          </span>
+        </div>
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" className="primary">{t("common.save")}</button>
@@ -367,23 +399,29 @@ export function BudgetDialog({
         }}
       >
         <Field label={t("planner.amount")}>
-          <input
-            value={raw}
-            onChange={(event) => setRaw(event.target.value)}
-            inputMode="decimal"
-            placeholder={t("budget.none")}
-          />
+          <span className="input-affix">
+            <span>R$</span>
+            <input
+              value={raw}
+              onChange={(event) => setRaw(event.target.value)}
+              inputMode="decimal"
+              placeholder={t("budget.none")}
+            />
+          </span>
+          <small className="field-hint">{t("budget.hint")}</small>
         </Field>
-        <p className="muted small">{t("budget.hint")}</p>
         <Field label={`${t("budgets.monthly")} · ${monthLabel(month, lang)}`}>
-          <input
-            value={monthRaw}
-            onChange={(event) => setMonthRaw(event.target.value)}
-            inputMode="decimal"
-            placeholder={t("budget.none")}
-          />
+          <span className="input-affix">
+            <span>R$</span>
+            <input
+              value={monthRaw}
+              onChange={(event) => setMonthRaw(event.target.value)}
+              inputMode="decimal"
+              placeholder={t("budget.none")}
+            />
+          </span>
+          <small className="field-hint">{t("budgets.monthlyHint", { month: monthLabel(month, lang) })}</small>
         </Field>
-        <p className="muted small">{t("budgets.monthlyHint", { month: monthLabel(month, lang) })}</p>
         <label className="check">
           <input type="checkbox" checked={carry} onChange={(event) => setCarry(event.target.checked)} />
           {t("budgets.carryover")}

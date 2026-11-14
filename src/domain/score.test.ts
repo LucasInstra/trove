@@ -29,6 +29,7 @@ const reserve = (paidCents: number): MonthPlan["goals"][number] => ({
     monthlyCents: 100_000,
     startsOn: "2026-01-01",
     accountId: null,
+    icon: "target",
     color: "#1f6b4f",
   },
   paidCents,

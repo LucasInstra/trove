@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { CreditCardArt } from "../components/CreditCardArt";
 import { Dialog } from "../components/Dialog";
-import { HousingCard, SplitCard } from "../components/PlannerCards";
+import { HousingCard, PeopleCard, SplitCard } from "../components/PlannerCards";
 import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
+import { GoalIcon } from "../components/GoalIcon";
+import { LineChart } from "../components/charts/LineChart";
 import { Icon } from "../components/Icons";
 import { useScreenFrame } from "../components/SectionPage";
 import { cardLimitUsage, summarizeCards, summarizeGoals } from "../domain/planner";
@@ -25,6 +27,7 @@ import type {
   Goal,
   Holding,
   HoldingInput,
+  PersonInput,
   Income,
   MonthPoint,
   MonthTotals,
@@ -272,7 +275,7 @@ export function ReserveScreen({
               style={{ "--entity-color": goal.color } as CSSProperties}
             >
               <div className="entity-icon goal-mark">
-                <Icon name="target" size={19} />
+                <GoalIcon name={goal.icon} size={20} />
               </div>
               <div className="entity-main">
                 <div className="entity-title-row">
@@ -341,6 +344,9 @@ export function HouseScreen({
   people,
   shares,
   splitSettled,
+  trackSettlement,
+  onSavePeople,
+  onTrackSettlement,
   onCategory,
   onScope,
   onEditCeiling,
@@ -356,6 +362,9 @@ export function HouseScreen({
   people: Person[];
   shares: Share[];
   splitSettled: boolean;
+  trackSettlement: boolean;
+  onSavePeople: (inputs: PersonInput[]) => void;
+  onTrackSettlement: (value: boolean) => void;
   onCategory: (categoryId: number | null) => void;
   onScope: (scope: "primary" | "total") => void;
   onEditCeiling: () => void;
@@ -463,12 +472,21 @@ export function HouseScreen({
         )}
       </div>
 
+      <PeopleCard
+        key={people.map((person) => `${person.id}:${person.name}:${person.incomeCents}`).join("|")}
+        people={people}
+        trackSettlement={trackSettlement}
+        onSave={onSavePeople}
+        onTrackSettlement={onTrackSettlement}
+      />
+
       {people.length > 1 ? (
         <SplitCard
           people={people}
           shares={shares}
           bills={housingBills}
           settled={splitSettled}
+          trackSettlement={trackSettlement}
           onAssign={onAssign}
           onSettle={onSettle}
         />
@@ -511,23 +529,15 @@ export function PatrimonyScreen({
   const holdingsCents = holdingsTotal(holdings);
   const total = totalWealth(summary.savedCents, accumulated, holdingsCents);
 
-  const width = 600;
-  const height = 220;
-  const pad = { left: 8, right: 8, top: 12, bottom: 22 };
-  const values = curve.map((point) => point.runningCents);
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 0);
-  const span = max - min || 1;
-  const x = (index: number) =>
-    curve.length < 2
-      ? width / 2
-      : pad.left + (index * (width - pad.left - pad.right)) / (curve.length - 1);
-  const y = (value: number) =>
-    pad.top + (1 - (value - min) / span) * (height - pad.top - pad.bottom);
-  const line = curve
-    .map((point, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(point.runningCents)}`)
-    .join(" ");
-  const area = `${line} L${x(curve.length - 1)},${height - pad.bottom} L${x(0)},${height - pad.bottom} Z`;
+  const best = curve.reduce<(typeof curve)[number] | null>(
+    (top, point) => (top === null || point.netCents > top.netCents ? point : top),
+    null,
+  );
+  const worst = curve.reduce<(typeof curve)[number] | null>(
+    (low, point) => (low === null || point.netCents < low.netCents ? point : low),
+    null,
+  );
+  const average = curve.length > 0 ? Math.round(accumulated / curve.length) : 0;
 
   return (
     <section className="screen planner-screen">
@@ -568,12 +578,12 @@ export function PatrimonyScreen({
         </header>
         <p className="muted small">{t("holdings.desc")}</p>
         {holdings.length > 0 ? (
-          <ul className="installment-list">
+          <ul className="installment-list list-rows holdings-rows">
             {holdings.map((holding) => (
               <li key={holding.id} className="installment">
                 <div className="installment-head">
                   <span className="installment-name">{holding.name}</span>
-                  <span className="muted small">
+                  <span className="muted small holding-meta">
                     {t(`holdings.kind_${holding.kind}`)} · {formatCents(holding.amountCents)}
                   </span>
                   <span className="tx-actions">
@@ -631,57 +641,61 @@ export function PatrimonyScreen({
           <p className="card-empty">{t("ledger.noSpending")}</p>
         ) : (
           <>
-            <svg
-              viewBox={`0 0 ${width} ${height}`}
-              className="wealth-curve"
-              role="img"
-              aria-label={t("patrimony.curve")}
-            >
-              <path d={area} fill="var(--primary)" fillOpacity={0.12} />
-              <path
-                d={line}
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth={2.5}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
-              {min < 0 && max > 0 ? (
-                <line
-                  x1={pad.left}
-                  x2={width - pad.right}
-                  y1={y(0)}
-                  y2={y(0)}
-                  stroke="var(--line-strong)"
-                  strokeDasharray="4 4"
-                  strokeWidth={1}
-                />
-              ) : null}
-              {curve.map((point, index) => (
-                <circle
-                  key={point.month}
-                  cx={x(index)}
-                  cy={y(point.runningCents)}
-                  r={3.5}
-                  fill="var(--primary)"
-                >
-                  <title>{`${monthLabel(point.month, lang)}: ${formatCents(point.runningCents)}`}</title>
-                </circle>
-              ))}
-              <text x={pad.left} y={height - 6} fontSize={11} fill="var(--muted)">
-                {monthShort(curve[0].month, lang)}
-              </text>
-              <text
-                x={width - pad.right}
-                y={height - 6}
-                fontSize={11}
-                fill="var(--muted)"
-                textAnchor="end"
-              >
-                {monthShort(curve[curve.length - 1].month, lang)}
-              </text>
-            </svg>
+            <dl className="stat-strip">
+              <div>
+                <dt>{t("patrimony.current")}</dt>
+                <dd>{formatCents(accumulated)}</dd>
+              </div>
+              <div>
+                <dt>{t("patrimony.average")}</dt>
+                <dd>{formatCents(average)}</dd>
+              </div>
+              <div>
+                <dt>{t("patrimony.bestMonth")}</dt>
+                <dd className="positive">
+                  {best ? `+${formatCents(best.netCents)}` : "—"}
+                  {best ? <small>{monthShort(best.month, lang)}</small> : null}
+                </dd>
+              </div>
+              <div>
+                <dt>{t("patrimony.worstMonth")}</dt>
+                <dd className={worst && worst.netCents < 0 ? "negative" : undefined}>
+                  {worst ? formatCents(worst.netCents) : "—"}
+                  {worst ? <small>{monthShort(worst.month, lang)}</small> : null}
+                </dd>
+              </div>
+            </dl>
+            <LineChart
+              values={curve.map((point) => point.runningCents)}
+              labels={curve.map((point) => monthShort(point.month, lang))}
+              height={220}
+              ariaLabel={t("patrimony.curve")}
+              tip={(index) => (
+                <>
+                  <strong>{monthLabel(curve[index].month, lang)}</strong>
+                  <span className="tip-row">
+                    <i className="chart-swatch spend" />
+                    {t("patrimony.accumulated")}
+                    <b>{formatCents(curve[index].runningCents)}</b>
+                  </span>
+                  <span className="tip-row muted">
+                    {t("chart.monthNet")}
+                    <b className={curve[index].netCents < 0 ? "negative" : "positive"}>
+                      {curve[index].netCents > 0 ? "+" : ""}
+                      {formatCents(curve[index].netCents)}
+                    </b>
+                  </span>
+                  <span className="tip-row muted">
+                    {t("kpi.income")}
+                    <b>{formatCents(curve[index].incomeCents)}</b>
+                  </span>
+                  <span className="tip-row muted">
+                    {t("kpi.expense")}
+                    <b>{formatCents(curve[index].expenseCents)}</b>
+                  </span>
+                </>
+              )}
+            />
             <p className="muted small">{t("patrimony.note")}</p>
           </>
         )}
@@ -727,19 +741,22 @@ export function PatrimonyScreen({
 
 const HOLDING_KINDS = ["cash", "investment", "property", "other"] as const;
 
-function HoldingDialog({
+export function HoldingDialog({
   initial,
+  defaultKind = "other",
   onClose,
   onSave,
 }: {
   initial: Holding | null;
+  defaultKind?: (typeof HOLDING_KINDS)[number];
   onClose: () => void;
   onSave: (input: HoldingInput) => void;
 }) {
   const { t } = useLanguage();
   const [name, setName] = useState(initial?.name ?? "");
-  const [kind, setKind] = useState<(typeof HOLDING_KINDS)[number]>(initial?.kind ?? "other");
+  const [kind, setKind] = useState<(typeof HOLDING_KINDS)[number]>(initial?.kind ?? defaultKind);
   const [amount, setAmount] = useState(initial ? (initial.amountCents / 100).toFixed(2) : "");
+  const [cost, setCost] = useState(initial?.costCents ? (initial.costCents / 100).toFixed(2) : "");
   const [updatedOn, setUpdatedOn] = useState(initial?.updatedOn ?? todayIso());
 
   return (
@@ -756,6 +773,7 @@ function HoldingDialog({
             name: name.trim(),
             kind,
             amountCents: cents,
+            costCents: kind === "investment" && cost.trim() !== "" ? parseCents(cost) : 0,
             updatedOn,
           });
         }}
@@ -782,14 +800,32 @@ function HoldingDialog({
           </label>
           <label className="field">
             <span>{t("planner.amount")}</span>
-            <input
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              inputMode="decimal"
-              required
-            />
+            <span className="input-affix">
+              <span>R$</span>
+              <input
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                inputMode="decimal"
+                required
+              />
+            </span>
           </label>
         </div>
+        {kind === "investment" ? (
+          <label className="field">
+            <span>{t("investments.cost")}</span>
+            <span className="input-affix">
+              <span>R$</span>
+              <input
+                value={cost}
+                onChange={(event) => setCost(event.target.value)}
+                inputMode="decimal"
+                placeholder={t("investments.costPlaceholder")}
+              />
+            </span>
+            <small className="field-hint">{t("investments.costHint")}</small>
+          </label>
+        ) : null}
         <label className="field">
           <span>{t("holdings.updatedOnLabel")}</span>
           <input

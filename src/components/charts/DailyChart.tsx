@@ -1,11 +1,8 @@
-import { useChartWidth } from "../../hooks/useChartWidth";
-import { areaPath, cumulative, linePath } from "../../domain/chart";
+import { cumulative } from "../../domain/chart";
 import { formatCents } from "../../lib/format";
 import { useLanguage } from "../../lib/language";
 import type { DailyPoint } from "../../lib/api";
-
-const HEIGHT = 180;
-const PAD = 8;
+import { LineChart } from "./LineChart";
 
 /**
  * Daily burn for one month: cumulative spending as a filled area against a
@@ -20,7 +17,6 @@ export function DailyChart({
   effectiveCents: number | null;
 }) {
   const { t } = useLanguage();
-  const [ref, width] = useChartWidth<HTMLDivElement>();
   const spent = cumulative(daily.map((point) => point.expenseCents));
   const days = daily.length;
   const pace =
@@ -30,30 +26,42 @@ export function DailyChart({
   const peak = Math.max(...spent, ...(pace ?? []), 0);
 
   return (
-    <div className="chart-box" ref={ref}>
+    <div className="daily-chart">
       {spent.length > 0 ? (
-        <svg
-          className="chart-svg"
-          width={width}
-          height={HEIGHT}
-          role="img"
-          aria-label={t("chart.dailyBurn")}
-        >
-          {pace ? (
-            <path d={linePath(pace, width, HEIGHT, PAD)} className="chart-pace" />
-          ) : null}
-          <path d={areaPath(spent, width, HEIGHT, PAD)} className="chart-area" />
-          <path d={linePath(spent, width, HEIGHT, PAD)} className="chart-line" />
-          <text x={PAD} y={HEIGHT - 2} className="chart-tick">
-            1
-          </text>
-          <text x={width / 2} y={HEIGHT - 2} className="chart-tick middle" textAnchor="middle">
-            {Math.ceil(days / 2)}
-          </text>
-          <text x={width - PAD} y={HEIGHT - 2} className="chart-tick" textAnchor="end">
-            {days}
-          </text>
-        </svg>
+        <LineChart
+          values={spent}
+          reference={pace ?? undefined}
+          labels={daily.map((_, index) => String(index + 1))}
+          height={190}
+          ariaLabel={t("chart.dailyBurn")}
+          tip={(index) => {
+            const over = pace ? spent[index] - pace[index] : null;
+            return (
+              <>
+                <strong>{t("chart.day", { day: index + 1 })}</strong>
+                <span className="tip-row">
+                  <i className="chart-swatch spend" />
+                  {t("chart.spent")}
+                  <b>{formatCents(spent[index])}</b>
+                </span>
+                <span className="tip-row muted">
+                  {t("chart.thatDay")}
+                  <b>{formatCents(daily[index].expenseCents)}</b>
+                </span>
+                {pace && over !== null ? (
+                  <span className="tip-row muted">
+                    <i className="chart-swatch pace" />
+                    {t("chart.pace")}
+                    <b className={over > 0 ? "negative" : "positive"}>
+                      {over > 0 ? "+" : ""}
+                      {formatCents(over)}
+                    </b>
+                  </span>
+                ) : null}
+              </>
+            );
+          }}
+        />
       ) : null}
       <div className="chart-legend">
         <span>

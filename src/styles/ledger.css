@@ -1,0 +1,273 @@
+/* ---------- Ledger remake: one table, fixed columns, quiet chrome ---------- */
+
+.ledger {
+  display: grid;
+  gap: 12px;
+}
+
+.ledger-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.ledger-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.ledger-title h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ledger-head .ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+/* In, out and net for what is on screen. */
+.ledger-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ledger-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 12px 18px;
+}
+
+.ledger-summary > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.ledger-summary dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ledger-summary dd {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+.ledger-summary dd.in {
+  color: var(--positive);
+}
+
+.ledger-summary dd.out {
+  color: var(--negative);
+}
+
+/* Search, filters and the type switch share one height. */
+.ledger .toolbar {
+  gap: 10px;
+}
+
+.ledger .search {
+  height: 38px;
+  border-radius: 10px;
+}
+
+.ledger .account-filter select {
+  height: 38px;
+  border-radius: 10px;
+}
+
+.kind-filter {
+  display: inline-flex;
+  justify-self: start;
+  width: auto;
+}
+
+.kind-filter button {
+  flex: none;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+/* The table. */
+.tx-table {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.tx-colhead,
+.tx-table .tx-row {
+  display: grid;
+  grid-template-columns: 18px 32px minmax(0, 1fr) 168px 120px 88px;
+  align-items: center;
+  column-gap: 12px;
+  padding-left: 16px;
+  padding-right: 12px;
+}
+
+.tx-colhead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 34px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-soft) 86%, transparent);
+  backdrop-filter: blur(10px) saturate(160%);
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.tx-colhead .num {
+  text-align: right;
+}
+
+.tx-table .tx-day {
+  gap: 0;
+}
+
+.tx-table .tx-day-head {
+  position: static;
+  padding: 7px 112px 7px 62px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.tx-table .tx-day-head span:last-child {
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.tx-table .tx-group {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tx-table .tx-row {
+  min-height: 56px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tx-table .tx-row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.tx-table .tx-day:last-child .tx-row:last-child {
+  border-bottom: 0;
+}
+
+.tx-table .tx-main {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tx-table .tx-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 550;
+}
+
+.tx-table .tx-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The category is a quiet control until you reach for it. */
+.tx-table select.tx-category {
+  width: 100%;
+  height: 30px;
+  border-color: transparent;
+  background-color: var(--surface-soft);
+  font-size: 12.5px;
+}
+
+.tx-table select.tx-category:hover {
+  border-color: var(--line-strong);
+}
+
+.tx-table .tx-amount {
+  text-align: right;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-table .tx-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.tx-table .tx-row .tx-actions {
+  opacity: 0;
+  transition: opacity 140ms var(--ease-out);
+}
+
+.tx-table .tx-row:hover .tx-actions,
+.tx-table .tx-row:focus-within .tx-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .tx-table .tx-row .tx-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .ledger-summary dd {
+    font-size: 15px;
+  }
+
+  .ledger-summary > div {
+    padding: 10px 12px;
+  }
+
+  .tx-colhead {
+    display: none;
+  }
+
+  .tx-colhead,
+  .tx-table .tx-row {
+    grid-template-columns: 18px 32px minmax(0, 1fr) auto;
+  }
+
+  .tx-table select.tx-category,
+  .tx-table .tx-row .tx-actions {
+    display: none;
+  }
+
+  .tx-table .tx-day-head {
+    padding: 7px 16px;
+  }
+}

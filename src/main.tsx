@@ -5,6 +5,8 @@ import { LanguageProvider } from "./lib/language";
 import "./styles.css";
 import "./styles/tailwind.css";
 import "./styles/charts.css";
+import "./styles/charts-hover.css";
+import "./styles/ledger.css";
 import "./design.css";
 import "./theme.css";
 

@@ -40,6 +40,7 @@ import {
   RetirementScreen,
 } from "./screens/PlannerScreens";
 import { CategoriesScreen } from "./screens/CategoriesScreen";
+import { InvestmentsScreen } from "./screens/InvestmentsScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import type {
   Account,
@@ -72,6 +73,7 @@ import type {
   Tag,
   Holding,
   HoldingInput,
+  PersonInput,
   TransactionRow,
   TransferInput,
 } from "./lib/api";
@@ -199,6 +201,7 @@ export function App() {
   const [ceilingPct, setCeilingPct] = useState(30);
   const [housingScope, setHousingScope] = useState<"primary" | "total">("primary");
   const [splitSettled, setSplitSettled] = useState(false);
+  const [trackSettlement, setTrackSettlement] = useState(true);
   const [layout, setLayout] = useState<LayoutCard[]>(() => parseLayout(null));
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
@@ -290,6 +293,7 @@ export function App() {
           ceiling,
           scope,
           settled,
+          track,
           storedLayout,
           nextRecent,
         ] = await Promise.all([
@@ -311,6 +315,7 @@ export function App() {
           api.getSetting("housing_ceiling").catch(() => null),
           api.getSetting("housing_scope").catch(() => null),
           api.getSetting(`split_settled_${at}`).catch(() => null),
+          api.getSetting("split_track").catch(() => null),
           api.getSetting("dashboard_layout").catch(() => null),
           api.transactions("", at, null, 10, null).catch(() => []),
         ]);
@@ -335,6 +340,7 @@ export function App() {
         setCeilingPct(ceiling ? Number(ceiling) : 30);
         setHousingScope(scope === "total" ? "total" : "primary");
         setSplitSettled(settled === "1");
+        setTrackSettlement(track !== "0");
         setLayout(parseLayout(storedLayout));
         setError("");
       } catch (problem) {
@@ -549,6 +555,11 @@ export function App() {
   };
 
   const saveHolding = (input: HoldingInput) => mutateAndRefresh(() => api.saveHolding(input));
+
+  const savePeople = (inputs: PersonInput[]) =>
+    mutateAndRefresh(async () => {
+      for (const input of inputs) await api.savePerson(input);
+    });
 
   const deleteHolding = (id: number) => mutateAndRefresh(() => api.deleteHolding(id));
 
@@ -852,6 +863,7 @@ export function App() {
                 shares={planner.shares}
                 debts={planner.debts}
                 splitSettled={splitSettled}
+                trackSettlement={trackSettlement}
                 onAddDebt={() => setDialog({ kind: "debt", debt: null })}
                 onToggleDebt={(id, settled) => void toggleDebt(id, settled)}
                 layout={layout}
@@ -1019,12 +1031,19 @@ export function App() {
                 eyebrow={t("nav.patrimony")}
                 tabs={[
                   { id: "wealth", label: t("tab.wealth") },
+                  { id: "investments", label: t("tab.investments") },
                   { id: "health", label: t("nav.health") },
                 ]}
                 active={tabOf("patrimony", "wealth")}
                 onTab={(id) => setTab("patrimony", id)}
               >
-                {tabOf("patrimony", "wealth") === "wealth" ? (
+                {tabOf<string>("patrimony", "wealth") === "investments" ? (
+                  <InvestmentsScreen
+                    holdings={holdings}
+                    onSaveHolding={(input) => void saveHolding(input)}
+                    onDeleteHolding={(id) => void deleteHolding(id)}
+                  />
+                ) : tabOf("patrimony", "wealth") === "wealth" ? (
                   <PatrimonyScreen
                     plan={plan}
                     series={series}
@@ -1056,6 +1075,12 @@ export function App() {
                   people={planner.people}
                   shares={planner.shares}
                   splitSettled={splitSettled}
+                  trackSettlement={trackSettlement}
+                  onSavePeople={(inputs) => void savePeople(inputs)}
+                  onTrackSettlement={(value) => {
+                    setTrackSettlement(value);
+                    void api.setSetting("split_track", value ? "1" : "0");
+                  }}
                   onCategory={(categoryId) => void saveHousingCategory(categoryId)}
                   onScope={(scope) => {
                     setHousingScope(scope);
@@ -1261,13 +1286,16 @@ function CeilingDialog({
         <p className="muted small">{t("planner.housingHint", { category: housing })}</p>
         <label className="field">
           <span>{t("planner.ceilingPct")}</span>
-          <input
-            type="number"
-            min={5}
-            max={100}
-            value={ceiling}
-            onChange={(event) => setCeiling(Number(event.target.value))}
-          />
+          <span className="input-affix">
+            <input
+              type="number"
+              min={5}
+              max={100}
+              value={ceiling}
+              onChange={(event) => setCeiling(Number(event.target.value))}
+            />
+            <span>%</span>
+          </span>
         </label>
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>

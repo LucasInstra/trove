@@ -484,6 +484,12 @@ fn card_usage(
 }
 
 #[tauri::command]
+fn save_person(app: tauri::AppHandle, input: planner::PersonInput) -> Result<(), String> {
+    let connection = connection(&app)?;
+    planner::save_person(&connection, &input)
+}
+
+#[tauri::command]
 fn set_share(app: tauri::AppHandle, input: planner::ShareInput) -> Result<(), String> {
     let connection = connection(&app)?;
     planner::set_share(&connection, &input)
@@ -662,6 +668,7 @@ pub fn run() {
             save_goal,
             card_usage,
             set_share,
+            save_person,
             save_debt,
             delete_debt,
             set_debt_settled,

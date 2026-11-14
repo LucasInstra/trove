@@ -116,6 +116,7 @@ interface OverviewProps {
   shares: Share[];
   debts: Debt[];
   splitSettled: boolean;
+  trackSettlement?: boolean;
   onAssignShare: (billId: number, personId: number) => void;
   onSettle: () => void;
   onAddDebt: () => void;
@@ -157,6 +158,7 @@ export function OverviewScreen({
   people,
   shares,
   splitSettled,
+  trackSettlement = true,
   onAssignShare,
   onSettle,
   debts,
@@ -476,6 +478,7 @@ export function OverviewScreen({
         shares={shares}
         bills={plan.dueBills}
         settled={splitSettled}
+        trackSettlement={trackSettlement}
         onAssign={onAssignShare}
         onSettle={onSettle}
       />
@@ -593,12 +596,13 @@ export function OverviewScreen({
           <>
             <BalanceLine
               net={series.slice(-12).map((point) => point.incomeCents - point.expenseCents)}
+              months={series.slice(-12).map((point) => point.month)}
             />
             <div className="bars">
               {stacks.map((stack) => (
                 <button
                   type="button"
-                  className="bar-col"
+                  className="bar-col has-tip"
                   key={stack.month}
                   onClick={() => onSelectMonth(stack.month)}
                   aria-current={stack.month === month}
@@ -606,6 +610,25 @@ export function OverviewScreen({
                 >
                   <span className="bar-value">
                     {stack.month === month && stack.total > 0 ? formatCents(stack.total) : ""}
+                  </span>
+                  <span className="col-tip" role="tooltip">
+                    <strong>{monthLabel(stack.month, lang)}</strong>
+                    {stack.slices.slice(0, 5).map((slice) => (
+                      <span className="tip-row" key={slice.categoryId ?? slice.name}>
+                        <i className="chart-swatch" style={{ background: slice.color }} />
+                        {categoryName(t, slice.name)}
+                        <b>{formatCents(slice.totalCents)}</b>
+                      </span>
+                    ))}
+                    {stack.slices.length > 5 ? (
+                      <span className="tip-row muted">
+                        {t("chart.others", { count: stack.slices.length - 5 })}
+                      </span>
+                    ) : null}
+                    <span className="tip-row">
+                      {t("chart.total")}
+                      <b>{formatCents(stack.total)}</b>
+                    </span>
                   </span>
                   <div className="bar-track">
                     <div className="bar-stack">
@@ -617,7 +640,6 @@ export function OverviewScreen({
                             height: `${Math.max(2, (slice.totalCents / stackPeak) * 100)}%`,
                             background: slice.color,
                           }}
-                          title={`${slice.name}: ${formatCents(slice.totalCents)}`}
                         />
                       ))}
                     </div>
@@ -632,7 +654,7 @@ export function OverviewScreen({
               {stackLegend.map(([name, color]) => (
                 <span key={name}>
                   <span className="dot" style={{ background: color }} />
-                  {name}
+                  {categoryName(t, name)}
                 </span>
               ))}
             </div>
@@ -660,11 +682,30 @@ export function OverviewScreen({
                 <button
                   type="button"
                   key={point.month}
-                  className={point.month === month ? "flow-col current" : "flow-col"}
+                  className={point.month === month ? "flow-col current has-tip" : "flow-col has-tip"}
                   onClick={() => onSelectMonth(point.month)}
                   aria-current={point.month === month}
-                  title={`${monthLabel(point.month, lang)} · ${t("kpi.income")}: ${formatCents(point.incomeCents)} · ${t("kpi.expense")}: ${formatCents(point.expenseCents)}`}
+                  aria-label={`${monthLabel(point.month, lang)}: ${t("kpi.income")} ${formatCents(point.incomeCents)}, ${t("kpi.expense")} ${formatCents(point.expenseCents)}`}
                 >
+                  <span className="col-tip" role="tooltip">
+                    <strong>{monthLabel(point.month, lang)}</strong>
+                    <span className="tip-row">
+                      <i className="chart-swatch" style={{ background: "var(--chart-line)" }} />
+                      {t("kpi.income")}
+                      <b>{formatCents(point.incomeCents)}</b>
+                    </span>
+                    <span className="tip-row">
+                      <i className="chart-swatch" style={{ background: "var(--negative)" }} />
+                      {t("kpi.expense")}
+                      <b>{formatCents(point.expenseCents)}</b>
+                    </span>
+                    <span className="tip-row muted">
+                      {t("chart.monthNet")}
+                      <b className={point.incomeCents - point.expenseCents < 0 ? "negative" : "positive"}>
+                        {formatCents(point.incomeCents - point.expenseCents)}
+                      </b>
+                    </span>
+                  </span>
                   <span className="flow-pair">
                     <span
                       className="flow-bar in"

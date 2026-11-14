@@ -1326,3 +1326,489 @@ button:active:not(:disabled) {
   flex: 1;
   min-height: 150px;
 }
+
+/* ---------- Form kit: one rhythm for every dialog ---------- */
+
+.dialog-form {
+  gap: 14px;
+}
+
+.field {
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.field > input,
+.field > select,
+.input-affix {
+  box-sizing: border-box;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+}
+
+.field > input::placeholder {
+  color: var(--faint);
+}
+
+.field > input:hover,
+.field > select:hover,
+.input-affix:hover {
+  border-color: var(--faint);
+}
+
+.field > input:focus-visible,
+.field > select:focus-visible,
+.input-affix:focus-within {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.field > input[type="color"] {
+  padding: 3px;
+}
+
+.field > input[type="number"] {
+  appearance: textfield;
+}
+
+.field > input[type="number"]::-webkit-inner-spin-button,
+.field > input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* A value with its unit stuck to it: "R$ 1.500,00", "30 %". */
+.input-affix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-affix input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.input-affix > span {
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 420px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.check input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--primary);
+}
+
+.check small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+/* Goal icon and colour pickers. */
+.icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 6px;
+}
+
+.icon-picker-item {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out),
+    border-color 140ms var(--ease-out);
+}
+
+.icon-picker-item:hover:not([data-selected]) {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.icon-picker-item[data-selected] {
+  border-color: var(--goal-color, var(--primary));
+  background: color-mix(in srgb, var(--goal-color, var(--primary)) 14%, var(--surface));
+  color: var(--goal-color, var(--primary));
+}
+
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line-strong);
+  cursor: pointer;
+  transition: box-shadow 140ms var(--ease-out), transform 140ms var(--ease-out);
+}
+
+.color-swatch[data-selected] {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+/* ---------- Aligned list rows: name, tag, actions on fixed columns ---------- */
+
+.list-rows {
+  margin: 4px 0 0;
+  gap: 0;
+}
+
+.list-rows > li {
+  padding: 0 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 10px;
+  transition: background-color 140ms var(--ease-out);
+}
+
+.list-rows > li:first-child {
+  border-top-color: transparent;
+}
+
+.list-rows > li:hover {
+  background: var(--surface-soft);
+}
+
+.list-rows > li:hover + li,
+.list-rows > li:first-child:hover {
+  border-top-color: transparent;
+}
+
+.list-rows .installment-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 84px;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+}
+
+.list-rows.two-col .installment-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.list-rows .tx-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.list-rows > li[data-depth="1"] .installment-name {
+  padding-left: 22px;
+  position: relative;
+}
+
+.list-rows > li[data-depth="1"] .installment-name::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -9px;
+  border-left: 1.5px solid var(--line-strong);
+  border-bottom: 1.5px solid var(--line-strong);
+  border-bottom-left-radius: 6px;
+}
+
+.cat-emoji {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 14px;
+}
+
+.kind-pill {
+  justify-self: start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.kind-pill[data-kind="income"] {
+  background: color-mix(in srgb, var(--positive) 12%, var(--surface));
+  color: var(--positive);
+}
+
+.rule-scope {
+  white-space: nowrap;
+}
+
+/* A table in cards: columns on a grid so numbers line up. */
+.data-table {
+  display: grid;
+  margin-top: 4px;
+}
+
+.data-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) 72px;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 140ms var(--ease-out);
+}
+
+.data-row:not(.data-head):hover {
+  background: var(--surface-soft);
+}
+
+.data-head {
+  min-height: 34px;
+  border-top: 0;
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.data-row .num {
+  text-align: right;
+  font-size: 13px;
+}
+
+.data-row .num small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.data-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.data-main small {
+  display: block;
+  font-size: 11.5px;
+}
+
+.data-row .tx-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Investments: how the portfolio is split. */
+.alloc-bar {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+  margin: 8px 0 14px;
+}
+
+.alloc-part {
+  min-width: 6px;
+  border-radius: 6px;
+}
+
+.alloc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.alloc-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.alloc-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+/* A strip of figures above a chart. */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+
+.stat-strip > div {
+  display: grid;
+  gap: 2px;
+}
+
+.stat-strip dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stat-strip dd {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.stat-strip dd small {
+  margin-left: 6px;
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.stat-strip .positive {
+  color: var(--positive);
+}
+
+.stat-strip .negative {
+  color: var(--negative);
+}
+
+/* House: people and incomes. */
+.people-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.people-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+}
+
+.people-row .dot {
+  align-self: center;
+  margin-top: 20px;
+}
+
+.people-share {
+  display: grid;
+  gap: 8px;
+}
+
+.people-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.people-settle {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .data-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px;
+  }
+
+  .data-row > :nth-child(3) {
+    display: none;
+  }
+
+  .people-row {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .people-row > .field:last-child {
+    grid-column: 2;
+  }
+}
+
+.holdings-rows .installment-head {
+  grid-template-columns: minmax(0, 1fr) 240px 84px;
+}
+
+.holdings-rows > li {
+  padding-bottom: 8px;
+}
+
+.holdings-rows > li > .muted.small {
+  display: block;
+  margin-top: -8px;
+}
+
+.holding-meta {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

@@ -3,8 +3,8 @@ import type { Bill, Person, Share } from "../lib/api";
 import { computeSplit, selfPartOf } from "./split";
 
 const people: Person[] = [
-  { id: 1, name: "Você", color: "#2563eb", isSelf: true, weightPct: 50 },
-  { id: 2, name: "Parceiro(a)", color: "#f43f5e", isSelf: false, weightPct: 50 },
+  { id: 1, name: "Você", color: "#2563eb", isSelf: true, weightPct: 50, incomeCents: 0 },
+  { id: 2, name: "Parceiro(a)", color: "#f43f5e", isSelf: false, weightPct: 50, incomeCents: 0 },
 ];
 
 const bill = (id: number, amountCents: number): Bill => ({

@@ -49,3 +49,68 @@ export function holdingsByKind(holdings: HoldingLike[]): KindTotal[] {
 export function totalWealth(reservesCents: number, accumulatedCents: number, holdingsCents: number): number {
   return reservesCents + accumulatedCents + holdingsCents;
 }
+
+export interface InvestmentInput {
+  id: number;
+  name: string;
+  kind: string;
+  amountCents: number;
+  costCents: number;
+}
+
+export interface InvestmentLine {
+  id: number;
+  name: string;
+  valueCents: number;
+  costCents: number;
+  /** Null while the cost is unknown: nothing to compare the value with. */
+  gainCents: number | null;
+  gainPct: number | null;
+  sharePct: number;
+}
+
+export interface InvestmentSummary {
+  valueCents: number;
+  /** Cost of the lines that report one, and their value, so the return is like for like. */
+  trackedCostCents: number;
+  trackedValueCents: number;
+  gainCents: number;
+  gainPct: number | null;
+  untracked: number;
+}
+
+/** The investment holdings, biggest first, each with its share of the portfolio. */
+export function investmentLines(holdings: InvestmentInput[]): InvestmentLine[] {
+  const investments = holdings.filter((holding) => holding.kind === "investment");
+  const total = investments.reduce((sum, holding) => sum + holding.amountCents, 0);
+  return investments
+    .map((holding) => {
+      const known = holding.costCents > 0;
+      const gainCents = known ? holding.amountCents - holding.costCents : null;
+      return {
+        id: holding.id,
+        name: holding.name,
+        valueCents: holding.amountCents,
+        costCents: holding.costCents,
+        gainCents,
+        gainPct: known && gainCents !== null ? (gainCents / holding.costCents) * 100 : null,
+        sharePct: total > 0 ? (holding.amountCents / total) * 100 : 0,
+      };
+    })
+    .sort((left, right) => right.valueCents - left.valueCents);
+}
+
+export function investmentSummary(lines: InvestmentLine[]): InvestmentSummary {
+  const tracked = lines.filter((line) => line.gainCents !== null);
+  const trackedCostCents = tracked.reduce((sum, line) => sum + line.costCents, 0);
+  const trackedValueCents = tracked.reduce((sum, line) => sum + line.valueCents, 0);
+  const gainCents = trackedValueCents - trackedCostCents;
+  return {
+    valueCents: lines.reduce((sum, line) => sum + line.valueCents, 0),
+    trackedCostCents,
+    trackedValueCents,
+    gainCents,
+    gainPct: trackedCostCents > 0 ? (gainCents / trackedCostCents) * 100 : null,
+    untracked: lines.length - tracked.length,
+  };
+}

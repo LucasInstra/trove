@@ -226,6 +226,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
             starts_on: "2026-01-01".to_string(),
             account_id: Some(checking),
             color: "#16a34a".to_string(),
+            icon: "piggy".to_string(),
         },
     )?;
     let trip = planner::save_goal(
@@ -239,6 +240,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
             starts_on: "2026-01-01".to_string(),
             account_id: Some(checking),
             color: "#0ea5e9".to_string(),
+            icon: "plane".to_string(),
         },
     )?;
     for month in 1..=12_u32 {

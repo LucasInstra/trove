@@ -73,6 +73,7 @@ pub struct Goal {
     pub starts_on: String,
     pub account_id: Option<i64>,
     pub color: String,
+    pub icon: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -100,6 +101,15 @@ pub struct Person {
     pub color: String,
     pub is_self: bool,
     pub weight_pct: i64,
+    pub income_cents: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonInput {
+    pub id: i64,
+    pub name: String,
+    pub income_cents: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -208,6 +218,12 @@ pub struct GoalInput {
     pub starts_on: String,
     pub account_id: Option<i64>,
     pub color: String,
+    #[serde(default = "default_goal_icon")]
+    pub icon: String,
+}
+
+fn default_goal_icon() -> String {
+    "target".to_string()
 }
 
 fn now() -> String {
@@ -602,7 +618,7 @@ pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, Stri
 pub fn list_goals(connection: &Connection) -> Result<Vec<Goal>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, kind, target_cents, monthly_cents, starts_on, account_id, color
+            "select id, name, kind, target_cents, monthly_cents, starts_on, account_id, color, icon
              from goals
              where deleted_at is null
              order by id",
@@ -619,6 +635,7 @@ pub fn list_goals(connection: &Connection) -> Result<Vec<Goal>, String> {
                 starts_on: row.get(5)?,
                 account_id: row.get(6)?,
                 color: row.get(7)?,
+                icon: row.get(8)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -634,8 +651,8 @@ pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, Stri
                 .execute(
                     "update goals
                      set name = ?1, kind = ?2, target_cents = ?3, monthly_cents = ?4,
-                         starts_on = ?5, account_id = ?6, color = ?7, updated_at = ?8
-                     where id = ?9",
+                         starts_on = ?5, account_id = ?6, color = ?7, icon = ?8, updated_at = ?9
+                     where id = ?10",
                     params![
                         input.name,
                         input.kind,
@@ -644,6 +661,7 @@ pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, Stri
                         input.starts_on,
                         input.account_id,
                         input.color,
+                        input.icon,
                         stamp,
                         id
                     ],
@@ -655,9 +673,9 @@ pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, Stri
             connection
                 .execute(
                     "insert into goals
-                     (uid, name, kind, target_cents, monthly_cents, starts_on, account_id, color,
+                     (uid, name, kind, target_cents, monthly_cents, starts_on, account_id, color, icon,
                       visibility, created_at, updated_at)
-                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'shared', ?8, ?8)",
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'shared', ?9, ?9)",
                     params![
                         input.name,
                         input.kind,
@@ -666,6 +684,7 @@ pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, Stri
                         input.starts_on,
                         input.account_id,
                         input.color,
+                        input.icon,
                         stamp
                     ],
                 )
@@ -775,7 +794,7 @@ pub fn set_setting(connection: &Connection, key: &str, value: &str) -> Result<()
 pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, color, is_self, weight_pct
+            "select id, name, color, is_self, weight_pct, income_cents
              from people
              where deleted_at is null
              order by is_self desc, id",
@@ -789,6 +808,7 @@ pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
                 color: row.get(2)?,
                 is_self: row.get::<_, i64>(3)? == 1,
                 weight_pct: row.get(4)?,
+                income_cents: row.get(5)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -817,6 +837,46 @@ pub fn ensure_people(connection: &Connection) -> Result<Vec<Person>, String> {
             .map_err(|problem| problem.to_string())?;
     }
     list_people(connection)
+}
+
+/// Name and monthly income of one person. When both people have an income the
+/// target split follows it, so the house is shared in proportion to what each
+/// one earns. With either at zero the split stays where it was.
+pub fn save_person(connection: &Connection, input: &PersonInput) -> Result<(), String> {
+    let name = input.name.trim();
+    if name.is_empty() || name.chars().count() > 40 {
+        return Err("person name must have 1 to 40 characters".to_string());
+    }
+    if input.income_cents < 0 {
+        return Err("income must not be negative".to_string());
+    }
+    let affected = connection
+        .execute(
+            "update people set name = ?1, income_cents = ?2, updated_at = ?3
+             where id = ?4 and deleted_at is null",
+            params![name, input.income_cents, now(), input.id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    if affected == 0 {
+        return Err("person does not exist".to_string());
+    }
+    let people = list_people(connection)?;
+    if people.len() == 2 && people.iter().all(|person| person.income_cents > 0) {
+        let total: i64 = people.iter().map(|person| person.income_cents).sum();
+        let self_income = people
+            .iter()
+            .find(|person| person.is_self)
+            .map_or(0, |person| person.income_cents);
+        let self_pct = (self_income * 100 + total / 2) / total;
+        connection
+            .execute(
+                "update people set weight_pct = case when is_self = 1 then ?1 else ?2 end
+                 where deleted_at is null",
+                params![self_pct, 100 - self_pct],
+            )
+            .map_err(|problem| problem.to_string())?;
+    }
+    Ok(())
 }
 
 pub fn list_shares(connection: &Connection) -> Result<Vec<Share>, String> {
@@ -1315,6 +1375,7 @@ mod tests {
                 starts_on: "2026-01-01".into(),
                 account_id: None,
                 color: "#1f6b4f".into(),
+                icon: "target".into(),
             },
         )
         .expect("should save the goal");
@@ -1390,6 +1451,7 @@ mod tests {
                 starts_on: "2026-01-01".into(),
                 account_id: None,
                 color: "#1f6b4f".into(),
+                icon: "target".into(),
             },
         )
         .expect("should save the goal");
@@ -1478,6 +1540,44 @@ mod tests {
         assert_eq!(usage, 10_000, "only the purchase after the previous close counts");
         let next = card_usage(&connection, 1, "2026-12-05", "2027-01-05").expect("should measure");
         assert_eq!(next, 20_000);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn incomes_set_the_split_and_a_goal_remembers_its_icon() {
+        let path = temporary_database("incomes");
+        let connection = db::open(&path).expect("should open");
+        let people = ensure_people(&connection).expect("should seed");
+
+        save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: 600_000 })
+            .expect("should save");
+        // One income alone leaves the split untouched.
+        assert_eq!(list_people(&connection).expect("should list")[0].weight_pct, 50);
+        save_person(&connection, &PersonInput { id: people[1].id, name: "Leo".into(), income_cents: 400_000 })
+            .expect("should save");
+        let after = list_people(&connection).expect("should list");
+        assert_eq!((after[0].weight_pct, after[1].weight_pct), (60, 40));
+        assert_eq!(after[1].name, "Leo");
+        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: " ".into(), income_cents: 1 }).is_err());
+        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: -1 }).is_err());
+
+        save_goal(
+            &connection,
+            &GoalInput {
+                id: None,
+                name: "Casa".into(),
+                kind: "goal".into(),
+                target_cents: 1_000,
+                monthly_cents: 100,
+                starts_on: "2026-01-01".into(),
+                account_id: None,
+                color: "#1f6b4f".into(),
+                icon: "house".into(),
+            },
+        )
+        .expect("should save the goal");
+        assert_eq!(list_goals(&connection).expect("should list")[0].icon, "house");
 
         let _ = std::fs::remove_file(&path);
     }

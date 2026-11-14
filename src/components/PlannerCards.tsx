@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Bill, CardMeta, Goal, Person, Share, TransactionRow } from "../lib/api";
+import type { Bill, CardMeta, Goal, Person, PersonInput, Share, TransactionRow } from "../lib/api";
+import { parseCents } from "./PlannerDialogs";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
@@ -682,6 +683,8 @@ interface SplitProps {
   settled: boolean;
   onAssign: (billId: number, personId: number) => void;
   onSettle: () => void;
+  /** Couples that do not square up afterwards turn the settlement off. */
+  trackSettlement?: boolean;
   compact?: boolean;
 }
 
@@ -693,6 +696,7 @@ export function SplitCard({
   settled,
   onAssign,
   onSettle,
+  trackSettlement = true,
   compact = false,
 }: SplitProps) {
   const { t } = useLanguage();
@@ -794,7 +798,7 @@ export function SplitCard({
         ))}
       </ul>
 
-      <div className="split-foot">
+      <div className="split-foot" hidden={!trackSettlement}>
         {split.owes === "partner" ? (
           <span className="split-owes">
             <Icon name="arrow-right" size={15} />
@@ -809,13 +813,136 @@ export function SplitCard({
           <span className="muted small">{t("split.even")}</span>
         )}
 
-        {split.owes ? (
+        {split.owes && trackSettlement ? (
           <button type="button" className="ghost small-button" onClick={onSettle} disabled={settled}>
             <Icon name="check" size={15} />
             {settled ? t("split.settled") : t("split.markDone")}
           </button>
         ) : null}
       </div>
+    </article>
+  );
+}
+
+/**
+ * Who lives in the house and what each one earns. When both incomes are
+ * filled the target split follows them, so each pays in proportion. Squaring
+ * up afterwards is optional: not every couple does it.
+ */
+export function PeopleCard({
+  people,
+  trackSettlement,
+  onSave,
+  onTrackSettlement,
+}: {
+  people: Person[];
+  trackSettlement: boolean;
+  onSave: (inputs: PersonInput[]) => void;
+  onTrackSettlement: (value: boolean) => void;
+}) {
+  const { t } = useLanguage();
+  const [drafts, setDrafts] = useState(() =>
+    people.map((person) => ({
+      id: person.id,
+      name: person.name,
+      income: person.incomeCents > 0 ? (person.incomeCents / 100).toFixed(2) : "",
+    })),
+  );
+  const parsed = drafts.map((draft) => ({
+    id: draft.id,
+    name: draft.name.trim(),
+    incomeCents: draft.income.trim() === "" ? 0 : parseCents(draft.income),
+  }));
+  const total = parsed.reduce((sum, person) => sum + person.incomeCents, 0);
+  const both = parsed.length === 2 && parsed.every((person) => person.incomeCents > 0);
+  const dirty = parsed.some((person, index) => {
+    const original = people[index];
+    return !original || person.name !== original.name || person.incomeCents !== original.incomeCents;
+  });
+  const valid = parsed.every((person) => person.name.length > 0);
+  const firstPct = total > 0 ? Math.round((parsed[0].incomeCents / total) * 100) : 50;
+
+  const patch = (id: number, change: Partial<(typeof drafts)[number]>) =>
+    setDrafts((current) => current.map((item) => (item.id === id ? { ...item, ...change } : item)));
+
+  return (
+    <article className="card people-card">
+      <header className="card-head">
+        <div className="card-title">
+          <h2>{t("people.title")}</h2>
+        </div>
+      </header>
+      <p className="muted small">{t("people.desc")}</p>
+      <form
+        className="people-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (valid && dirty) onSave(parsed);
+        }}
+      >
+        {drafts.map((draft, index) => (
+          <div className="people-row" key={draft.id}>
+            <span className="dot" style={{ background: people[index]?.color ?? "var(--faint)" }} />
+            <label className="field">
+              <span>{people[index]?.isSelf ? t("people.you") : t("people.partner")}</span>
+              <input
+                value={draft.name}
+                maxLength={40}
+                onChange={(event) => patch(draft.id, { name: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>{t("people.income")}</span>
+              <span className="input-affix">
+                <span>R$</span>
+                <input
+                  value={draft.income}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  onChange={(event) => patch(draft.id, { income: event.target.value })}
+                />
+              </span>
+            </label>
+          </div>
+        ))}
+
+        {both ? (
+          <div className="people-share">
+            <div className="split-bar tight">
+              <span className="split-self" style={{ width: `${firstPct}%` }} />
+              <span className="split-partner" style={{ width: `${100 - firstPct}%` }} />
+            </div>
+            <span className="muted small">
+              {t("people.proportion", {
+                a: parsed[0].name,
+                aPct: firstPct,
+                b: parsed[1].name,
+                bPct: 100 - firstPct,
+              })}
+            </span>
+          </div>
+        ) : (
+          <span className="muted small">{t("people.needBoth")}</span>
+        )}
+
+        <div className="people-actions">
+          <button type="submit" className="primary small-button" disabled={!dirty || !valid}>
+            {t("common.save")}
+          </button>
+        </div>
+      </form>
+
+      <label className="check people-settle">
+        <input
+          type="checkbox"
+          checked={trackSettlement}
+          onChange={(event) => onTrackSettlement(event.target.checked)}
+        />
+        <span>
+          {t("people.settleToggle")}
+          <small>{t("people.settleHint")}</small>
+        </span>
+      </label>
     </article>
   );
 }

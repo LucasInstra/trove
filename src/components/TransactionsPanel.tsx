@@ -78,6 +78,19 @@ export function TransactionsPanel({
   const confirmDeleteRow = rows.find((row) => row.id === confirmDeleteId) ?? null;
   const visibleIds = new Set(rows.map((row) => row.id));
   const keptSelection = selected.filter((id) => visibleIds.has(id));
+  const [kind, setKind] = useState<"all" | "in" | "out">("all");
+  const real = rows.filter((row) => row.transferGroup == null);
+  const incomeCents = real.filter((row) => row.amountCents > 0).reduce((sum, row) => sum + row.amountCents, 0);
+  const expenseCents = real.filter((row) => row.amountCents < 0).reduce((sum, row) => sum - row.amountCents, 0);
+  const shownGroups = groups
+    .map((group) => ({
+      ...group,
+      rows: group.rows.filter(
+        (row) => kind === "all" || (kind === "in" ? row.amountCents > 0 : row.amountCents < 0),
+      ),
+    }))
+    .filter((group) => group.rows.length > 0);
+  const shownCount = shownGroups.reduce((sum, group) => sum + group.rows.length, 0);
   const [exported, setExported] = useState("");
   const [exportError, setExportError] = useState("");
 
@@ -100,8 +113,10 @@ export function TransactionsPanel({
   return (
     <div className="ledger">
       <div className="ledger-head">
-        <h2>{t("ledger.transactions")}</h2>
-        <span className="muted count">{t("ledger.entries", { count: rows.length })}</span>
+        <div className="ledger-title">
+          <h2>{t("ledger.transactions")}</h2>
+          <span className="muted count">{t("ledger.entries", { count: shownCount })}</span>
+        </div>
         {rows.length > 0 ? (
           <button type="button" className="ghost" onClick={() => void onExport()}>
             {t("ledger.exportCsv")}
@@ -119,6 +134,25 @@ export function TransactionsPanel({
           </button>
         ) : null}
       </div>
+
+      {rows.length > 0 ? (
+        <dl className="ledger-summary">
+          <div>
+            <dt>{t("kpi.income")}</dt>
+            <dd className="in">{formatCents(incomeCents)}</dd>
+          </div>
+          <div>
+            <dt>{t("kpi.expense")}</dt>
+            <dd className="out">{formatCents(expenseCents)}</dd>
+          </div>
+          <div>
+            <dt>{t("chart.monthNet")}</dt>
+            <dd className={incomeCents - expenseCents < 0 ? "out" : undefined}>
+              {formatSignedCents(incomeCents - expenseCents)}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
       <div className="toolbar">
         <label className="search">
@@ -164,6 +198,22 @@ export function TransactionsPanel({
           </select>
         </label>
       </div>
+
+      {rows.length > 0 ? (
+        <div className="segmented kind-filter" role="group" aria-label={t("ledger.kindFilter")}>
+          {(["all", "in", "out"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={kind === option ? "active" : undefined}
+              aria-pressed={kind === option}
+              onClick={() => setKind(option)}
+            >
+              {t(`ledger.kind_${option}`)}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {keptSelection.length > 0 ? (
         <div className="card bulk-bar" role="toolbar" aria-label={t("bulk.title")}>
@@ -300,8 +350,17 @@ export function TransactionsPanel({
       ) : null}
 
       {rows.length > 0 ? (
-        <div className="tx-list">
-          {groups.map((group) => (
+        <div className="card tx-table">
+          <div className="tx-colhead" aria-hidden="true">
+            <span />
+            <span />
+            <span>{t("ledger.colDescription")}</span>
+            <span>{t("planner.category")}</span>
+            <span className="num">{t("planner.amount")}</span>
+            <span />
+          </div>
+          {shownGroups.length === 0 ? <p className="card-empty">{t("ledger.nothingHere")}</p> : null}
+          {shownGroups.map((group) => (
             <section className="tx-day" key={group.day}>
               <header className="tx-day-head">
                 <span>{dayLabel(group.day, lang)}</span>

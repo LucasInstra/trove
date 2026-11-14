@@ -168,7 +168,7 @@ export function RulesManager({
         {applied ? <span className="muted small">{applied}</span> : null}
       </div>
       {rules.length > 0 ? (
-        <ul className="installment-list">
+        <ul className="installment-list list-rows">
           {rules.map((rule) => (
             <li key={rule.id} className="installment">
               <div className="installment-head">
@@ -176,7 +176,7 @@ export function RulesManager({
                   <span className="dot" style={{ background: rule.categoryColor }} />
                   {rule.pattern} → {categoryName(t, rule.categoryName)}
                 </span>
-                <span className="muted small">
+                <span className="muted small rule-scope">
                   {t(`rules.target_${rule.target}`)} · {t(`rules.sign_${rule.sign}`)}
                 </span>
                 <span className="tx-actions">

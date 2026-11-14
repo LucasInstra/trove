@@ -31,6 +31,8 @@ export interface Holding {
   kind: "cash" | "investment" | "property" | "other";
   amountCents: number;
   updatedOn: string;
+  /** What was put in; 0 when unknown. */
+  costCents: number;
 }
 
 export interface HoldingInput {
@@ -39,6 +41,7 @@ export interface HoldingInput {
   kind: "cash" | "investment" | "property" | "other";
   amountCents: number;
   updatedOn: string;
+  costCents?: number;
 }
 
 export interface TransactionRow {
@@ -313,6 +316,7 @@ export interface Goal {
   startsOn: string;
   accountId: number | null;
   color: string;
+  icon: string;
 }
 
 export interface GoalTotal {
@@ -327,6 +331,13 @@ export interface Person {
   color: string;
   isSelf: boolean;
   weightPct: number;
+  incomeCents: number;
+}
+
+export interface PersonInput {
+  id: number;
+  name: string;
+  incomeCents: number;
 }
 
 export interface Share {
@@ -423,6 +434,7 @@ export interface GoalInput {
   startsOn: string;
   accountId: number | null;
   color: string;
+  icon?: string;
 }
 
 export const EMPTY_PLANNER: PlannerState = {
@@ -543,6 +555,7 @@ export const api = {
   cardUsage: (accountId: number, from: string, to: string) =>
     invoke<number>("card_usage", { accountId, from, to }),
   setShare: (input: ShareInput) => invoke<void>("set_share", { input }),
+  savePerson: (input: PersonInput) => invoke<void>("save_person", { input }),
   saveDebt: (input: DebtInput) => invoke<number>("save_debt", { input }),
   deleteDebt: (id: number) => invoke<void>("delete_debt", { id }),
   setDebtSettled: (id: number, settled: boolean) =>

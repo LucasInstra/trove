@@ -56,6 +56,7 @@ const reserveGoal = (monthlyCents: number): Goal => ({
   monthlyCents,
   startsOn: "2026-01-01",
   accountId: null,
+  icon: "target",
   color: "#1f6b4f",
 });
 

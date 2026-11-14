@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MonthPoint } from "../lib/api";
-import { holdingsByKind, holdingsTotal, netWorthCurve, totalWealth } from "./patrimony";
+import { holdingsByKind, holdingsTotal, investmentLines, investmentSummary, netWorthCurve, totalWealth } from "./patrimony";
 
 const point = (month: string, incomeCents: number, expenseCents: number): MonthPoint => ({
   month,
@@ -41,5 +41,35 @@ describe("holdings", () => {
 
   it("joins reserves, accumulation and holdings into one total", () => {
     expect(totalWealth(2000, 3000, 8000)).toBe(13000);
+  });
+});
+
+describe("investments", () => {
+  const holdings = [
+    { id: 1, name: "CDB", kind: "investment", amountCents: 110_00, costCents: 100_00 },
+    { id: 2, name: "Fundo", kind: "investment", amountCents: 90_00, costCents: 100_00 },
+    { id: 3, name: "Sem custo", kind: "investment", amountCents: 200_00, costCents: 0 },
+    { id: 4, name: "Carro", kind: "property", amountCents: 9_000_00, costCents: 0 },
+  ];
+
+  it("keeps only investments, biggest first, with their share", () => {
+    const lines = investmentLines(holdings);
+    expect(lines.map((line) => line.name)).toEqual(["Sem custo", "CDB", "Fundo"]);
+    expect(lines[0].sharePct).toBeCloseTo(50);
+  });
+
+  it("only compares value with cost where the cost is known", () => {
+    const lines = investmentLines(holdings);
+    const summary = investmentSummary(lines);
+    expect(lines.find((line) => line.name === "Sem custo")?.gainPct).toBeNull();
+    expect(summary.valueCents).toBe(400_00);
+    expect(summary.gainCents).toBe(0);
+    expect(summary.gainPct).toBe(0);
+    expect(summary.untracked).toBe(1);
+  });
+
+  it("has no return at all when nothing reports a cost", () => {
+    const summary = investmentSummary(investmentLines([holdings[2]]));
+    expect(summary.gainPct).toBeNull();
   });
 });
