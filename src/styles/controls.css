@@ -328,3 +328,24 @@ select.payer-select:hover {
 .entity-title-row > div + .entity-edit {
   margin-left: auto;
 }
+
+/* Packed grid: rows are 1px so a card takes exactly its height and the next one moves up. */
+.planner-grid.is-packed {
+  grid-auto-rows: 1px;
+  grid-auto-flow: row dense;
+  row-gap: 0;
+  align-items: start;
+}
+.planner-grid.is-packed > .grid-cell {
+  align-self: start;
+}
+.planner-grid.is-packed > .grid-cell:not(.has-height) > * {
+  height: auto;
+}
+
+/* No text selection while an edge is being dragged. */
+body.is-layout-resizing, body.is-layout-resizing * {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: ns-resize;
+}

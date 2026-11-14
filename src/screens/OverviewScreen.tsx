@@ -249,6 +249,9 @@ export function OverviewScreen({
   const visible = shown.filter(
     (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
   );
+  // A card with its own height leaves a hole in its row, so the grid packs the
+  // cards by measured height and the ones below move up into the hole.
+  const packed = visible.some((item) => item.height && item.mode !== "mini");
   const shelved = layout.filter(
     (item) => item.mode === "hidden" && isCardAvailable(item.id, cardContext),
   );
@@ -886,6 +889,34 @@ export function OverviewScreen({
   } | null>(null);
   const resize = useRef<CardResizeState | null>(null);
   const [resizingId, setResizingId] = useState<CardId | null>(null);
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !packed) return;
+    const GAP = 14;
+    const cells = Array.from(grid.querySelectorAll<HTMLElement>(":scope > .grid-cell"));
+    const fit = (cell: HTMLElement) => {
+      cell.style.gridRowEnd = `span ${Math.ceil(cell.offsetHeight + GAP)}`;
+    };
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) fit(entry.target as HTMLElement);
+    });
+    for (const cell of cells) {
+      fit(cell);
+      observer.observe(cell);
+    }
+    return () => {
+      observer.disconnect();
+      for (const cell of cells) cell.style.gridRowEnd = "";
+    };
+  });
+
+  // Dragging an edge must not select the page text.
+  useEffect(() => {
+    if (!resizingId) return;
+    document.body.classList.add("is-layout-resizing");
+    return () => document.body.classList.remove("is-layout-resizing");
+  }, [resizingId]);
   const [resizeColumns, setResizeColumns] = useState(3);
 
   const snapshotDragCells = () =>
@@ -1097,7 +1128,7 @@ export function OverviewScreen({
       ) : null}
 
       <div
-        className="planner-grid"
+        className={packed ? "planner-grid is-packed" : "planner-grid"}
         ref={gridRef}
         onPointerLeave={() => setDropId(null)}
       >
