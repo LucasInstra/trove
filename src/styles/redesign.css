@@ -1150,3 +1150,21 @@ input[type="month"]:focus-visible,
   background: var(--surface);
   padding: 22px;
 }
+
+/* ---- Month pill: only the month group sits in a pill --------------------- */
+
+.floating-bar .title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="dark"] .floating-bar .title-row {
+  border-color: var(--line);
+  box-shadow: none;
+}

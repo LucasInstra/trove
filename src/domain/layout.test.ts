@@ -124,8 +124,8 @@ describe("moveCardTo", () => {
     const next = moveCardTo(DEFAULT_LAYOUT, "series", "forecast");
     expect(next).toHaveLength(DEFAULT_LAYOUT.length);
     expect(new Set(next.map((entry) => entry.id)).size).toBe(DEFAULT_LAYOUT.length);
-    expect(next[0].id).toBe("kpis");
-    expect(next[1].id).toBe("series");
+    expect(next[0].id).toBe("series");
+    expect(next[1].id).toBe("forecast");
   });
 });
 
@@ -312,15 +312,15 @@ describe("moveCardNear", () => {
     const layout = parseLayout(null);
     const after = moveCardNear(layout, "kpis", "recent", "after");
     expect(ids(after).indexOf("kpis")).toBe(ids(after).indexOf("recent") + 1);
-    const before = moveCardNear(layout, "debts", "kpis", "before");
+    const before = moveCardNear(layout, "debts", "forecast", "before");
     expect(ids(before)[0]).toBe("debts");
-    expect(ids(before)[1]).toBe("kpis");
+    expect(ids(before)[1]).toBe("forecast");
   });
 
   it("keeps every card once and returns the same array when nothing moves", () => {
     const layout = parseLayout(null);
     expect(ids(moveCardNear(layout, "kpis", "recent", "after")).sort()).toEqual(ids(layout).sort());
-    expect(moveCardNear(layout, "forecast", "kpis", "after")).toBe(layout);
+    expect(moveCardNear(layout, "kpis", "forecast", "after")).toBe(layout);
     expect(moveCardNear(layout, "kpis", "kpis", "after")).toBe(layout);
   });
 });
@@ -328,8 +328,8 @@ describe("moveCardNear", () => {
 describe("columns", () => {
   it("spreads an unplaced layout over the three columns", () => {
     const cols = resolveColumns(parseLayout(null).filter((card) => card.mode !== "hidden"));
-    expect(cols.get("kpis")).toBe(1);
-    expect(cols.get("forecast")).toBe(2);
+    expect(cols.get("forecast")).toBe(1);
+    expect(cols.get("kpis")).toBe(2);
     expect(cols.get("inout")).toBe(3);
     for (const card of parseLayout(null)) {
       if (card.mode === "hidden") continue;

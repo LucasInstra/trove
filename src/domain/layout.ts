@@ -186,8 +186,8 @@ export function setHeight(layout: LayoutCard[], id: CardId, height: number | nul
  * the dashboard because most households do not split anything.
  */
 export const DEFAULT_LAYOUT: LayoutCard[] = [
-  { id: "kpis", span: 1, mode: "full" },
   { id: "forecast", span: 1, mode: "full" },
+  { id: "kpis", span: 1, mode: "full" },
   { id: "inout", span: 1, mode: "full" },
   { id: "bills", span: 2, mode: "full" },
   { id: "recent", span: 1, mode: "full" },
