@@ -12,7 +12,6 @@ import { DebtsCard } from "../components/DebtsCard";
 import { ScoreCard } from "../components/ScoreCard";
 import type { InvoiceWindow } from "../domain/invoice";
 import {
-  hasDetailsSection,
   isCardAvailable,
   moveCardTo,
   nextMode,
@@ -335,18 +334,10 @@ export function OverviewScreen({
 
   // The button in the card toolbar always names what the next step will do.
   const modeLabel = (mode: CardMode) =>
-    mode === "reduced"
-      ? t("layout.hideDetails")
-      : mode === "mini"
-        ? t("layout.minimise")
-        : t("layout.expand");
+    mode === "mini" ? t("layout.minimise") : t("layout.expand");
 
   const modeShort = (mode: CardMode) =>
-    mode === "reduced"
-      ? t("layout.actionHide")
-      : mode === "mini"
-        ? t("layout.actionMinimise")
-        : t("layout.actionExpand");
+    mode === "mini" ? t("layout.actionMinimise") : t("layout.actionExpand");
 
   const modeIcon = (mode: CardMode): IconName =>
     mode === "mini" ? "arrow-down-to-line" : "chevron-up";
@@ -928,7 +919,7 @@ export function OverviewScreen({
           // minimised card keeps the columns the user chose.
           const span = item.span;
           const manualHeight = chip ? undefined : item.height;
-          const target = nextMode(item.mode, hasDetailsSection(item.id));
+          const target = nextMode(item.mode);
           const cellClass = [
             "grid-cell",
             `span-${span}`,
@@ -1018,7 +1009,7 @@ export function OverviewScreen({
                   <Icon name="chevron-down" size={13} />
                 </span>
               </button>
-            ) : (item.mode === "reduced" || (item.id === "cards" && span === 1)) &&
+            ) : item.id === "cards" && span === 1 &&
               leanCells[item.id] ? (
               leanCells[item.id]
             ) : (

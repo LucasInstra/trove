@@ -62,11 +62,8 @@ export function spanOptions(id: CardId): Span[] {
   return Array.from({ length: max - min + 1 }, (_, offset) => (min + offset) as Span);
 }
 
-/**
- * Off the dashboard, full card, full card without its detail section, or the
- * smallest line.
- */
-export const CARD_MODES = ["hidden", "full", "reduced", "mini"] as const;
+/** Off the dashboard, the full card, or the one-chip summary. */
+export const CARD_MODES = ["hidden", "full", "mini"] as const;
 export type CardMode = (typeof CARD_MODES)[number];
 
 export const MIN_CARD_HEIGHT = 160;
@@ -115,11 +112,6 @@ export function isCardAvailable(id: CardId, context: CardContext): boolean {
   return true;
 }
 
-/** Whether the card has a second block that can be hidden on its own. */
-export function hasDetailsSection(id: CardId): boolean {
-  return id === "cards";
-}
-
 const clampSpan = (value: unknown, fallback: Span): Span => {
   const numeric = typeof value === "number" ? Math.round(value) : Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -152,6 +144,8 @@ const defaultSpan = (id: CardId): Span =>
 
 function modeOf(entry: { mode?: unknown; collapsed?: unknown }): CardMode {
   if (isMode(entry.mode)) return entry.mode;
+  // The lean card was folded into the one-column width, which says the same.
+  if (entry.mode === "reduced") return "full";
   // An older layout only stored whether the card was collapsed, and the step
   // between full and the one-line chip no longer exists.
   if (entry.collapsed === true) return "mini";
@@ -244,22 +238,9 @@ export function resizeCard(
   });
 }
 
-/**
- * The steps a card takes when its size control is pressed. A card with a detail
- * block drops that block first, so the labelled button always names the next
- * thing that will happen.
- */
-export function nextMode(mode: CardMode, hasDetails = false): CardMode {
-  switch (mode) {
-    case "full":
-      return hasDetails ? "reduced" : "mini";
-    case "reduced":
-      return "mini";
-    case "mini":
-      return "full";
-    default:
-      return "full";
-  }
+/** The step a card takes when its size control is pressed. */
+export function nextMode(mode: CardMode): CardMode {
+  return mode === "full" ? "mini" : "full";
 }
 
 export function setMode(layout: LayoutCard[], id: CardId, mode: CardMode): LayoutCard[] {

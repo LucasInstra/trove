@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   CARD_IDS,
   DEFAULT_LAYOUT,
-  hasDetailsSection,
   isCardAvailable,
   moveCardTo,
   nextMode,
@@ -134,21 +133,6 @@ describe("nextMode", () => {
     expect(nextMode("full")).toBe("mini");
     expect(nextMode("mini")).toBe("full");
   });
-
-  it("drops the detail block first when the card has one", () => {
-    expect(nextMode("full", true)).toBe("reduced");
-    expect(nextMode("reduced")).toBe("mini");
-    expect(nextMode("reduced", true)).toBe("mini");
-  });
-});
-
-describe("hasDetailsSection", () => {
-  it("knows which card has a block of its own to hide", () => {
-    expect(hasDetailsSection("cards")).toBe(true);
-    for (const id of CARD_IDS.filter((entry) => entry !== "cards")) {
-      expect(hasDetailsSection(id)).toBe(false);
-    }
-  });
 });
 
 describe("isCardAvailable", () => {
@@ -171,9 +155,9 @@ describe("isCardAvailable", () => {
 });
 
 describe("hidden cards", () => {
-  it("parses a lean card and a card that was taken off the dashboard", () => {
+  it("reads the retired reduced mode as a full card", () => {
     const lean = parseLayout(JSON.stringify([{ id: "cards", span: 2, mode: "reduced" }]));
-    expect(lean.find((entry) => entry.id === "cards")?.mode).toBe("reduced");
+    expect(lean.find((entry) => entry.id === "cards")?.mode).toBe("full");
   });
 
   it("parses a card that was taken off the dashboard", () => {
