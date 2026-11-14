@@ -1360,7 +1360,7 @@ export function FlowsScreen({
           <span className="metric-label">{t("flow.in")}</span>
           <strong className="metric-value">{formatCents(incomeCents)}</strong>
           <span className="metric-note">
-            {t("planner.incomeSources", { count: incomes.filter((entry) => entry.active).length })}
+            {t(incomes.filter((entry) => entry.active).length === 1 ? "planner.incomeSourcesOne" : "planner.incomeSources", { count: incomes.filter((entry) => entry.active).length })}
           </span>
         </article>
         <article className="card metric-card">

@@ -66,7 +66,6 @@ export function InvestmentsScreen({
   const summary = investmentSummary(lines);
   const colorOf = (index: number) => SERIES[index % SERIES.length];
   const holdingOf = (id: number) => holdings.find((holding) => holding.id === id) ?? null;
-  const up = summary.gainCents >= 0;
   const terms = (line: (typeof lines)[number]): string => {
     const parts: string[] = [];
     if (line.annualRate !== null) {
@@ -108,9 +107,9 @@ export function InvestmentsScreen({
             {summary.trackedCostCents > 0 ? formatCents(summary.trackedCostCents) : "—"}
           </strong>
           <span className="metric-note">
-            {summary.untracked > 0
-              ? t("investments.untracked", { count: summary.untracked })
-              : t("investments.allTracked")}
+            {summary.gainPct !== null
+              ? t("investments.sinceStart", { amount: signed(summary.gainCents), percent: percent(summary.gainPct, lang) })
+              : t("investments.noReturn")}
           </span>
         </article>
         <article className="card metric-card">
@@ -125,15 +124,12 @@ export function InvestmentsScreen({
           </span>
         </article>
         <article className="card metric-card metric-card-secondary">
-          <span className="metric-label">{t("investments.return")}</span>
-          <strong
-            className="metric-value"
-            style={summary.gainPct === null ? undefined : { color: up ? "var(--positive)" : "var(--negative)" }}
-          >
-            {summary.gainPct === null ? "—" : signed(summary.gainCents)}
+          <span className="metric-label">{t("investments.willEarn")}</span>
+          <strong className="metric-value" style={summary.withRate > 0 ? { color: "var(--positive)" } : undefined}>
+            {summary.withRate > 0 ? `+${formatCents(summary.earningsCents)}` : "—"}
           </strong>
           <span className="metric-note">
-            {summary.gainPct === null ? t("investments.noReturn") : percent(summary.gainPct, lang)}
+            {summary.withRate > 0 ? t("investments.willEarnNote") : t("investments.yieldNone")}
           </span>
         </article>
       </div>
@@ -202,8 +198,8 @@ export function InvestmentsScreen({
               <div className="data-row data-head" role="row">
                 <span role="columnheader">{t("planner.name")}</span>
                 <span role="columnheader" className="num">{t("investments.value")}</span>
-                <span role="columnheader" className="num">{t("investments.cost")}</span>
-                <span role="columnheader" className="num">{t("investments.return")}</span>
+                <span role="columnheader" className="num">{t("investments.monthlyYield")}</span>
+                <span role="columnheader" className="num">{t("investments.willEarn")}</span>
                 <span role="columnheader" aria-hidden="true" />
               </div>
               {lines.map((line, index) => {
@@ -218,24 +214,20 @@ export function InvestmentsScreen({
                       </span>
                     </span>
                     <span className="num" role="cell">{formatCents(line.valueCents)}</span>
-                    <span className="num muted" role="cell">
-                      {line.gainCents === null ? "—" : formatCents(line.costCents)}
+                    <span className="num" role="cell">
+                      {line.monthlyYieldCents === null ? "—" : `~${formatCents(line.monthlyYieldCents)}`}
                     </span>
                     <span
                       className="num"
                       role="cell"
-                      style={
-                        line.gainCents === null
-                          ? undefined
-                          : { color: line.gainCents >= 0 ? "var(--positive)" : "var(--negative)" }
-                      }
+                      style={line.earningsCents === null ? undefined : { color: "var(--positive)" }}
                     >
-                      {line.gainCents === null || line.gainPct === null ? (
+                      {line.earningsCents === null ? (
                         "—"
                       ) : (
                         <>
-                          {signed(line.gainCents)}
-                          <small>{percent(line.gainPct, lang)}</small>
+                          +{formatCents(line.earningsCents)}
+                          <small>{t("investments.inMonths", { count: line.horizonMonths })}</small>
                         </>
                       )}
                     </span>

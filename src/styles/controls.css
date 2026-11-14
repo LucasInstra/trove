@@ -192,3 +192,83 @@ select.payer-select:hover {
 .composition-part:only-child {
   border-radius: 999px;
 }
+
+/* Monthly spending bars, second pass: few calm segments, wide rounded bars, a total on every month. */
+.chart-subtitle {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.spend-bars {
+  height: 200px;
+  gap: 8px;
+  padding-top: 8px;
+  background-image: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent calc(25% - 1px),
+    color-mix(in srgb, var(--line) 70%, transparent) calc(25% - 1px),
+    color-mix(in srgb, var(--line) 70%, transparent) 25%
+  );
+}
+
+.spend-bars .bar-col {
+  gap: 4px;
+  padding: 4px 2px 2px;
+}
+
+.spend-bars .bar-track {
+  justify-content: center;
+}
+
+.spend-bars .bar-stack {
+  width: min(100%, 40px);
+  gap: 2px;
+  border-radius: 8px;
+}
+
+.spend-bars .bar-segment {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.spend-bars .bar-segment:first-child {
+  border-radius: 4px 4px 7px 7px;
+}
+
+.spend-bars .bar-segment:last-child {
+  border-radius: 7px 7px 4px 4px;
+}
+
+.spend-bars .bar-segment:only-child {
+  border-radius: 7px;
+}
+
+.spend-bars .bar-value {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.spend-bars .bar-col[aria-current="true"] .bar-value {
+  color: var(--primary);
+  font-weight: 650;
+}
+
+.spend-bars .bar-track {
+  position: relative;
+}
+
+.spend-bars .bar-value {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.spend-bars[data-focus] .bar-segment:not(.is-on) {
+  opacity: 0.5;
+}

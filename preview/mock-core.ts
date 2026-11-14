@@ -183,8 +183,8 @@ const planner = {
     { id: 2, accountId: 4, accountName: "Itaú Cartão", brand: "visa", last4: "4410", limitCents: 1200000, closingDay: 20, dueDay: 27, color: "#ec7000", texture: "glow" },
   ],
   goals: [
-    { id: 1, name: "Reserva de emergência", kind: "reserve", targetCents: 4500000, monthlyCents: 150000, startsOn: "2025-06-01", accountId: 1, color: "#16a34a" },
-    { id: 2, name: "Viagem Japão", kind: "goal", targetCents: 1800000, monthlyCents: 100000, startsOn: "2026-01-01", accountId: 1, color: "#0ea5e9" },
+    { id: 1, name: "Reserva de emergência", kind: "reserve", targetCents: 4500000, monthlyCents: 150000, startsOn: "2025-06-01", accountId: 1, color: "#16a34a", icon: "shield" },
+    { id: 2, name: "Viagem Japão", kind: "goal", targetCents: 1800000, monthlyCents: 100000, startsOn: "2026-01-01", accountId: 1, color: "#0ea5e9", icon: "plane" },
   ],
   goalTotals: [
     { goalId: 1, paidCents: 2400000, payments: 16 },

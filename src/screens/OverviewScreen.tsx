@@ -282,16 +282,37 @@ export function OverviewScreen({
     setBarTip({ month, category, x: box.left + box.width / 2 - host.left, y: box.top - host.top });
   };
   const tipStack = barTip ? stacks.find((stack) => stack.month === barTip.month) : undefined;
-  const tipSlice = tipStack?.slices.find((slice) => slice.name === barTip?.category);
-  const stackLegend = (() => {
-    const seen = new Map<string, string>();
+  // Four categories carry the story; the long tail shares one quiet grey.
+  const OTHERS = "__others";
+  const topNames = (() => {
+    const totals = new Map<string, number>();
     for (const stack of stacks) {
-      for (const slice of stack.slices) {
-        if (!seen.has(slice.name)) seen.set(slice.name, slice.color);
-      }
+      for (const slice of stack.slices) totals.set(slice.name, (totals.get(slice.name) ?? 0) + slice.totalCents);
     }
-    return [...seen];
+    return [...totals].sort((left, right) => right[1] - left[1]).slice(0, 4).map(([name]) => name);
   })();
+  const parts = stacks.map((stack) => {
+    const top = topNames.flatMap((name) => stack.slices.filter((slice) => slice.name === name));
+    const rest = stack.slices.filter((slice) => !topNames.includes(slice.name));
+    const restCents = rest.reduce((sum, slice) => sum + slice.totalCents, 0);
+    return [
+      ...(restCents > 0
+        ? [{ name: OTHERS, color: "var(--faint)", totalCents: restCents, count: rest.length }]
+        : []),
+      ...top.map((slice) => ({ name: slice.name, color: slice.color, totalCents: slice.totalCents, count: 1 })),
+    ];
+  });
+  const stackLegend: Array<[string, string]> = [
+    ...topNames.map((name): [string, string] => [
+      name,
+      stacks.flatMap((stack) => stack.slices).find((slice) => slice.name === name)?.color ?? "var(--faint)",
+    ]),
+    ...(parts.some((list) => list.some((part) => part.name === OTHERS)) ? [[OTHERS, "var(--faint)"] as [string, string]] : []),
+  ];
+  const tipIndex = barTip ? stacks.findIndex((stack) => stack.month === barTip.month) : -1;
+  const tipSlice = tipIndex >= 0 ? parts[tipIndex].find((part) => part.name === barTip?.category) : undefined;
+  const compact = (cents: number) =>
+    new Intl.NumberFormat(lang === "pt" ? "pt-BR" : "en-US", { notation: "compact", maximumFractionDigits: 1 }).format(cents / 100);
 
   const cardName = (id: CardId) =>
     ({
@@ -609,13 +630,14 @@ export function OverviewScreen({
               net={series.slice(-12).map((point) => point.incomeCents - point.expenseCents)}
               months={series.slice(-12).map((point) => point.month)}
             />
+            <h3 className="chart-subtitle">{t("chart.spending")}</h3>
             <div
               className="bars spend-bars"
               ref={barsRef}
               data-focus={barTip?.category ? "" : undefined}
               onPointerLeave={() => setBarTip(null)}
             >
-              {stacks.map((stack) => (
+              {stacks.map((stack, stackIndex) => (
                 <button
                   type="button"
                   className="bar-col"
@@ -627,14 +649,16 @@ export function OverviewScreen({
                   aria-current={stack.month === month}
                   aria-label={`${monthLabel(stack.month, lang)}: ${formatCents(stack.total)}`}
                 >
-                  <span className="bar-value">
-                    {stack.month === month && stack.total > 0 ? formatCents(stack.total) : ""}
-                  </span>
                   <div className="bar-track">
+                    {stack.total > 0 ? (
+                      <span className="bar-value" style={{ bottom: `calc(${(stack.total / stackPeak) * 100}% + 10px)` }}>
+                        {compact(stack.total)}
+                      </span>
+                    ) : null}
                     <div className="bar-stack">
-                      {stack.slices.map((slice) => (
+                      {parts[stackIndex].map((slice) => (
                         <div
-                          key={slice.categoryId ?? slice.name}
+                          key={slice.name}
                           className={
                             barTip?.category === slice.name ? "bar-segment is-on" : "bar-segment"
                           }
@@ -676,7 +700,9 @@ export function OverviewScreen({
                     <>
                       <span className="tip-row">
                         <i className="chart-swatch" style={{ background: tipSlice.color }} />
-                        {categoryName(t, tipSlice.name)}
+                        {tipSlice.name === OTHERS
+                          ? t("chart.otherCats", { count: tipSlice.count })
+                          : categoryName(t, tipSlice.name)}
                         <b>{formatCents(tipSlice.totalCents)}</b>
                       </span>
                       <span className="tip-row muted">
@@ -711,7 +737,7 @@ export function OverviewScreen({
               {stackLegend.map(([name, color]) => (
                 <span key={name}>
                   <span className="dot" style={{ background: color }} />
-                  {categoryName(t, name)}
+                  {name === OTHERS ? t("chart.otherCatsShort") : categoryName(t, name)}
                 </span>
               ))}
             </div>

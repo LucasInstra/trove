@@ -123,6 +123,10 @@ export interface InvestmentLine {
   monthsLeft: number | null;
   /** Estimated value when the term ends. */
   projectedCents: number | null;
+  /** Months the earnings below cover: what is left of the term, or a year without one. */
+  horizonMonths: number;
+  /** What it should pay over the horizon, from today's value. Null without a rate. */
+  earningsCents: number | null;
 }
 
 export interface InvestmentSummary {
@@ -134,6 +138,8 @@ export interface InvestmentSummary {
   gainPct: number | null;
   untracked: number;
   monthlyYieldCents: number;
+  /** What the lines with a rate should pay over their own horizon. */
+  earningsCents: number;
   /** How many lines say how they earn: the yield above covers only those. */
   withRate: number;
 }
@@ -167,6 +173,13 @@ export function investmentLines(
         monthlyYieldCents:
           yearly === null ? null : Math.round(holding.amountCents * (Math.pow(1 + yearly, 1 / 12) - 1)),
         monthsLeft: left,
+        horizonMonths: left !== null && left > 0 ? left : 12,
+        earningsCents:
+          yearly === null
+            ? null
+            : Math.round(
+                holding.amountCents * (Math.pow(1 + yearly, (left !== null && left > 0 ? left : 12) / 12) - 1),
+              ),
         projectedCents:
           yearly === null || left === null
             ? null
@@ -188,6 +201,7 @@ export function investmentSummary(lines: InvestmentLine[]): InvestmentSummary {
     gainCents,
     gainPct: trackedCostCents > 0 ? (gainCents / trackedCostCents) * 100 : null,
     untracked: lines.length - tracked.length,
+    earningsCents: lines.reduce((sum, line) => sum + (line.earningsCents ?? 0), 0),
     monthlyYieldCents: lines.reduce((sum, line) => sum + (line.monthlyYieldCents ?? 0), 0),
     withRate: lines.filter((line) => line.monthlyYieldCents !== null).length,
   };
