@@ -1063,3 +1063,59 @@ button:active:not(:disabled) {
   font-weight: 600;
   margin-right: 5px;
 }
+
+/* Cards card: the body is one column, or carousel + invoice panel at span 3. */
+.cards-body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cards-body.is-split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.cards-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.invoice-panel {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.invoice-panel-list {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invoice-panel-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.invoice-panel-list li:last-child {
+  border-bottom: 0;
+}
+
+.invoice-panel-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

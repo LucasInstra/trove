@@ -286,3 +286,18 @@ try {
 } catch {
   // storage blocked: the app falls back to light
 }
+
+// `?layout=cards:3,bills:2:mini` seeds the dashboard layout (id:span[:mode]) for screenshots.
+try {
+  const spec = new URLSearchParams(window.location.search).get("layout");
+  if (spec) {
+    settings.dashboard_layout = JSON.stringify(
+      spec.split(",").map((part) => {
+        const [id, span, mode] = part.split(":");
+        return { id, span: Number(span) || 1, mode: mode || "full" };
+      }),
+    );
+  }
+} catch {
+  // ignore a malformed spec
+}

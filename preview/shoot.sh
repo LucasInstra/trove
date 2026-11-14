@@ -11,6 +11,6 @@ win_out=$(cygpath -w "$out")
 for route in "${routes[@]}"; do
   "$chrome" --headless=new --disable-gpu --hide-scrollbars --window-size=1280,${H:-860} \
     --virtual-time-budget=4000 --screenshot="$win_out\\$route-$theme.png" \
-    "http://localhost:1421/?route=$route&theme=$theme" >/dev/null 2>&1
+    "http://localhost:1421/?route=$route&theme=$theme${LAYOUT:+&layout=$LAYOUT}" >/dev/null 2>&1
 done
 ls "$out"

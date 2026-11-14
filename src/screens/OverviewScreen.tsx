@@ -410,7 +410,7 @@ export function OverviewScreen({
         month={month}
         onAdd={onAddCard}
         onEdit={onEditCard}
-        wide={isWide("cards")}
+        span={spanOf("cards")}
       />
     ),
     housing: (

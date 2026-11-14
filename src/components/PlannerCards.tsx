@@ -8,7 +8,7 @@ import { groupByDay } from "../domain/projection";
 import { computeSplit, selfPartOf } from "../domain/split";
 import { scopeOfBill } from "../domain/scope";
 import { api } from "../lib/api";
-import { currentMonth, formatCents, monthName, todayIso } from "../lib/format";
+import { currentMonth, formatCents, formatDate, monthName, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { CreditCardArt } from "./CreditCardArt";
 import { Icon } from "./Icons";
@@ -208,8 +208,8 @@ interface CardsProps {
   lean?: boolean;
   /** The compact form: one line of figures instead of the carousel. */
   compact?: boolean;
-  /** Two or more columns: every card at once instead of a carousel. */
-  wide?: boolean;
+  /** Columns the card spans: 2 adds the upcoming invoices, 3 also the active invoice's lines. */
+  span?: number;
 }
 
 const CARD_GAP = 12;
@@ -222,6 +222,7 @@ export function CardsCard({
   onEdit,
   lean = false,
   compact = false,
+  span = 1,
 }: CardsProps) {
   const { lang, t } = useLanguage();
   const [rows, setRows] = useState<Record<number, TransactionRow[]>>({});
@@ -327,6 +328,7 @@ export function CardsCard({
   const entryOpen = window.to >= today;
   const lines = list ? invoiceLines(list, window) : [];
   const canScroll = cards.length > 1;
+  const split = !lean && span >= 3;
 
   // The step comes from the card the browser laid out, so a change in the CSS
   // width cannot desync the arrows from the snap points.
@@ -406,39 +408,64 @@ export function CardsCard({
         {t("planner.viewInvoice")}
       </button>
 
-      <div
-        className="cards-track"
-        ref={trackRef}
-        onScroll={onScroll}
-      >
-        {cards.map(({ meta }) => {
-          const state = invoiceWindow(meta.closingDay, meta.dueDay, activeMonth);
-          const open = state.to >= today;
-          return (
-            <button
-              key={meta.id}
-              type="button"
-              className="credit-card credit-card-real"
-              onClick={() => onEdit(meta)}
-            >
-              <CreditCardArt meta={meta} status={open ? t("planner.open") : t("planner.closed")} />
-            </button>
-          );
-        })}
-        <button type="button" className="credit-card credit-card-add" onClick={onAdd}>
-          <Icon name="plus" size={20} />
-          <span>{t("planner.addCard")}</span>
-        </button>
-      </div>
+      <div className={split ? "cards-body is-split" : "cards-body"}>
+        <div className="cards-main">
+        <div
+          className="cards-track"
+          ref={trackRef}
+          onScroll={onScroll}
+        >
+          {cards.map(({ meta }) => {
+            const state = invoiceWindow(meta.closingDay, meta.dueDay, activeMonth);
+            const open = state.to >= today;
+            return (
+              <button
+                key={meta.id}
+                type="button"
+                className="credit-card credit-card-real"
+                onClick={() => onEdit(meta)}
+              >
+                <CreditCardArt meta={meta} status={open ? t("planner.open") : t("planner.closed")} />
+              </button>
+            );
+          })}
+          <button type="button" className="credit-card credit-card-add" onClick={onAdd}>
+            <Icon name="plus" size={20} />
+            <span>{t("planner.addCard")}</span>
+          </button>
+        </div>
 
-      {lean ? null : (
-        <UpcomingInvoices
-          months={months}
-          values={values}
-          activeIndex={activeIndex}
-          onSelect={setMonthIndex}
-        />
-      )}
+        {lean ? null : (
+          <UpcomingInvoices
+            months={months}
+            values={values}
+            activeIndex={activeIndex}
+            onSelect={setMonthIndex}
+          />
+        )}
+        </div>
+        {split ? (
+          <aside className="invoice-panel">
+            <span className="upcoming-label">{t("planner.panelTitle")}</span>
+            <span className="muted small">
+              {t("planner.dueOn", { date: formatDate(dateInMonth(activeMonth, entry.meta.dueDay)) })}
+            </span>
+            {lines.length === 0 ? (
+              <span className="muted small">{t("planner.noInvoiceLines")}</span>
+            ) : (
+              <ul className="invoice-panel-list">
+                {[...lines].reverse().slice(0, 6).map((line) => (
+                  <li key={line.id}>
+                    <span className="invoice-panel-name">{line.description}</span>
+                    <span className="muted small">{formatDate(line.postedOn)}</span>
+                    <strong>{formatCents(Math.abs(line.amountCents))}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        ) : null}
+      </div>
 
       {invoiceOpen ? (
         <InvoiceDialog
