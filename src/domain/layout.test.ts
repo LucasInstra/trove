@@ -5,6 +5,7 @@ import {
   isCardAvailable,
   moveCardTo,
   resetCard,
+  moveCardNear,
   parseLayout,
   serializeLayout,
   setMode,
@@ -301,3 +302,23 @@ describe("card height", () => {
   });
 });
 
+
+describe("moveCardNear", () => {
+  const ids = (layout: LayoutCard[]) => layout.map((entry) => entry.id);
+
+  it("puts a card right after or right before the target, whichever side is asked", () => {
+    const layout = parseLayout(null);
+    const after = moveCardNear(layout, "kpis", "recent", "after");
+    expect(ids(after).indexOf("kpis")).toBe(ids(after).indexOf("recent") + 1);
+    const before = moveCardNear(layout, "debts", "kpis", "before");
+    expect(ids(before)[0]).toBe("debts");
+    expect(ids(before)[1]).toBe("kpis");
+  });
+
+  it("keeps every card once and returns the same array when nothing moves", () => {
+    const layout = parseLayout(null);
+    expect(ids(moveCardNear(layout, "kpis", "recent", "after")).sort()).toEqual(ids(layout).sort());
+    expect(moveCardNear(layout, "forecast", "kpis", "after")).toBe(layout);
+    expect(moveCardNear(layout, "kpis", "kpis", "after")).toBe(layout);
+  });
+});

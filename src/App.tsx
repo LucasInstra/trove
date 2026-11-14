@@ -86,6 +86,7 @@ import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
 import { currentMonth, todayIso } from "./lib/format";
 import {
   moveCardTo,
+  moveCardNear,
   parseLayout,
   setSpan,
   setHeight,
@@ -875,8 +876,8 @@ export function App() {
                 onToggleDebt={(id, settled) => void toggleDebt(id, settled)}
                 layout={layout}
                 layoutEditing={layoutEditing}
-                onLayoutMoveTo={(id: CardId, targetId: CardId) => {
-                  saveLayout(moveCardTo(layout, id, targetId));
+                onLayoutMoveTo={(id: CardId, targetId: CardId, side?: "before" | "after") => {
+                  saveLayout(side ? moveCardNear(layout, id, targetId, side) : moveCardTo(layout, id, targetId));
                 }}
                 onLayoutResize={(id: CardId, span: Span) => {
                   saveLayout(setSpan(layout, id, span));

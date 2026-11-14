@@ -13,7 +13,7 @@ import { ScoreCard } from "../components/ScoreCard";
 import type { InvoiceWindow } from "../domain/invoice";
 import {
   isCardAvailable,
-  moveCardTo,
+  moveCardNear,
   setSpan,
   setHeight,
   HEIGHT_CARDS,
@@ -47,17 +47,32 @@ import type {
  * starts, so the answer does not change when the preview moves the cards under
  * the pointer.
  */
+type Landing = { id: CardId; side: "before" | "after" };
+
+/**
+ * Where a dragged card would land: on the half of a card the pointer is over,
+ * or after the last card when the pointer is below the whole grid.
+ */
 function cardAt(
   x: number,
   y: number,
   cells: { id: CardId; rect: DOMRect }[],
   dragged: CardId,
-): CardId | null {
+): Landing | null {
   for (const cell of cells) {
     if (cell.id === dragged) continue;
     const { rect } = cell;
-    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return cell.id;
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      return { id: cell.id, side: y > rect.top + rect.height / 2 ? "after" : "before" };
+    }
   }
+  const others = cells.filter((cell) => cell.id !== dragged);
+  const last = others[others.length - 1];
+  if (!last) return null;
+  const left = Math.min(...cells.map((cell) => cell.rect.left));
+  const right = Math.max(...cells.map((cell) => cell.rect.right));
+  const bottom = Math.max(...cells.map((cell) => cell.rect.bottom));
+  if (x >= left && x <= right && y > bottom && y < bottom + 160) return { id: last.id, side: "after" };
   return null;
 }
 
@@ -124,7 +139,7 @@ interface OverviewProps {
   onToggleDebt: (id: number, settled: boolean) => void;
   layout: LayoutCard[];
   layoutEditing: boolean;
-  onLayoutMoveTo: (id: CardId, targetId: CardId) => void;
+  onLayoutMoveTo: (id: CardId, targetId: CardId, side?: "before" | "after") => void;
   onLayoutResize: (id: CardId, span: Span) => void;
   onLayoutHeight: (id: CardId, height: number | null) => void;
   onLayoutSpan: (id: CardId, span: number) => void;
@@ -181,6 +196,7 @@ export function OverviewScreen({
   const { lang, t } = useLanguage();
   const [dragId, setDragId] = useState<CardId | null>(null);
   const [dropId, setDropId] = useState<CardId | null>(null);
+  const [dropSide, setDropSide] = useState<"before" | "after">("before");
   // The order shown while dragging: the dashboard rearranges itself as a preview
   // and only the drop commits it.
   const [preview, setPreview] = useState<LayoutCard[] | null>(null);
@@ -786,6 +802,7 @@ export function OverviewScreen({
   } | null>(null);
   const resize = useRef<CardResizeState | null>(null);
   const [resizingId, setResizingId] = useState<CardId | null>(null);
+  const [resizeAxis, setResizeAxis] = useState<"width" | "height" | null>(null);
 
   // Last known scroll position of the page: by the time the packed grid
   // is measured the browser may already have clamped the live value.
@@ -875,6 +892,7 @@ export function OverviewScreen({
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     setResizeColumns(columns);
+    setResizeAxis("width");
     setResizingId(id);
   };
 
@@ -920,6 +938,7 @@ export function OverviewScreen({
     const startHeight = cell.getBoundingClientRect().height;
     heightDrag.current = { id, pointerId: event.pointerId, startY: event.clientY, startHeight, height: startHeight };
     event.currentTarget.setPointerCapture(event.pointerId);
+    setResizeAxis("height");
     setResizingId(id);
   };
 
@@ -1051,7 +1070,7 @@ export function OverviewScreen({
         ref={gridRef}
         onPointerLeave={() => setDropId(null)}
       >
-        {resizingId ? (
+        {resizingId && resizeAxis === "width" ? (
           <div className="resize-guides" aria-hidden="true">
             {Array.from({ length: resizeColumns }, (_, column) => (
               <span key={column} />
@@ -1066,6 +1085,7 @@ export function OverviewScreen({
             dragId === item.id ? "is-dragging" : "",
             resizingId === item.id ? "is-resizing" : "",
             dropId === item.id ? "is-drop-target" : "",
+            dropId === item.id && dropSide === "after" ? "is-drop-after" : "",
             item.height ? "has-height" : "",
           ]
             .filter(Boolean)
@@ -1104,9 +1124,10 @@ export function OverviewScreen({
                 setDragId(state.id);
               }
               const landing = cardAt(event.clientX, event.clientY, dragCells.current, state.id);
-              if (landing && landing !== dropId) {
-                setDropId(landing);
-                setPreview(moveCardTo(layout, state.id, landing));
+              if (landing && (landing.id !== dropId || landing.side !== dropSide)) {
+                setDropId(landing.id);
+                setDropSide(landing.side);
+                setPreview(moveCardNear(layout, state.id, landing.id, landing.side));
               }
             }}
             onPointerUp={(event) => {
@@ -1119,7 +1140,7 @@ export function OverviewScreen({
               const landing = state.active
                 ? cardAt(event.clientX, event.clientY, dragCells.current, state.id)
                 : null;
-              if (landing) onLayoutMoveTo(state.id, landing);
+              if (landing) onLayoutMoveTo(state.id, landing.id, landing.side);
               setDragId(null);
               setDropId(null);
               setPreview(null);

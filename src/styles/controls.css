@@ -356,3 +356,29 @@ body.is-layout-resizing, body.is-layout-resizing * {
 .grid-cell.has-height > :is(.account-card, .card, article)::before {
   display: none;
 }
+
+/* Width guides only outline the columns; the card in action carries the colour. */
+.resize-guides span {
+  background: transparent;
+}
+
+/* Dropping on the lower half of a card puts the dragged one after it: say so with a bar on that edge. */
+.grid-cell.is-drop-target {
+  outline: none;
+}
+.grid-cell.is-drop-target::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -9px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--primary);
+  z-index: 7;
+  pointer-events: none;
+}
+.grid-cell.is-drop-target.is-drop-after::before {
+  top: auto;
+  bottom: -9px;
+}

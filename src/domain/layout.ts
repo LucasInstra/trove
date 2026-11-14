@@ -224,6 +224,28 @@ export function moveCardTo(layout: LayoutCard[], id: CardId, targetId: CardId): 
 }
 
 /**
+ * Puts `id` right before or right after `targetId`, whichever side the card was
+ * dropped on. Unlike `moveCardTo` the side is explicit, so a card can be placed
+ * after the last card of a row instead of taking that card's slot.
+ */
+export function moveCardNear(
+  layout: LayoutCard[],
+  id: CardId,
+  targetId: CardId,
+  side: "before" | "after",
+): LayoutCard[] {
+  if (id === targetId) return layout;
+  const from = layout.findIndex((entry) => entry.id === id);
+  if (from < 0 || !layout.some((entry) => entry.id === targetId)) return layout;
+  const next = [...layout];
+  const [moved] = next.splice(from, 1);
+  const to = next.findIndex((entry) => entry.id === targetId);
+  next.splice(side === "after" ? to + 1 : to, 0, moved);
+  const same = next.every((entry, index) => entry.id === layout[index].id);
+  return same ? layout : next;
+}
+
+/**
  * Picks a width outright, which is what the numbered control in the toolbar does.
  * The value is clamped to the card's own range, so a control can never stretch a
  * card past what it has to show.
