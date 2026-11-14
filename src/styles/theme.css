@@ -1195,6 +1195,11 @@ button:active:not(:disabled) {
 
 .kpi .spark path.spark-line {
   vector-effect: non-scaling-stroke;
+  /* non-scaling strokes measure dashes in screen pixels, so the draw-in dash
+     pattern left gaps in the stretched line. Draw it solid. */
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+  animation: none;
 }
 
 /* Income vs spending grows with its neighbour instead of leaving the card empty. */
