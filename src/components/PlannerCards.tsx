@@ -12,6 +12,7 @@ import { currentMonth, formatCents, monthName, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { CreditCardArt } from "./CreditCardArt";
 import { Icon } from "./Icons";
+import { Money } from "./Money";
 import { Icon3D } from "./Icon3D";
 import { Progress } from "./ui/progress";
 import { InvoiceDialog } from "./InvoiceDialog";
@@ -86,7 +87,7 @@ export function BillsCard({ plan, people, housingCategoryId, onToggle, onAdd, on
       </header>
 
       <div className="card-figure">
-        <strong>{formatCents(total)}</strong>
+        <strong><Money cents={total} /></strong>
         <span className="muted small">
           {t("planner.paidOf", { paid: paidCount, count })}
         </span>
@@ -386,7 +387,7 @@ export function CardsCard({
       </header>
 
       <div className="card-figure">
-        <strong>{formatCents(usage)}</strong>
+        <strong><Money cents={usage} /></strong>
         <span className="muted small">
           {entry.meta.brand || t("planner.card")} •••• {entry.meta.last4 || "0000"} ·{" "}
           {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
@@ -512,7 +513,7 @@ export function HousingCard({
       </header>
 
       <div className="card-figure">
-        <strong>{formatCents(plan.housingCents)}</strong>
+        <strong><Money cents={plan.housingCents} /></strong>
         <span className={over ? "delta-line down" : "delta-line"}>
           {over ? <b aria-hidden="true">!</b> : <Icon name="check" size={14} />}
           {t("planner.housingRatio", { percent: ratioText, ceiling: plan.ceilingPct })}
@@ -719,7 +720,7 @@ export function SplitCard({
       </header>
 
       <div className="card-figure">
-        <strong>{formatCents(split.totalCents)}</strong>
+        <strong><Money cents={split.totalCents} /></strong>
         <span className="muted small">{t("split.total")}</span>
       </div>
 
