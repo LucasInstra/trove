@@ -1128,3 +1128,30 @@ input[type="month"]:focus-visible,
 [data-theme="dark"] .segmented button.active {
   background: var(--surface-soft);
 }
+
+/* ---- Light theme: the same flat structure -------------------------------- */
+
+:root:not([data-theme="dark"]) .card,
+:root:not([data-theme="dark"]) .account-card,
+:root:not([data-theme="dark"]) .entity-card {
+  border-color: color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+:root:not([data-theme="dark"]) .floating-bar {
+  min-height: 48px;
+  padding-left: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root:not([data-theme="dark"]) .sidebar-rail {
+  background: var(--surface);
+}
+
+/* The lead card is the one outlined in the accent, on white. */
+:root:not([data-theme="dark"]) .anchor-card {
+  border: 2px solid var(--primary);
+  background: var(--surface);
+  padding: 22px;
+}
