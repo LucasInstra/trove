@@ -300,7 +300,6 @@
     color: var(--primary-strong);
   }
 
-  .credit-mark,
   .goal-mark {
     color: var(--entity-color, var(--primary));
   }
@@ -365,11 +364,6 @@
 
   .goal-meter {
     height: 9px;
-  }
-
-  .income-amount {
-    font-size: 19px;
-    font-variant-numeric: tabular-nums;
   }
 
   .planner-empty {

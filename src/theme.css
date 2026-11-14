@@ -273,9 +273,6 @@ button.primary:hover:not(:disabled) {
 /* ---- Ledger ----------------------------------------------------------- */
 
 /* A ledger is read in columns: tighter rows, one hairline between them. */
-.tx-list {
-  gap: 10px;
-}
 
 .tx-group {
   border-radius: var(--radius);
@@ -602,10 +599,6 @@ select:not([multiple]) {
   stroke-dashoffset: 0;
 }
 
-.chart-area {
-  animation: fade-in 700ms ease 200ms both;
-}
-
 /* Card title chips: a tinted circle-ish square with an inner ring. */
 .card-icon {
   width: 28px;
@@ -674,7 +667,6 @@ button:active:not(:disabled) {
   .meter-fill,
   .composition-part,
   .spark path,
-  .chart-area,
   .card-icon,
   .sidebar-rail svg,
   .round-button svg {
@@ -968,13 +960,11 @@ button:active:not(:disabled) {
   color: var(--ink);
 }
 
-.page-header,
 .topbar {
   border-radius: var(--radius);
   box-shadow: var(--shadow-card-lift);
 }
 
-[data-theme="dark"] .page-header,
 [data-theme="dark"] .topbar {
   box-shadow: none;
 }
@@ -1051,44 +1041,6 @@ button:active:not(:disabled) {
 }
 
 /* Minimised card: title and one useful fact on the left, the figure on the right. */
-.collapsed-card.is-mini,
-.grid-cell > .collapsed-card.is-mini {
-  height: 56px;
-  gap: 10px;
-  padding: 0 14px;
-  border-radius: 16px;
-  box-shadow: var(--shadow-card-lift);
-}
-
-.collapsed-card-text {
-  display: grid;
-  flex: 1 1 auto;
-  min-width: 0;
-  gap: 2px;
-}
-
-.collapsed-card.is-mini .collapsed-card-title {
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.collapsed-card-detail {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
-.collapsed-card.is-mini .collapsed-card-value {
-  flex: 0 0 auto;
-  margin-left: 0;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
 
 /* Resize: one handle along the whole right edge, column guides while dragging. */
 .planner-grid {

@@ -10,11 +10,6 @@
   height: auto;
 }
 
-.chart-area {
-  fill: var(--chart-fill);
-  stroke: none;
-}
-
 .chart-line {
   fill: none;
   stroke: var(--chart-line);

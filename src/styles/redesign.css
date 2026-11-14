@@ -129,10 +129,6 @@ h3 {
   background: var(--surface-soft);
 }
 
-.anchor-card :is(.account-label, .account-meta, .account-meta-label, .muted, .small) {
-  color: var(--anchor-muted);
-}
-
 .anchor-card :is(.account-value, .account-meta strong, .money-prefix) {
   color: var(--hero-band-text);
 }
@@ -503,8 +499,7 @@ input[type="month"]:focus-visible,
 .flow-bar,
 .composition-part,
 .spark path.spark-area,
-.spark path.spark-line,
-.chart-area {
+.spark path.spark-line {
   animation-duration: 250ms;
   animation-delay: 0ms;
 }
@@ -517,8 +512,7 @@ input[type="month"]:focus-visible,
   .flow-bar,
   .composition-part,
   .spark path.spark-area,
-  .spark path.spark-line,
-  .chart-area {
+  .spark path.spark-line {
     animation: none;
   }
 }
