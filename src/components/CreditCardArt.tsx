@@ -10,6 +10,7 @@ export function CreditCardArt({ meta, status }: { meta: CardMeta; status?: strin
   return (
     <div
       className="card-art-real"
+      data-texture={meta.texture || "plain"}
       style={{ "--card-color": meta.color } as CSSProperties}
       role="img"
       aria-label={`${meta.brand || t("planner.card")} •••• ${meta.last4 || "0000"}`}

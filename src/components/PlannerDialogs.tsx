@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CARD_DESIGNS, designOf } from "../domain/cardDesigns";
 import { Dialog } from "./Dialog";
 import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
 import { monthLabel, todayIso } from "../lib/format";
@@ -170,6 +171,8 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
   const [closingDay, setClosingDay] = useState(card?.closingDay ?? 5);
   const [dueDay, setDueDay] = useState(card?.dueDay ?? 12);
   const [color, setColor] = useState(card?.color ?? "#2b2b2d");
+  const [texture, setTexture] = useState(card?.texture ?? "plain");
+  const chosen = designOf(color, texture);
 
   return (
     <Dialog title={t("planner.cardTitle")} onClose={onClose}>
@@ -186,7 +189,7 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
             closingDay,
             dueDay,
             color,
-            texture: card?.texture ?? "plain",
+            texture,
           });
         }}
       >
@@ -213,8 +216,29 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
         <Field label={t("planner.dueDay")}>
           <input type="number" min={1} max={31} value={dueDay} onChange={(event) => setDueDay(Number(event.target.value))} />
         </Field>
+        <Field label={t("planner.design")}>
+          <div className="design-picker" role="radiogroup">
+            {CARD_DESIGNS.map((design) => (
+              <button
+                key={design.id}
+                type="button"
+                role="radio"
+                aria-checked={chosen === design.id}
+                aria-label={design.name}
+                title={design.name}
+                className={chosen === design.id ? "design-swatch is-active" : "design-swatch"}
+                data-texture={design.texture}
+                style={{ "--card-color": design.color } as React.CSSProperties}
+                onClick={() => {
+                  setColor(design.color);
+                  setTexture(design.texture);
+                }}
+              />
+            ))}
+          </div>
+        </Field>
         <Field label={t("planner.color")}>
-          <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+          <input type="color" value={color} onChange={(event) => { setColor(event.target.value); setTexture("plain"); }} />
         </Field>
         <div className="dialog-actions">
           {card && onDelete ? (
