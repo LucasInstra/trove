@@ -4112,7 +4112,7 @@ dependencies = [
 
 [[package]]
 name = "trove"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "chrono",
  "encoding_rs",
