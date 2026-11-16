@@ -11,7 +11,7 @@ const KNOWN: Array<[RegExp, string]> = [
   [/holding (owner|institution|product|notes) is too long/, "errors.holdingTooLong"],
   [/holding maturity is before its start/, "errors.holdingMaturity"],
   [/holding (\d+ )?does not exist/, "errors.holdingMissing"],
-  [/UNIQUE constraint failed: holdings\.name/, "errors.holdingDuplicate"],
+  [/a holding with this name already exists/, "errors.holdingDuplicate"],
 ];
 
 /**

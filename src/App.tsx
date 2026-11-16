@@ -217,6 +217,19 @@ export function App() {
   const [trackSettlement, setTrackSettlement] = useState(true);
   const [layout, setLayout] = useState<LayoutCard[]>(() => parseLayout(null));
   const layoutLoaded = useRef(false);
+  // The sheet charts always cover the whole month, whatever filter the Transactions screen has.
+  const [sheetRows, setSheetRows] = useState<TransactionRow[]>([]);
+  useEffect(() => {
+    if (route !== "sheets" || !month) return;
+    let live = true;
+    void api
+      .transactions("", month, null, 5000, null)
+      .then((next) => live && setSheetRows(next))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [route, month, rows]);
   // The order of the budget rows, chosen by dragging; rows not listed here go last.
   const [budgetOrder, setBudgetOrder] = useState<{ bills: number[]; incomes: number[] }>({ bills: [], incomes: [] });
   useEffect(() => {
@@ -1265,7 +1278,7 @@ export function App() {
                 holdings={holdings}
                 onSaveHolding={(input) => void saveHolding(input)}
                 onDeleteHolding={(id) => void deleteHolding(id)}
-                rows={rows}
+                rows={sheetRows}
                 incomes={planner.incomes}
                 bills={planner.bills}
                 payments={planner.payments}

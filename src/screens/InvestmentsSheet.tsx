@@ -19,6 +19,7 @@ const SERIES = ["#2563eb", "#0ea5e9", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"
 const INDEXERS = ["none", "cdi", "selic", "ipca", "fixed"] as const;
 const TIPPED = new Set(["date", "rate", "annualRate", "applied", "days", "daysLeft", "value", "gross", "grossPct", "irRate", "ir", "net"]);
 const NEW_PERSON = "__new_person__";
+const DESCRIPTIVE_KEYS: string[] = ["owner", "institution", "product", "notes"];
 const NAME_KEYS = ["institution", "product", "maturityOn"] as const;
 
 function toInput(holding: Holding, patch: Partial<HoldingInput>): HoldingInput {
@@ -164,7 +165,6 @@ function useCdi(): { rates: RateAssumptions } {
 export function InvestmentsSheet({
   month,
   people,
-  onAddPerson,
   holdings,
   onSave,
   onDelete,
@@ -173,7 +173,6 @@ export function InvestmentsSheet({
   month: string;
   /** The people already registered in Housing: the owners an investment can be under. */
   people: Person[];
-  onAddPerson: (name: string) => void;
   holdings: Holding[];
   onSave: (input: HoldingInput) => void;
   onDelete: (id: number) => void;
@@ -203,14 +202,21 @@ export function InvestmentsSheet({
     if ("maturityOn" in patch || "startedOn" in patch) {
       next = { ...next, ...reconcileTerm(next, "maturityOn" in patch ? "maturity" : "start") };
     }
+    // Only a name the sheet itself generated is regenerated; one the person chose stays.
     if (NAME_KEYS.some((key) => key in patch)) {
       const others = new Set([...taken].filter((name) => name !== holding.name));
-      next = { ...next, name: generatedName(next, others) };
+      const before = generatedName(toInput(holding, {}), new Set());
+      const wasGenerated = holding.name === "Investimento" || holding.name.startsWith("Investimento (") || holding.name === before || holding.name.startsWith(`${before} (`);
+      if (wasGenerated) next = { ...next, name: generatedName(next, others) };
     }
     // The rest of the app (Patrimony) reads the current value from the holding, so keep it in step
     // with what this sheet estimates; without an estimate the amount put in is the best figure.
-    const line = sheetLine({ ...holding, ...next, id: holding.id } as Holding, rates, realToday);
-    next = { ...next, amountCents: line.estimated ? line.valueCents : (next.costCents ?? 0) > 0 ? (next.costCents ?? 0) : next.amountCents, updatedOn: realToday };
+    // A cell that only describes the row (owner, bank, notes...) must not touch the typed value.
+    const describesOnly = Object.keys(patch).every((key) => DESCRIPTIVE_KEYS.includes(key));
+    if (!describesOnly) {
+      const line = sheetLine({ ...holding, ...next, id: holding.id } as Holding, rates, realToday);
+      next = { ...next, amountCents: line.estimated ? line.valueCents : (next.costCents ?? 0) > 0 ? (next.costCents ?? 0) : next.amountCents, updatedOn: realToday };
+    }
     onSave(next);
   };
 
@@ -455,7 +461,6 @@ export function InvestmentsSheet({
               event.preventDefault();
               const name = personName.trim();
               if (!name) return;
-              if (!people.some((person) => person.name === name)) onAddPerson(name);
               save(newPersonFor, { owner: name });
               setPersonName("");
               setNewPersonFor(null);

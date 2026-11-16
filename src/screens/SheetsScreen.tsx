@@ -145,7 +145,7 @@ export function SheetsScreen({
       {tab === "investments" ? (
         <>
           {CHARTS_INLINE ? <InvestmentsCharts holdings={holdings} month={month} part="stats" /> : null}
-          <InvestmentsSheet month={month} people={people} onAddPerson={onAddPerson} holdings={holdings} onSave={onSaveHolding} onDelete={onDeleteHolding} />
+          <InvestmentsSheet month={month} people={people} holdings={holdings} onSave={onSaveHolding} onDelete={onDeleteHolding} />
           {CHARTS_INLINE ? <InvestmentsCharts holdings={holdings} month={month} part="charts" /> : null}
         </>
       ) : null}

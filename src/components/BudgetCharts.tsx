@@ -29,7 +29,8 @@ export function BudgetCharts({
   const { t } = useLanguage();
   const due = bills.filter((bill) => isDueIn(bill, month));
   const paidIds = new Set(payments.filter((payment) => payment.month === month).map((payment) => payment.billId));
-  const ownerOf = (billId: number) => shares.find((entry) => entry.billId === billId)?.personId ?? NONE;
+  const selfId = (people.find((person) => person.isSelf) ?? people[0])?.id ?? NONE;
+  const ownerOf = (billId: number) => shares.find((entry) => entry.billId === billId)?.personId ?? selfId;
 
   const name = (id: number) =>
     id === NONE ? t("budget.unassigned") : (people.find((person) => person.id === id)?.isSelf ? t("people.you") : (people.find((person) => person.id === id)?.name ?? "?"));

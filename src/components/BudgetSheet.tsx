@@ -68,7 +68,8 @@ export const billToInput = (bill: Bill, patch: Partial<BillInput>): BillInput =>
 export function parseCents(text: string): number | null {
   const clean = text.replace(/[^\d.,-]/g, "");
   if (!/\d/.test(clean)) return null;
-  const normal = clean.includes(",") ? clean.replace(/\./g, "").replace(",", ".") : clean;
+  // "1.500" is one thousand five hundred; "1.5" and "1500.50" keep their decimal point.
+  const normal = clean.includes(",") ? clean.replace(/\./g, "").replace(",", ".") : /^\d{1,3}(\.\d{3})+$/.test(clean) ? clean.replace(/\./g, "") : clean;
   const value = Number(normal);
   return Number.isFinite(value) && value >= 0 ? Math.round(value * 100) : null;
 }
@@ -161,7 +162,7 @@ export function BudgetSheet({
     };
   };
   const tint = (personId: number | null | undefined) => (partnerMode ? people.find((person) => person.id === personId)?.color : undefined);
-  const billTint = (billId: number) => tint(shares.find((entry) => entry.billId === billId)?.personId);
+  const billTint = (billId: number) => tint(shares.find((entry) => entry.billId === billId)?.personId ?? selfId);
   const grip = (kind: "bills" | "incomes", id: number, name: string) => (
     <td className="budget-grip">
       <span
@@ -206,8 +207,10 @@ export function BudgetSheet({
     active: bill.active,
     ...patch,
   });
+  // What the dialogs do: a new income belongs to the person using the app, so it counts in the split.
+  const selfId = (people.find((person) => person.isSelf) ?? people[0])?.id ?? null;
   const addIncome = () =>
-    onSaveIncome({ id: null, name: t("budget.newIncome"), amountCents: 0, frequency: "monthly", payDay: 5, accountId: null, active: true, personId: null });
+    onSaveIncome({ id: null, name: t("budget.newIncome"), amountCents: 0, frequency: "monthly", payDay: 5, accountId: null, active: true, personId: selfId });
   const addBill = () =>
     onSaveBill({
       id: null,
@@ -429,7 +432,7 @@ export function BudgetSheet({
                             className="sheet-input person-select"
                             style={(() => { const color = people.find((person) => person.id === shares.find((entry) => entry.billId === bill.id)?.personId)?.color; return color ? { borderLeft: `4px solid ${color}`, color } : undefined; })()}
                             aria-label={`${t("budget.person")}: ${bill.name}`}
-                            value={shares.find((entry) => entry.billId === bill.id)?.personId ?? ""}
+                            value={shares.find((entry) => entry.billId === bill.id)?.personId ?? selfId ?? ""}
                             onChange={(event) => event.target.value && onAssignBill(bill.id, Number(event.target.value))}
                           >
                             <option value="" disabled>

@@ -8,7 +8,7 @@ export function parseDate(raw: string): string | null {
   if (!match) return null;
   const [y, m, d] = match[3].length === 4 && match[1].length <= 2 ? [match[3], match[2], match[1]] : [match[1], match[2], match[3]];
   const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-  const check = new Date(`${iso}T12:00:00`);
+  const check = new Date(`${iso}T12:00:00Z`);
   return Number.isNaN(check.getTime()) || check.toISOString().slice(0, 10) !== iso ? null : iso;
 }
 

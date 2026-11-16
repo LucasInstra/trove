@@ -10,6 +10,8 @@ use crate::planner::{
 };
 
 const MARKER: &str = "demo_loaded";
+/// When the sample data was loaded: a holding created later is the person's, even if it reuses a sample name.
+const LOADED_AT: &str = "demo_loaded_at";
 
 const ACCOUNTS: [&str; 3] = ["Conta Corrente (exemplo)", "Nubank (exemplo)", "Itaú Cartão (exemplo)"];
 const GOALS: [&str; 2] = ["Reserva de emergência", "Viagem Japão"];
@@ -417,6 +419,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
     }
 
     planner::set_setting(connection, MARKER, "1")?;
+    planner::set_setting(connection, LOADED_AT, &chrono::Utc::now().to_rfc3339())?;
     Ok(())
 }
 
@@ -505,7 +508,10 @@ fn wipe(connection: &Connection) -> Result<(), String> {
         "delete from debts where label = 'Jantar' and month = '2026-12' and amount_cents = 8500".to_string(),
         format!("delete from transactions where account_id in ({accounts})"),
         format!("delete from accounts where name in ({})", quoted(&ACCOUNTS)),
-        format!("delete from holdings where name in ({})", quoted(&holdings)),
+        format!(
+            "delete from holdings where name in ({}) and created_at <= coalesce((select value from settings where key = '{LOADED_AT}'), created_at)",
+            quoted(&holdings)
+        ),
         format!("delete from rules where pattern in ({})", quoted(&patterns)),
     ];
     for sql in steps {
