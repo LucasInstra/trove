@@ -293,6 +293,16 @@ button.primary:hover:not(:disabled) {
   font-size: 11px;
 }
 
+/* A category picture needs no tinted bubble: it brings its own colours. */
+.tx-icon.has-art {
+  background: none;
+}
+
+.tx-icon .tx-art {
+  width: 100%;
+  height: 100%;
+}
+
 .tx-title {
   font-size: 13px;
 }

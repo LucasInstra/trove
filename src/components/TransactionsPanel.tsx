@@ -3,6 +3,8 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { Icon } from "./Icons";
 import { Dialog } from "./Dialog";
 import { Provenance } from "./Provenance";
+import { Icon3DSet } from "./Icon3DSet";
+import { categoryIconName } from "../domain/categoryIcon";
 import { dayLabel, formatCents, formatSignedCents, monthLabel } from "../lib/format";
 import { api } from "../lib/api";
 import { categoryName } from "../lib/i18n";
@@ -39,6 +41,23 @@ interface Props {
 function initial(row: TransactionRow): string {
   const source = row.categoryName || row.merchant || row.description || "?";
   return source.trim().charAt(0).toUpperCase();
+}
+
+/** The category's 3D picture, or the letter bubble when it has none. */
+function TxIcon({ row, color }: { row: TransactionRow; color: string }) {
+  const art = row.transferGroup ? "tx-transfer" : categoryIconName(row.categoryName);
+  if (art) {
+    return (
+      <span className="tx-icon has-art" aria-hidden="true">
+        <Icon3DSet name={art} size={34} className="tx-art" />
+      </span>
+    );
+  }
+  return (
+    <span className="tx-icon" style={{ background: `${color}1f`, color }} aria-hidden="true">
+      {initial(row)}
+    </span>
+  );
 }
 
 export function TransactionsPanel({
@@ -409,13 +428,7 @@ export function TransactionsPanel({
                         aria-label={t("bulk.select", { desc: row.description })}
                         className="tx-select"
                       />
-                      <span
-                        className="tx-icon"
-                        style={{ background: `${color}1f`, color }}
-                        aria-hidden="true"
-                      >
-                        {initial(row)}
-                      </span>
+                      <TxIcon row={row} color={color} />
                       <div className="tx-main">
                         <span className="tx-title">
                           {row.merchant || row.description}

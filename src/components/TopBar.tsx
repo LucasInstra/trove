@@ -6,6 +6,15 @@ import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
 import { MonthPicker } from "./MonthPicker";
 import { Icon } from "./Icons";
+import { Icon3DSet } from "./Icon3DSet";
+
+/** The picture beside each kind of alert: overdue, due soon, card closing, setup. */
+const NOTIFY_ART: Record<PlanNotification["kind"], string> = {
+  late: "state-warning",
+  soon: "state-due-soon",
+  card: "state-due-soon",
+  setup: "state-info",
+};
 import { setPrivate, usePrivacy } from "../lib/privacy";
 
 interface TopBarProps {
@@ -148,7 +157,7 @@ export function TopBar({
                 <ul>
                   {notifications.map((item) => (
                     <li key={item.key} className={item.kind}>
-                      <span className={`dot notify-${item.kind}`} />
+                      <Icon3DSet name={NOTIFY_ART[item.kind]} size={28} className="notify-art" />
                       <span>{t(item.messageKey, item.vars)}</span>
                     </li>
                   ))}

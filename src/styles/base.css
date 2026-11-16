@@ -1304,17 +1304,12 @@ select.tx-category {
 
 .bell-panel li {
   display: grid;
-  grid-template-columns: 9px 1fr;
-  align-items: start;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
   gap: 9px;
   font-size: 13px;
   line-height: 1.35;
 }
-
-.notify-late { background: var(--negative); }
-.notify-soon { background: var(--primary); }
-.notify-card { background: #2f6f8a; }
-.notify-setup { background: var(--faint); }
 
 .link {
   border: 0;

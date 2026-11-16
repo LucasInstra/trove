@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icons";
+import { Icon3DSet } from "../components/Icon3DSet";
 import { HoldingDialog, PageHeader } from "./PlannerScreens";
 import { DEFAULT_RATES, investmentLines, investmentSummary, type RateAssumptions } from "../domain/patrimony";
 import { api, type Holding, type HoldingInput } from "../lib/api";
@@ -137,7 +138,7 @@ export function InvestmentsScreen({
       {lines.length === 0 ? (
         <article className="card house-empty-card">
           <div className="planner-empty-icon">
-            <Icon name="trend" size={21} />
+            <Icon3DSet name="acc-portfolio" size={36} />
           </div>
           <div>
             <h2>{t("investments.emptyTitle")}</h2>

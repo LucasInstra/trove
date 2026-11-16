@@ -484,7 +484,7 @@ export function HouseScreen({
         ) : (
           <article className="card house-empty-card">
             <div className="planner-empty-icon">
-              <Icon name="home" size={21} />
+              <Icon3DSet name="goal-house" size={36} />
             </div>
             <div>
               <h2>{t("planner.noHousingBills")}</h2>
