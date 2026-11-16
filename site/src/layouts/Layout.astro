@@ -34,16 +34,16 @@ const cardUrl = site + card.src;
 ---
 
 <!doctype html>
-<html lang={t.lang}>
+<html lang={t.lang} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <!-- Applies a saved choice before the first paint so the page never flashes. -->
+    <meta name="color-scheme" content="light" />
+    <!-- The site always opens light, whatever the system prefers. The toggle's
+         choice lives only for the visit, so the next visit starts light again. -->
     <script is:inline>
       try {
-        var s = localStorage.getItem("trove.site.theme");
-        if (s === "light" || s === "dark") document.documentElement.setAttribute("data-theme", s);
+        if (sessionStorage.getItem("trove.site.theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
         document.documentElement.classList.add("js");
       } catch (e) {
         document.documentElement.classList.add("js");
@@ -79,17 +79,15 @@ const cardUrl = site + card.src;
     <script is:inline>
       document.querySelector(".theme-btn")?.addEventListener("click", function () {
         var root = document.documentElement;
-        var current = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-        var next = current === "dark" ? "light" : "dark";
+        var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
         root.setAttribute("data-theme", next);
-        try { localStorage.setItem("trove.site.theme", next); } catch (e) {}
+        try { sessionStorage.setItem("trove.site.theme", next); } catch (e) {}
       });
       // Screenshot tabs start on the page theme.
       (function () {
         var dark = document.getElementById("st-dark");
         var root = document.documentElement;
-        var t = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-        if (dark && t === "dark") dark.checked = true;
+        if (dark && root.getAttribute("data-theme") === "dark") dark.checked = true;
       })();
       // Reveal on scroll: 200 ms, 8 px. Skipped for reduced motion; below-the-fold only.
       (function () {

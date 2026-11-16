@@ -1350,8 +1350,10 @@ button:active:not(:disabled) {
 /* Goal icon and colour pickers. */
 .icon-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
   gap: 6px;
+  max-height: 232px;
+  overflow-y: auto;
 }
 
 .icon-picker-item {

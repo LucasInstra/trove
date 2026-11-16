@@ -5,6 +5,7 @@ import { HousingCard, PeopleCard, SplitCard } from "../components/PlannerCards";
 import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
 import { GoalIcon } from "../components/GoalIcon";
+import { Icon3DSet } from "../components/Icon3DSet";
 import { LineChart } from "../components/charts/LineChart";
 import { Icon } from "../components/Icons";
 import { Money } from "../components/Money";
@@ -90,7 +91,7 @@ function EmptyList({ label, action }: { label: string; action: () => void }) {
   return (
     <div className="empty planner-empty">
       <span className="planner-empty-icon">
-        <Icon name="plus" size={20} />
+        <Icon3DSet name="onb-empty-wallet" size={34} />
       </span>
       <strong>{label}</strong>
       <button type="button" className="outline-button" onClick={action}>
@@ -289,7 +290,7 @@ export function ReserveScreen({
               style={{ "--entity-color": goal.color } as CSSProperties}
             >
               <div className="entity-icon goal-mark">
-                <GoalIcon name={goal.icon} size={20} />
+                <GoalIcon name={goal.icon} size={30} />
               </div>
               <div className="entity-main">
                 <div className="entity-title-row">
