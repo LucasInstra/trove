@@ -29,8 +29,8 @@ export function Money({ cents, className, variant = "default" }: MoneyProps) {
         .filter(Boolean)
         .join(" ")}
     >
-      {sign}
       {prefix ? <span className="money-prefix">{prefix.trim()}</span> : null}
+      {sign}
       {whole}
       <span className="money-cents">{rest}</span>
     </span>
