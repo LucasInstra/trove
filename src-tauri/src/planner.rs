@@ -111,6 +111,9 @@ pub struct PersonInput {
     pub id: i64,
     pub name: String,
     pub income_cents: i64,
+    /// A `#rrggbb` colour; absent keeps the current one.
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -989,11 +992,22 @@ pub fn save_person(connection: &Connection, input: &PersonInput) -> Result<(), S
     if input.income_cents < 0 {
         return Err("income must not be negative".to_string());
     }
+    let color = match input.color.as_deref() {
+        None => None,
+        Some(value)
+            if value.len() == 7
+                && value.starts_with('#')
+                && value[1..].chars().all(|digit| digit.is_ascii_hexdigit()) =>
+        {
+            Some(value.to_ascii_lowercase())
+        }
+        Some(_) => return Err("colour must look like #rrggbb".to_string()),
+    };
     let affected = connection
         .execute(
-            "update people set name = ?1, income_cents = ?2, updated_at = ?3
+            "update people set name = ?1, income_cents = ?2, color = coalesce(?5, color), updated_at = ?3
              where id = ?4 and deleted_at is null",
-            params![name, input.income_cents, now(), input.id],
+            params![name, input.income_cents, now(), input.id, color],
         )
         .map_err(|problem| problem.to_string())?;
     if affected == 0 {
@@ -1675,17 +1689,23 @@ mod tests {
         let connection = db::open(&path).expect("should open");
         let people = ensure_people(&connection).expect("should seed");
 
-        save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: 600_000 })
+        save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: 600_000, color: None })
             .expect("should save");
         // One income alone leaves the split untouched.
         assert_eq!(list_people(&connection).expect("should list")[0].weight_pct, 50);
-        save_person(&connection, &PersonInput { id: people[1].id, name: "Leo".into(), income_cents: 400_000 })
+        save_person(&connection, &PersonInput { id: people[1].id, name: "Leo".into(), income_cents: 400_000, color: None })
             .expect("should save");
         let after = list_people(&connection).expect("should list");
         assert_eq!((after[0].weight_pct, after[1].weight_pct), (60, 40));
         assert_eq!(after[1].name, "Leo");
-        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: " ".into(), income_cents: 1 }).is_err());
-        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: -1 }).is_err());
+        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: " ".into(), income_cents: 1, color: None }).is_err());
+        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: -1, color: None }).is_err());
+        // The colour is kept when absent, changed when valid, refused when malformed.
+        save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: 1, color: Some("#AABBCC".into()) }).unwrap();
+        assert_eq!(list_people(&connection).unwrap()[0].color, "#aabbcc");
+        save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: 1, color: None }).unwrap();
+        assert_eq!(list_people(&connection).unwrap()[0].color, "#aabbcc");
+        assert!(save_person(&connection, &PersonInput { id: people[0].id, name: "Ana".into(), income_cents: 1, color: Some("red".into()) }).is_err());
 
         save_goal(
             &connection,

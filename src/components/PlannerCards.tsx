@@ -781,8 +781,8 @@ export function SplitCard({
         </div>
       ) : (
         <div className="split-bar">
-          <span className="split-self" style={{ width: `${split.selfPct}%` }} />
-          <span className="split-partner" style={{ width: `${split.partnerPct}%` }} />
+          <span className="split-self" style={{ width: `${split.selfPct}%`, background: split.selfPerson?.color }} />
+          <span className="split-partner" style={{ width: `${split.partnerPct}%`, background: split.partnerPerson?.color }} />
           <span className="split-mark" style={{ left: `${split.targetSelfPct}%` }} />
         </div>
       )}
@@ -792,7 +792,7 @@ export function SplitCard({
           <li key={entry.person.id}>
             <span
               className={many ? "dot" : `dot split-dot ${entry.person.isSelf ? "self" : "partner"}`}
-              style={many ? { background: entry.person.color } : undefined}
+              style={{ background: entry.person.color }}
             />
             <span>{entry.person.isSelf ? selfName : entry.person.name}</span>
             <strong>{formatCents(entry.paidCents)}</strong>
@@ -901,13 +901,13 @@ export function PeopleCard({
 }) {
   const { t } = useLanguage();
   const [drafts, setDrafts] = useState(() =>
-    people.map((person) => ({ id: person.id, name: person.name })),
+    people.map((person) => ({ id: person.id, name: person.name, color: person.color })),
   );
   const [newName, setNewName] = useState("");
-  const dirty = drafts.some((draft, index) => draft.name.trim() !== people[index]?.name);
+  const dirty = drafts.some((draft, index) => draft.name.trim() !== people[index]?.name || draft.color !== people[index]?.color);
   const valid = drafts.every((draft) => draft.name.trim().length > 0);
-  const patch = (id: number, name: string) =>
-    setDrafts((current) => current.map((item) => (item.id === id ? { ...item, name } : item)));
+  const patch = (id: number, change: { name?: string; color?: string }) =>
+    setDrafts((current) => current.map((item) => (item.id === id ? { ...item, ...change } : item)));
 
   return (
     <article className="card people-card">
@@ -927,6 +927,7 @@ export function PeopleCard({
               id: draft.id,
               name: draft.name.trim(),
               incomeCents: people[index]?.incomeCents ?? 0,
+              color: draft.color,
             })),
           );
         }}
@@ -937,12 +938,19 @@ export function PeopleCard({
           return (
             <div className="person-tile" key={draft.id}>
               <div className="person-head">
-                <span className="dot" style={{ background: person?.color ?? "var(--faint)" }} />
+                <input
+                  type="color"
+                  className="color-swatch"
+                  value={draft.color ?? "#2563eb"}
+                  title={t("people.color")}
+                  aria-label={`${t("people.color")}: ${draft.name}`}
+                  onChange={(event) => patch(draft.id, { color: event.target.value })}
+                />
                 <input
                   value={draft.name}
                   maxLength={40}
                   aria-label={person?.isSelf ? t("people.you") : t("people.member")}
-                  onChange={(event) => patch(draft.id, event.target.value)}
+                  onChange={(event) => patch(draft.id, { name: event.target.value })}
                 />
                 {person?.isSelf ? <span className="pill-soft">{t("people.you")}</span> : null}
                 {person && !person.isSelf ? (
