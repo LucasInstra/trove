@@ -1988,3 +1988,7 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
 .topbar-extra:empty { display: none; }
 .topbar-extra { display: flex; align-items: center; margin-right: 6px; }
 .partner-label { font-weight: 400; }
+@media (max-width: 1500px) {
+  .topbar:has(.topbar-extra:not(:empty)) .title-row { flex-wrap: nowrap; }
+  .topbar:has(.topbar-extra:not(:empty)) .import-label { display: none; }
+}

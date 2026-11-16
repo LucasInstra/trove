@@ -180,9 +180,9 @@ export function TopBar({
             <Icon name="layout" size={17} />
           </button>
         ) : null}
-        <button type="button" className="outline-button" onClick={onImport}>
+        <button type="button" className="outline-button import-button" onClick={onImport} title={primaryLabel} aria-label={primaryLabel}>
           <Icon name="arrow-down-to-line" size={16} />
-          {primaryLabel}
+          <span className="import-label">{primaryLabel}</span>
         </button>
         <button
           type="button"
