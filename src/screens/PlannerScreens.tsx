@@ -26,6 +26,7 @@ import type {
   Bill,
   BudgetStatus,
   CardMeta,
+  Category,
   CategoryTotal,
   Goal,
   Holding,
@@ -353,6 +354,7 @@ export function ReserveScreen({
 
 export function HouseScreen({
   plan,
+  categories,
   housingCategoryId,
   housingScope,
   people,
@@ -363,6 +365,7 @@ export function HouseScreen({
   onAddPerson,
   onRemovePerson,
   onTrackSettlement,
+  onCategory,
   onScope,
   onEditCeiling,
   onAddBill,
@@ -371,6 +374,7 @@ export function HouseScreen({
   onSettle,
 }: {
   plan: MonthPlan;
+  categories: Category[];
   housingCategoryId: number | null;
   housingScope: "primary" | "total";
   people: Person[];
@@ -381,6 +385,7 @@ export function HouseScreen({
   onAddPerson: (name: string) => void;
   onRemovePerson: (id: number) => void;
   onTrackSettlement: (value: boolean) => void;
+  onCategory: (categoryId: number | null) => void;
   onScope: (scope: "primary" | "total") => void;
   onEditCeiling: () => void;
   onAddBill: () => void;
@@ -404,6 +409,32 @@ export function HouseScreen({
       <div className="house-overview-grid">
         <div className="house-column">
         <HousingCard plan={plan} scope={housingScope} onScope={onScope} onEdit={onEditCeiling} />
+        <article className="card house-settings-card">
+          <div className="house-settings-copy">
+            <h2>{t("planner.housingCategory")}</h2>
+            <span className="muted small">
+              {t("planner.housingHint", {
+                category:
+                  categories.find((item) => item.id === housingCategoryId)?.name ??
+                  t("planner.housing"),
+              })}
+            </span>
+          </div>
+          <label className="field house-category-field">
+            <span>{t("planner.category")}</span>
+            <select
+              value={housingCategoryId ?? ""}
+              onChange={(event) => onCategory(event.target.value ? Number(event.target.value) : null)}
+            >
+              <option value="">{t("ledger.noCategory")}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {categoryName(t, category.name)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </article>
         <PeopleCard
           key={people.map((person) => `${person.id}:${person.name}:${person.incomeCents}`).join("|")}
           people={people}

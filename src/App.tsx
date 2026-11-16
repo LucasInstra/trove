@@ -112,6 +112,7 @@ type Route =
   | "flow"
   | "cards"
   | "goals"
+  | "house"
   | "patrimony"
   | "categories"
   | "import"
@@ -123,6 +124,7 @@ const ROUTES: readonly Route[] = [
   "flow",
   "cards",
   "goals",
+  "house",
   "patrimony",
   "categories",
   "import",
@@ -136,6 +138,7 @@ const MENU: Array<{ route: Route; icon: IconName }> = [
   { route: "flow", icon: "arrow-left-right" },
   { route: "cards", icon: "card" },
   { route: "goals", icon: "target" },
+  { route: "house", icon: "home" },
   { route: "patrimony", icon: "bank" },
 ];
 
@@ -1101,15 +1104,34 @@ export function App() {
                 eyebrow={t("nav.goals")}
                 tabs={[
                   { id: "goals", label: t("tab.goals") },
-                  { id: "house", label: t("nav.house") },
                   { id: "retirement", label: t("nav.retirement") },
                 ]}
                 active={tabOf("goals", "goals")}
                 onTab={(id) => setTab("goals", id)}
               >
-                {tabOf<string>("goals", "goals") === "house" ? (
-                  <HouseScreen
+                {tabOf("goals", "goals") === "goals" ? (
+                  <ReserveScreen
+                    plan={plan}
+                    onAdd={() => setDialog({ kind: "goal", goal: null })}
+                    onEdit={(goal) => setDialog({ kind: "goal", goal })}
+                    onDeposit={(goal) => setDialog({ kind: "deposit", goal })}
+                  />
+                ) : (
+                  <RetirementScreen plan={plan} />
+                )}
+              </SectionPage>
+            ) : null}
+
+            {route === "house" ? (
+              <SectionPage
+                eyebrow={t("nav.house")}
+                tabs={[{ id: "house", label: t("nav.house") }]}
+                active="house"
+                onTab={() => undefined}
+              >
+                <HouseScreen
                                     plan={plan}
+                                    categories={categories}
                                     housingCategoryId={housingCategoryId}
                                     housingScope={housingScope}
                                     people={planner.people}
@@ -1119,6 +1141,7 @@ export function App() {
                                     onSavePeople={(inputs) => void savePeople(inputs)}
                                     onAddPerson={(name) => void addPerson(name)}
                                     onRemovePerson={(id) => void removePerson(id)}
+                                    onCategory={(categoryId) => void saveHousingCategory(categoryId)}
                                     onTrackSettlement={(value) => {
                                       setTrackSettlement(value);
                                       void api.setSetting("split_track", value ? "1" : "0");
@@ -1141,16 +1164,6 @@ export function App() {
                                       void api.setSetting(`split_settled_${month}`, "1");
                                     }}
                                   />
-                ) : tabOf("goals", "goals") === "goals" ? (
-                  <ReserveScreen
-                    plan={plan}
-                    onAdd={() => setDialog({ kind: "goal", goal: null })}
-                    onEdit={(goal) => setDialog({ kind: "goal", goal })}
-                    onDeposit={(goal) => setDialog({ kind: "deposit", goal })}
-                  />
-                ) : (
-                  <RetirementScreen plan={plan} />
-                )}
               </SectionPage>
             ) : null}
 
@@ -1228,9 +1241,6 @@ export function App() {
                 onLoadDemo={loadDemo}
                 onRemoveDemo={removeDemo}
                 onEraseAll={eraseAll}
-                categories={categories}
-                housingCategoryId={housingCategoryId}
-                onHousingCategory={(categoryId) => void saveHousingCategory(categoryId)}
                 theme={theme}
                 onTheme={(next) => {
                   setTheme(next);
@@ -1281,7 +1291,7 @@ export function App() {
           categories={categories}
           people={planner.people}
           payerId={dialog.bill ? (planner.shares.find((entry) => entry.billId === dialog.bill?.id)?.personId ?? null) : null}
-          defaultCategoryId={route === "goals" && tabOf<string>("goals", "goals") === "house" ? housingCategoryId : null}
+          defaultCategoryId={route === "house" ? housingCategoryId : null}
           onClose={() => setDialog(null)}
           onSave={(input, payerId) => void saveBill(input, payerId)}
           onDelete={(id) => void removeBill(id)}
