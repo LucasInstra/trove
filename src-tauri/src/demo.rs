@@ -410,6 +410,8 @@ fn fill(connection: &Connection) -> Result<(), String> {
                 rate_bps: *rate,
                 term_months: *term,
                 started_on: (*started).to_string(),
+                taxable: true,
+                ..Default::default()
             },
         )?;
     }

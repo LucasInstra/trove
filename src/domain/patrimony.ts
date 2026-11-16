@@ -69,6 +69,8 @@ export interface InvestmentInput {
   rateBps?: number;
   termMonths?: number;
   startedOn?: string;
+  /** The sheet stores a maturity date; it stands in for the term when that is empty. */
+  maturityOn?: string;
 }
 
 /** Yearly return as a fraction, or null when the investment says nothing about how it earns. */
@@ -101,6 +103,17 @@ export function monthsLeft(startedOn: string | undefined, termMonths: number | u
   let elapsed = (y2 - y1) * 12 + (m2 - m1);
   if (d2 < d1) elapsed -= 1;
   return Math.max(0, termMonths - Math.max(0, elapsed));
+}
+
+/** Whole months from today to a maturity date; 0 once it has passed, null without one. */
+export function monthsUntil(maturityOn: string | undefined, today: string): number | null {
+  if (!maturityOn) return null;
+  const [y1, m1, d1] = today.split("-").map(Number);
+  const [y2, m2, d2] = maturityOn.split("-").map(Number);
+  if ([y1, m1, d1, y2, m2, d2].some((part) => !Number.isFinite(part))) return null;
+  let months = (y2 - y1) * 12 + (m2 - m1);
+  if (d2 < d1) months -= 1;
+  return Math.max(0, months);
 }
 
 export interface InvestmentLine {
@@ -155,7 +168,8 @@ export function investmentLines(
       const known = holding.costCents > 0;
       const gainCents = known ? holding.amountCents - holding.costCents : null;
       const yearly = annualRate(holding.indexer, holding.rateBps, rates);
-      const left = monthsLeft(holding.startedOn, holding.termMonths, today);
+      const left =
+        monthsLeft(holding.startedOn, holding.termMonths, today) ?? monthsUntil(holding.maturityOn, today);
       return {
         id: holding.id,
         name: holding.name,

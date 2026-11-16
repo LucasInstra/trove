@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 19;
+pub const SCHEMA_VERSION: i64 = 20;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -420,8 +420,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v18(&connection)?;
         write_version(&connection, 18)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 19 {
         migrate_to_v19(&connection)?;
+        write_version(&connection, 19)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v20(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -616,6 +620,17 @@ fn migrate_to_v17(connection: &Connection) -> Result<(), String> {
 /// the sum of their sources instead of a second figure typed by hand.
 fn migrate_to_v19(connection: &Connection) -> Result<(), String> {
     add_column(connection, "incomes", "person_id", "integer")
+}
+
+/// v19 to v20: the spreadsheet view of investments (owner, institution,
+/// product, tax regime, maturity date and notes).
+fn migrate_to_v20(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "holdings", "owner", "text not null default ''")?;
+    add_column(connection, "holdings", "institution", "text not null default ''")?;
+    add_column(connection, "holdings", "product", "text not null default ''")?;
+    add_column(connection, "holdings", "taxable", "integer not null default 1")?;
+    add_column(connection, "holdings", "maturity_on", "text not null default ''")?;
+    add_column(connection, "holdings", "notes", "text not null default ''")
 }
 
 /// v17 to v18: how an investment earns (indexer, rate) and for how long.
@@ -2340,6 +2355,12 @@ pub struct Holding {
     pub rate_bps: i64,
     pub term_months: i64,
     pub started_on: String,
+    pub owner: String,
+    pub institution: String,
+    pub product: String,
+    pub taxable: bool,
+    pub maturity_on: String,
+    pub notes: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -2362,6 +2383,47 @@ pub struct HoldingInput {
     pub term_months: i64,
     #[serde(default)]
     pub started_on: String,
+    #[serde(default)]
+    pub owner: String,
+    #[serde(default)]
+    pub institution: String,
+    #[serde(default)]
+    pub product: String,
+    /// Absent means taxable, like every investment before the spreadsheet view.
+    #[serde(default = "default_taxable")]
+    pub taxable: bool,
+    #[serde(default)]
+    pub maturity_on: String,
+    #[serde(default)]
+    pub notes: String,
+}
+
+fn default_taxable() -> bool {
+    true
+}
+
+#[cfg(test)]
+impl HoldingInput {
+    fn clone_for_test(&self) -> HoldingInput {
+        HoldingInput {
+            id: self.id,
+            name: self.name.clone(),
+            kind: self.kind.clone(),
+            amount_cents: self.amount_cents,
+            updated_on: self.updated_on.clone(),
+            cost_cents: self.cost_cents,
+            indexer: self.indexer.clone(),
+            rate_bps: self.rate_bps,
+            term_months: self.term_months,
+            started_on: self.started_on.clone(),
+            owner: self.owner.clone(),
+            institution: self.institution.clone(),
+            product: self.product.clone(),
+            taxable: self.taxable,
+            maturity_on: self.maturity_on.clone(),
+            notes: self.notes.clone(),
+        }
+    }
 }
 
 fn check_indexer(indexer: &str) -> Result<(), String> {
@@ -2381,7 +2443,8 @@ fn check_holding_kind(kind: &str) -> Result<(), String> {
 pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, kind, amount_cents, updated_on, cost_cents, indexer, rate_bps, term_months, started_on from holdings
+            "select id, name, kind, amount_cents, updated_on, cost_cents, indexer, rate_bps, term_months, started_on,
+                    owner, institution, product, taxable, maturity_on, notes from holdings
              where deleted_at is null order by name",
         )
         .map_err(|problem| problem.to_string())?;
@@ -2398,6 +2461,12 @@ pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
                 rate_bps: row.get(7)?,
                 term_months: row.get(8)?,
                 started_on: row.get(9)?,
+                owner: row.get(10)?,
+                institution: row.get(11)?,
+                product: row.get(12)?,
+                taxable: row.get::<_, i64>(13)? != 0,
+                maturity_on: row.get(14)?,
+                notes: row.get(15)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -2431,23 +2500,53 @@ pub fn save_holding(connection: &Connection, input: &HoldingInput) -> Result<i64
     if !input.started_on.is_empty() {
         check_date(&input.started_on)?;
     }
+    for (label, value, max) in [
+        ("owner", &input.owner, 60),
+        ("institution", &input.institution, 60),
+        ("product", &input.product, 40),
+        ("notes", &input.notes, 500),
+    ] {
+        if value.chars().count() > max {
+            return Err(format!("holding {label} is too long"));
+        }
+    }
+    if !input.maturity_on.is_empty() {
+        check_date(&input.maturity_on)?;
+        if !input.started_on.is_empty() && input.maturity_on < input.started_on {
+            return Err("holding maturity is before its start".to_string());
+        }
+    }
+    // A deleted row keeps its name (the column is unique); free it so the name can be used again.
+    connection
+        .execute(
+            "update holdings set name = name || ' [' || uid || ']' where name = ?1 and deleted_at is not null",
+            params![name],
+        )
+        .map_err(|problem| problem.to_string())?;
     let indexer = if input.indexer.is_empty() { "none" } else { input.indexer.as_str() };
     let stamp = Utc::now().to_rfc3339();
     let affected = match input.id {
         Some(id) => connection.execute(
             "update holdings set name = ?1, kind = ?2, amount_cents = ?3, updated_on = ?4,
                     cost_cents = ?5, indexer = ?6, rate_bps = ?7, term_months = ?8,
-                    started_on = ?9, updated_at = ?10
+                    started_on = ?9, updated_at = ?10, owner = ?12, institution = ?13,
+                    product = ?14, taxable = ?15, maturity_on = ?16, notes = ?17
              where id = ?11 and deleted_at is null",
             params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents,
-                    indexer, input.rate_bps, input.term_months, input.started_on, stamp, id],
+                    indexer, input.rate_bps, input.term_months, input.started_on, stamp, id,
+                    input.owner, input.institution, input.product, input.taxable as i64,
+                    input.maturity_on, input.notes],
         ),
         None => connection.execute(
             "insert into holdings (uid, name, kind, amount_cents, updated_on, cost_cents,
-                    indexer, rate_bps, term_months, started_on, created_at, updated_at)
-             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
+                    indexer, rate_bps, term_months, started_on, created_at, updated_at,
+                    owner, institution, product, taxable, maturity_on, notes)
+             values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10,
+                    ?11, ?12, ?13, ?14, ?15, ?16)",
             params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents,
-                    indexer, input.rate_bps, input.term_months, input.started_on, stamp],
+                    indexer, input.rate_bps, input.term_months, input.started_on, stamp,
+                    input.owner, input.institution, input.product, input.taxable as i64,
+                    input.maturity_on, input.notes],
         ),
     }
     .map_err(|problem| {
@@ -5499,7 +5598,26 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    #[test]
+#[test]
+    fn a_new_sheet_row_saves_twice_with_the_payload_the_screen_sends() {
+        let path = temporary_database("sheet-row");
+        let connection = open(&path).expect("should open");
+        let json = r#"{"id":null,"name":"Investimento","kind":"investment","amountCents":0,"updatedOn":"2026-11-16","costCents":0,"indexer":"cdi","startedOn":"2026-11-16","taxable":true}"#;
+        let first: HoldingInput = serde_json::from_str(json).expect("should parse");
+        save_holding(&connection, &first).expect("first row should save");
+        let second: HoldingInput = serde_json::from_str(&json.replace("\"Investimento\"", "\"Investimento (2)\"")).expect("should parse");
+        save_holding(&connection, &second).expect("second row should save");
+        assert_eq!(list_holdings(&connection).expect("should list").len(), 2);
+        let ids: Vec<i64> = list_holdings(&connection).expect("should list").iter().map(|h| h.id).collect();
+        for id in ids {
+            delete_holding(&connection, id).expect("should delete");
+        }
+        save_holding(&connection, &first).expect("a deleted name should be free again");
+        assert_eq!(list_holdings(&connection).expect("should list").len(), 1);
+        let _ = std::fs::remove_file(&path);
+    }
+
+        #[test]
     fn holdings_round_trip_and_validate() {        let path = temporary_database("holdings");
         let connection = open(&path).expect("should open");
         assert!(list_holdings(&connection).expect("should list").is_empty());
@@ -5541,6 +5659,25 @@ mod tests {
         assert_eq!(saved[0].rate_bps, 11_000);
         assert_eq!(saved[0].term_months, 24);
         assert_eq!(saved[0].started_on, "2024-03-10");
+        let sheet = HoldingInput {
+            id: Some(id),
+            owner: "Panca".to_string(),
+            institution: "Sofisa".to_string(),
+            product: "CDB".to_string(),
+            taxable: false,
+            maturity_on: "2027-11-08".to_string(),
+            notes: "migrado".to_string(),
+            ..earning.clone_for_test()
+        };
+        save_holding(&connection, &sheet).expect("should save the sheet fields");
+        let saved = list_holdings(&connection).expect("should list");
+        assert_eq!(saved[0].institution, "Sofisa");
+        assert_eq!(saved[0].product, "CDB");
+        assert!(!saved[0].taxable);
+        assert_eq!(saved[0].maturity_on, "2027-11-08");
+        assert!(save_holding(&connection, &HoldingInput { maturity_on: "amanha".to_string(), ..sheet.clone_for_test() }).is_err());
+        assert!(save_holding(&connection, &HoldingInput { maturity_on: "2020-01-01".to_string(), ..sheet.clone_for_test() }).is_err());
+        assert!(save_holding(&connection, &HoldingInput { notes: "x".repeat(501), ..sheet.clone_for_test() }).is_err());
         let unknown = HoldingInput { indexer: "lottery".to_string(), ..earning };
         assert!(save_holding(&connection, &unknown).is_err());
         let holdings = list_holdings(&connection).expect("should list");

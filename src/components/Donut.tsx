@@ -1,3 +1,12 @@
+/** Big numbers shrink so they stay inside the ring: the longer the text, the smaller the type. */
+function centerFont(value?: string): number {
+  const length = value?.length ?? 0;
+  if (length <= 6) return 0.24;
+  if (length <= 9) return 0.16;
+  if (length <= 11) return 0.125;
+  return 0.1;
+}
+
 export interface DonutSegment {
   color: string;
   value: number;
@@ -10,6 +19,7 @@ export function Donut({
   centerLabel,
   centerValue,
   activeIndex = null,
+  onActive,
 }: {
   segments: DonutSegment[];
   size?: number;
@@ -18,6 +28,8 @@ export function Donut({
   centerValue?: string;
   /** Index of the slice the pointer is on; the others step back. */
   activeIndex?: number | null;
+  /** Called with the slice under the pointer, or null when it leaves. */
+  onActive?: (index: number | null) => void;
 }) {
   const total = segments.reduce((sum, segment) => sum + Math.max(0, segment.value), 0);
   const center = size / 2;
@@ -70,7 +82,9 @@ export function Donut({
           strokeLinecap="butt"
           strokeOpacity={activeIndex === null || activeIndex === index ? 1 : 0.28}
           transform={`rotate(-90 ${center} ${center})`}
-          style={{ transition: "stroke-opacity 140ms ease-out" }}
+          style={{ transition: "stroke-opacity 140ms ease-out", pointerEvents: onActive ? "stroke" : undefined }}
+          onMouseEnter={onActive ? () => onActive(index) : undefined}
+          onMouseLeave={onActive ? () => onActive(null) : undefined}
         />
       ))}
       {centerValue ? (
@@ -80,7 +94,7 @@ export function Donut({
           textAnchor="middle"
           dominantBaseline="central"
           fill="var(--ink)"
-          fontSize={size * 0.24}
+          fontSize={size * centerFont(centerValue)}
           fontWeight={700}
           className="donut-center-value"
         >
