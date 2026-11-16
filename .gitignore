@@ -21,3 +21,11 @@ site/.astro
 site/src/styles/app-tokens.css
 site/src/assets/fonts
 site/src/assets/icons3d
+
+# Local tooling and generated screenshots
+.agents/
+skills-lock.json
+preview/before/
+preview/after/
+*.log
+.env*
