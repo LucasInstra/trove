@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
+import { DateCell } from "../components/DateField";
+import { PRODUCTS, reconcileTerm } from "../domain/investmentSheet";
 import { CreditCardArt } from "../components/CreditCardArt";
 import { Dialog } from "../components/Dialog";
+import { EditCell, billToInput, parseCents as parseAmount, plain } from "../components/BudgetSheet";
 import { HousingCard, PeopleCard, SplitCard } from "../components/PlannerCards";
 import { parseCents } from "../components/PlannerDialogs";
 import { ScoreCard } from "../components/ScoreCard";
@@ -24,6 +27,7 @@ import type { MonthPlan } from "../domain/projection";
 import type { CSSProperties } from "react";
 import type {
   Bill,
+  BillInput,
   BudgetStatus,
   CardMeta,
   Category,
@@ -373,6 +377,7 @@ export function HouseScreen({
   onEditCeiling,
   onAddBill,
   onEditBill,
+  onSaveBill,
   onAssign,
   onSettle,
 }: {
@@ -396,6 +401,7 @@ export function HouseScreen({
   onEditCeiling: () => void;
   onAddBill: () => void;
   onEditBill: (bill: Bill) => void;
+  onSaveBill: (input: BillInput) => void;
   onAssign: (billId: number, personId: number) => void;
   onSettle: () => void;
 }) {
@@ -474,18 +480,19 @@ export function HouseScreen({
               {housingBills.map((bill) => (
                 <li className="bill" key={bill.id}>
                   <span className="bill-check">
-                    <span className="bill-dot" style={{ background: "var(--primary)" }} />
-                    <button
-                      type="button"
-                      className="link bill-name"
-                      onClick={() => onEditBill(bill)}
-                    >
-                      {bill.name}
-                    </button>
+                    <span className="bill-dot" style={{ background: people.find((person) => person.id === payerOf(bill.id))?.color ?? "var(--primary)" }} />
+                    <EditCell
+                      className="bill-name"
+                      color={people.find((person) => person.id === payerOf(bill.id))?.color}
+                      label={t("budget.item")}
+                      value={bill.name}
+                      onCommit={(name) => name && onSaveBill(billToInput(bill, { name }))}
+                    />
                   </span>
                   {people.length > 1 ? (
                     <select
                       className="payer-select"
+                      style={{ color: people.find((person) => person.id === payerOf(bill.id))?.color }}
                       value={payerOf(bill.id)}
                       aria-label={t("split.changePayer", { name: bill.name })}
                       onChange={(event) => onAssign(bill.id, Number(event.target.value))}
@@ -497,10 +504,23 @@ export function HouseScreen({
                       ))}
                     </select>
                   ) : null}
-                  <span className="bill-amount">{formatCents(bill.amountCents)}</span>
+                  <EditCell
+                    className="bill-amount num"
+                    color={people.find((person) => person.id === payerOf(bill.id))?.color}
+                    label={`${t("budget.value")}: ${bill.name}`}
+                    value={plain(bill.amountCents)}
+                    onCommit={(text) => {
+                      const cents = parseAmount(text);
+                      if (cents !== null) onSaveBill(billToInput(bill, { amountCents: cents }));
+                    }}
+                  />
+                  <button type="button" className="icon-button" title={t("common.edit")} aria-label={`${t("common.edit")}: ${bill.name}`} onClick={() => onEditBill(bill)}>
+                    <Icon name="pencil" size={15} />
+                  </button>
                 </li>
               ))}
             </ul>
+            <p className="muted small">{t("planner.editHint")}</p>
             <button type="button" className="outline-button" onClick={onAddBill}>
               <Icon name="plus" size={15} />
               {t("planner.addHousingBill")}
@@ -797,15 +817,18 @@ const INDEXERS = ["none", "cdi", "selic", "ipca", "fixed"] as const;
 export function HoldingDialog({
   initial,
   defaultKind = "other",
+  people = [],
   onClose,
   onSave,
 }: {
   initial: Holding | null;
+  /** Names offered for the owner field of an investment. */
+  people?: string[];
   defaultKind?: (typeof HOLDING_KINDS)[number];
   onClose: () => void;
   onSave: (input: HoldingInput) => void;
 }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<(typeof HOLDING_KINDS)[number]>(initial?.kind ?? defaultKind);
   const [amount, setAmount] = useState(initial ? (initial.amountCents / 100).toFixed(2) : "");
@@ -815,6 +838,18 @@ export function HoldingDialog({
   const [rate, setRate] = useState(initial?.rateBps ? String(initial.rateBps / 100) : "");
   const [term, setTerm] = useState(initial?.termMonths ? String(initial.termMonths) : "");
   const [startedOn, setStartedOn] = useState(initial?.startedOn ?? "");
+  const [maturityOn, setMaturityOn] = useState(initial?.maturityOn ?? "");
+  const [owner, setOwner] = useState(initial?.owner ?? "");
+  const [institution, setInstitution] = useState(initial?.institution ?? "");
+  const [product, setProduct] = useState(initial?.product ?? "");
+  const [taxable, setTaxable] = useState(initial?.taxable ?? true);
+  // Start, term and maturity describe the same period: changing one updates the others.
+  const applyTerm = (next: { startedOn: string; maturityOn: string; term: string }, changed: "start" | "maturity" | "term") => {
+    const result = reconcileTerm({ startedOn: next.startedOn, maturityOn: next.maturityOn, termMonths: Math.max(0, Math.round(Number(next.term) || 0)) }, changed);
+    setStartedOn(result.startedOn);
+    setMaturityOn(result.maturityOn);
+    setTerm(result.termMonths > 0 ? String(result.termMonths) : "");
+  };
   const earns = kind === "investment" && indexer !== "none";
 
   return (
@@ -836,7 +871,13 @@ export function HoldingDialog({
             indexer: kind === "investment" ? indexer : "none",
             rateBps: earns ? Math.max(0, Math.round((Number(rate.replace(",", ".")) || 0) * 100)) : 0,
             termMonths: kind === "investment" ? Math.max(0, Math.round(Number(term) || 0)) : 0,
-            startedOn: kind === "investment" && Number(term) > 0 ? startedOn : "",
+            startedOn: kind === "investment" ? startedOn : "",
+            owner: kind === "investment" ? owner.trim() : (initial?.owner ?? ""),
+            institution: kind === "investment" ? institution.trim() : (initial?.institution ?? ""),
+            product: kind === "investment" ? product : (initial?.product ?? ""),
+            taxable: kind === "investment" ? taxable : (initial?.taxable ?? true),
+            maturityOn: kind === "investment" ? maturityOn : "",
+            notes: initial?.notes ?? "",
           });
         }}
       >
@@ -921,32 +962,76 @@ export function HoldingDialog({
             </div>
             <div className="form-grid">
               <label className="field">
-                <span>{t("investments.term")}</span>
-                <span className="input-affix">
-                  <input
-                    type="number"
-                    min={0}
-                    max={1200}
-                    value={term}
-                    onChange={(event) => setTerm(event.target.value)}
-                    placeholder="0"
-                  />
-                  <span>{t("investments.months")}</span>
-                </span>
+                <span>{t("investments.sheet.col_date")}</span>
+                <DateCell
+                  className="date-field"
+                  lang={lang}
+                  label={t("investments.sheet.col_date")}
+                  value={startedOn}
+                  onCommit={(iso) => applyTerm({ startedOn: iso, maturityOn, term }, "start")}
+                />
               </label>
-              {Number(term) > 0 ? (
-                <label className="field">
-                  <span>{t("investments.startedOn")}</span>
-                  <input
-                    type="date"
-                    value={startedOn}
-                    onChange={(event) => setStartedOn(event.target.value)}
-                    required
-                  />
-                </label>
-              ) : null}
+              <label className="field">
+                <span>{t("investments.sheet.col_maturity")}</span>
+                <DateCell
+                  className="date-field"
+                  lang={lang}
+                  label={t("investments.sheet.col_maturity")}
+                  value={maturityOn}
+                  onCommit={(iso) => applyTerm({ startedOn, maturityOn: iso, term }, "maturity")}
+                />
+              </label>
             </div>
-            <small className="field-hint">{t("investments.termHint")}</small>
+            <label className="field">
+              <span>{t("investments.term")}</span>
+              <span className="input-affix">
+                <input
+                  type="number"
+                  min={0}
+                  max={1200}
+                  value={term}
+                  onChange={(event) => applyTerm({ startedOn, maturityOn, term: event.target.value }, "term")}
+                  placeholder="0"
+                />
+                <span>{t("investments.months")}</span>
+              </span>
+              <small className="field-hint">{t("investments.termHint")}</small>
+            </label>
+            <div className="form-grid">
+              <label className="field">
+                <span>{t("investments.sheet.col_institution")}</span>
+                <input value={institution} onChange={(event) => setInstitution(event.target.value)} maxLength={60} />
+              </label>
+              <label className="field">
+                <span>{t("investments.sheet.col_product")}</span>
+                <select value={product} onChange={(event) => setProduct(event.target.value)}>
+                  <option value="">{t("investments.sheet.none")}</option>
+                  {(PRODUCTS.includes(product) || product === "" ? PRODUCTS : [...PRODUCTS, product]).map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>{t("investments.sheet.col_owner")}</span>
+                <input value={owner} onChange={(event) => setOwner(event.target.value)} maxLength={60} list="holding-owners" />
+                <datalist id="holding-owners">
+                  {people.map((person) => (
+                    <option key={person} value={person} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="field">
+                <span>{t("investments.sheet.col_tax")}</span>
+                <select value={taxable ? "yes" : "no"} onChange={(event) => setTaxable(event.target.value === "yes")}>
+                  <option value="yes">{t("investments.sheet.taxable")}</option>
+                  <option value="no">{t("investments.sheet.exempt")}</option>
+                </select>
+              </label>
+            </div>
           </>
         ) : null}
         <label className="field">

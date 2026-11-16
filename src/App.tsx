@@ -79,6 +79,7 @@ import type {
   TransferInput,
 } from "./lib/api";
 import { useLanguage } from "./lib/language";
+import { localizeError } from "./lib/backendErrors";
 import { useUpdater } from "./lib/updater";
 import { invoiceWindow } from "./domain/invoice";
 import { planMonth } from "./domain/projection";
@@ -101,6 +102,7 @@ import {
 } from "./domain/layout";
 import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
+import { SheetsScreen } from "./screens/SheetsScreen";
 import { Onboarding } from "./components/Onboarding";
 import { rampOf } from "./lib/color";
 import { initialsOf } from "./lib/avatar";
@@ -114,6 +116,7 @@ type Route =
   | "goals"
   | "house"
   | "patrimony"
+  | "sheets"
   | "categories"
   | "import"
   | "settings";
@@ -126,6 +129,7 @@ const ROUTES: readonly Route[] = [
   "goals",
   "house",
   "patrimony",
+  "sheets",
   "categories",
   "import",
   "settings",
@@ -143,8 +147,9 @@ const MENU: Array<{ route: Route; icon: IconName }> = [
 ];
 
 const ADJUST: Array<{ route: Route; icon: IconName }> = [
-  { route: "import", icon: "import" },
+  { route: "sheets", icon: "layout" },
   { route: "categories", icon: "tag" },
+  { route: "import", icon: "import" },
   { route: "settings", icon: "settings" },
 ];
 
@@ -212,6 +217,36 @@ export function App() {
   const [trackSettlement, setTrackSettlement] = useState(true);
   const [layout, setLayout] = useState<LayoutCard[]>(() => parseLayout(null));
   const layoutLoaded = useRef(false);
+  // The order of the budget rows, chosen by dragging; rows not listed here go last.
+  const [budgetOrder, setBudgetOrder] = useState<{ bills: number[]; incomes: number[] }>({ bills: [], incomes: [] });
+  useEffect(() => {
+    void api
+      .getSetting("budget_order")
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { bills?: unknown; incomes?: unknown };
+        const ids = (value: unknown) => (Array.isArray(value) ? value.filter((id): id is number => typeof id === "number") : []);
+        setBudgetOrder({ bills: ids(parsed.bills), incomes: ids(parsed.incomes) });
+      })
+      .catch(() => undefined);
+  }, []);
+  // "Partner's expenses": the budget says whose each income and expense is.
+  const [partnerMode, setPartnerMode] = useState(false);
+  useEffect(() => {
+    void api
+      .getSetting("budget_partner")
+      .then((raw) => setPartnerMode(raw === "1"))
+      .catch(() => undefined);
+  }, []);
+  const changePartnerMode = (on: boolean) => {
+    setPartnerMode(on);
+    void api.setSetting("budget_partner", on ? "1" : "0");
+  };
+  const saveBudgetOrder = (kind: "bills" | "incomes", ids: number[]) => {
+    const next = { ...budgetOrder, [kind]: ids };
+    setBudgetOrder(next);
+    void api.setSetting("budget_order", JSON.stringify(next));
+  };
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
@@ -239,6 +274,10 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const updater = useUpdater();
+  const [settingsTab, setSettingsTab] = useState<"updates" | undefined>(undefined);
+  useEffect(() => {
+    if (route !== "settings") setSettingsTab(undefined);
+  }, [route]);
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
 
   useEffect(() => {
@@ -825,7 +864,13 @@ export function App() {
 
           <SidebarFooter>
             <div className="sidebar-update">
-              <UpdateBanner updater={updater} onOpen={() => setRoute("settings")} />
+              <UpdateBanner
+                updater={updater}
+                onOpen={() => {
+                  setSettingsTab("updates");
+                  setRoute("settings");
+                }}
+              />
             </div>
 
             <div className="flex items-center justify-between gap-2 px-1">
@@ -885,7 +930,7 @@ export function App() {
         <main className="main min-w-0 flex-1 pb-20 md:pb-11">
           {error ? (
             <div className="alert" role="alert">
-              {error}
+              {localizeError(error, t, lang)}
             </div>
           ) : null}
 
@@ -1156,6 +1201,7 @@ export function App() {
                                     onEditCeiling={() => setDialog({ kind: "ceiling" })}
                                     onAddBill={() => setDialog({ kind: "bill", bill: null })}
                                     onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+                                    onSaveBill={(input) => void mutateAndRefresh(() => api.saveBill(input))}
                                     onAssign={(billId, personId) => {
                                       void api.setShare({ billId, personId }).then(() => {
                                         void refreshData();
@@ -1209,6 +1255,39 @@ export function App() {
               </SectionPage>
             ) : null}
 
+            {route === "sheets" ? (
+              <SheetsScreen
+                month={month ?? currentMonth()}
+                tab={tabOf<"investments" | "spending" | "charts">("sheets", "investments")}
+                onTab={(id) => setTab("sheets", id)}
+                people={planner.people}
+                onAddPerson={(name) => void addPerson(name)}
+                holdings={holdings}
+                onSaveHolding={(input) => void saveHolding(input)}
+                onDeleteHolding={(id) => void deleteHolding(id)}
+                rows={rows}
+                incomes={planner.incomes}
+                bills={planner.bills}
+                payments={planner.payments}
+                incomeCents={plan.incomeCents}
+                shares={planner.shares}
+                partnerMode={partnerMode}
+                onPartnerMode={changePartnerMode}
+                onAssignBill={(billId, personId) => {
+                  void api.setShare({ billId, personId }).then(() => {
+                    void refreshData();
+                  });
+                }}
+                order={budgetOrder}
+                onOrder={saveBudgetOrder}
+                onTogglePaid={(id, paid) => void toggleBill(id, paid)}
+                onSaveIncome={(input) => void mutateAndRefresh(() => api.saveIncome(input))}
+                onEditIncome={(income) => setDialog({ kind: "income", income })}
+                onSaveBill={(input) => void mutateAndRefresh(() => api.saveBill(input))}
+                onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+              />
+            ) : null}
+
             {route === "import" ? (
               <ImportScreen
                 onImported={() => {
@@ -1233,6 +1312,7 @@ export function App() {
 
             {route === "settings" ? (
               <SettingsScreen
+                initialTab={settingsTab}
                 updater={updater}
                 accounts={accounts}
                 onSaveUserName={setUserName}

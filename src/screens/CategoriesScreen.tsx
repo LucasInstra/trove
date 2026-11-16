@@ -230,13 +230,33 @@ export function CategoriesScreen({
         </article>
       ) : null}
 
-      {roots.length > 0 ? (
-        <article className="card">
-          <ul className="installment-list list-rows">
-            {roots.flatMap((root) => tree(root, 0, new Set()))}
-          </ul>
-        </article>
-      ) : null}
+      <div className="categories-split">
+        {roots.length > 0 ? (
+          <article className="card">
+            <ul className="installment-list list-rows">
+              {roots.flatMap((root) => tree(root, 0, new Set()))}
+            </ul>
+          </article>
+        ) : null}
+        <RulesManager
+          rules={rules}
+          categories={active}
+          onSave={onSaveRule}
+          onDelete={onDeleteRule}
+          onApply={onApplyRules}
+          onCategoryColor={(category, color) =>
+            onSave({
+              id: category.id,
+              name: category.name,
+              kind: category.kind,
+              color,
+              parentId: category.parentId,
+              emoji: category.emoji,
+              sortOrder: category.sortOrder,
+            })
+          }
+        />
+      </div>
 
       {archived.length > 0 ? (
         <article className="card">
@@ -276,24 +296,6 @@ export function CategoriesScreen({
         />
       ) : null}
 
-      <RulesManager
-        rules={rules}
-        categories={active}
-        onSave={onSaveRule}
-        onDelete={onDeleteRule}
-        onApply={onApplyRules}
-        onCategoryColor={(category, color) =>
-          onSave({
-            id: category.id,
-            name: category.name,
-            kind: category.kind,
-            color,
-            parentId: category.parentId,
-            emoji: category.emoji,
-            sortOrder: category.sortOrder,
-          })
-        }
-      />
 
       {confirmDelete ? (
         <Dialog title={t("categories.confirmDeleteTitle", { name: confirmDelete.name })} onClose={() => setConfirmDelete(null)}>

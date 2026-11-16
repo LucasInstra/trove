@@ -38,6 +38,15 @@ export interface Holding {
   termMonths: number;
   /** Day the term started, YYYY-MM-DD; empty when unknown. */
   startedOn: string;
+  /** Spreadsheet view: who owns it, where it is held, what it is (CDB, LCI...). */
+  owner: string;
+  institution: string;
+  product: string;
+  /** False for exempt products (LCI, LCA...): no income tax in the estimate. */
+  taxable: boolean;
+  /** Maturity date, YYYY-MM-DD; empty when open-ended. */
+  maturityOn: string;
+  notes: string;
 }
 
 export interface HoldingInput {
@@ -51,6 +60,12 @@ export interface HoldingInput {
   rateBps?: number;
   termMonths?: number;
   startedOn?: string;
+  owner?: string;
+  institution?: string;
+  product?: string;
+  taxable?: boolean;
+  maturityOn?: string;
+  notes?: string;
 }
 
 export interface TransactionRow {
@@ -364,6 +379,7 @@ export interface PersonInput {
   id: number;
   name: string;
   incomeCents: number;
+  color?: string;
 }
 
 export interface Share {

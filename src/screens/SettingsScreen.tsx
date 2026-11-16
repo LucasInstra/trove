@@ -37,6 +37,7 @@ function statusText(updater: UpdaterState, t: Translate): string {
 }
 
 export function SettingsScreen({
+  initialTab,
   updater,
   accounts,
   onCreateAccount,
@@ -51,6 +52,8 @@ export function SettingsScreen({
   theme,
   onTheme,
 }: {
+  /** Opens on this tab, e.g. the updates one from the "new version" banner. */
+  initialTab?: "account" | "appearance" | "updates" | "about";
   updater: UpdaterState;
   accounts: Account[];
   onCreateAccount: (name: string) => void;
@@ -76,7 +79,10 @@ export function SettingsScreen({
   const [demoBusy, setDemoBusy] = useState(false);
   const [eraseOpen, setEraseOpen] = useState(false);
   const [eraseWord, setEraseWord] = useState("");
-  const [tab, setTab] = useState<"account" | "appearance" | "updates" | "about">("account");
+  const [tab, setTab] = useState<"account" | "appearance" | "updates" | "about">(initialTab ?? "account");
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
   const [pathCopied, setPathCopied] = useState(false);
 
   useEffect(() => {
