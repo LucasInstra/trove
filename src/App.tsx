@@ -534,8 +534,18 @@ export function App() {
   const removeGoal = (id: number) =>
     mutateAndRefresh(() => api.deleteGoal(id), { closeDialog: true });
 
-  const saveBill = (input: BillInput) =>
-    mutateAndRefresh(() => api.saveBill(input), { closeDialog: true });
+  const saveBill = (input: BillInput, payerId: number | null) =>
+    mutateAndRefresh(
+      async () => {
+        const id = await api.saveBill(input);
+        if (payerId !== null) await api.setShare({ billId: id, personId: payerId });
+      },
+      { closeDialog: true },
+    );
+
+  const addPerson = (name: string) => mutateAndRefresh(() => api.addPerson(name));
+
+  const removePerson = (id: number) => mutateAndRefresh(() => api.deletePerson(id));
 
   const removeBill = async (id: number) => {
     setDialog(null);
@@ -1026,6 +1036,7 @@ export function App() {
                 {tabOf("flow", "summary") === "summary" ? (
                   <FlowsScreen
                     incomes={planner.incomes}
+                    people={planner.people}
                     totals={totals}
                     byCategory={byCategory}
                     month={month ?? currentMonth()}
@@ -1106,6 +1117,8 @@ export function App() {
                                     splitSettled={splitSettled}
                                     trackSettlement={trackSettlement}
                                     onSavePeople={(inputs) => void savePeople(inputs)}
+                                    onAddPerson={(name) => void addPerson(name)}
+                                    onRemovePerson={(id) => void removePerson(id)}
                                     onTrackSettlement={(value) => {
                                       setTrackSettlement(value);
                                       void api.setSetting("split_track", value ? "1" : "0");
@@ -1255,6 +1268,7 @@ export function App() {
       {dialog?.kind === "income" ? (
         <IncomeDialog
           income={dialog.income}
+          people={planner.people}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveIncome(input)}
           onDelete={(id) => void removeIncome(id)}
@@ -1265,9 +1279,11 @@ export function App() {
         <BillDialog
           bill={dialog.bill}
           categories={categories}
+          people={planner.people}
+          payerId={dialog.bill ? (planner.shares.find((entry) => entry.billId === dialog.bill?.id)?.personId ?? null) : null}
           defaultCategoryId={route === "goals" && tabOf<string>("goals", "goals") === "house" ? housingCategoryId : null}
           onClose={() => setDialog(null)}
-          onSave={(input) => void saveBill(input)}
+          onSave={(input, payerId) => void saveBill(input, payerId)}
           onDelete={(id) => void removeBill(id)}
         />
       ) : null}

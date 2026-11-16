@@ -360,6 +360,8 @@ export function HouseScreen({
   splitSettled,
   trackSettlement,
   onSavePeople,
+  onAddPerson,
+  onRemovePerson,
   onTrackSettlement,
   onScope,
   onEditCeiling,
@@ -376,6 +378,8 @@ export function HouseScreen({
   splitSettled: boolean;
   trackSettlement: boolean;
   onSavePeople: (inputs: PersonInput[]) => void;
+  onAddPerson: (name: string) => void;
+  onRemovePerson: (id: number) => void;
   onTrackSettlement: (value: boolean) => void;
   onScope: (scope: "primary" | "total") => void;
   onEditCeiling: () => void;
@@ -405,6 +409,8 @@ export function HouseScreen({
           people={people}
           trackSettlement={trackSettlement}
           onSave={onSavePeople}
+          onAdd={onAddPerson}
+          onRemove={onRemovePerson}
           onTrackSettlement={onTrackSettlement}
         />
         </div>
@@ -1271,6 +1277,7 @@ export function HealthScreen({
 
 export function FlowsScreen({
   incomes,
+  people,
   totals,
   byCategory,
   month,
@@ -1281,6 +1288,7 @@ export function FlowsScreen({
   onSaveGlobal,
 }: {
   incomes: Income[];
+  people: Person[];
   totals: MonthTotals | null;
   byCategory: CategoryTotal[];
   month: string;
@@ -1433,6 +1441,9 @@ export function FlowsScreen({
                   <span className="income-text">
                     <strong>{income.name}</strong>
                     <span className="muted small">
+                      {people.length > 1 && income.personId != null
+                        ? `${people.find((person) => person.id === income.personId)?.name ?? ""} · `
+                        : ""}
                       {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
                       {income.active ? t("planner.active") : t("planner.inactive")}
                     </span>

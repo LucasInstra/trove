@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 18;
+pub const SCHEMA_VERSION: i64 = 19;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -416,8 +416,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v17(&connection)?;
         write_version(&connection, 17)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 18 {
         migrate_to_v18(&connection)?;
+        write_version(&connection, 18)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v19(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -606,6 +610,12 @@ fn migrate_to_v17(connection: &Connection) -> Result<(), String> {
     add_column(connection, "goals", "icon", "text not null default 'target'")?;
     add_column(connection, "people", "income_cents", "integer not null default 0")?;
     add_column(connection, "holdings", "cost_cents", "integer not null default 0")
+}
+
+/// v18 to v19: an income source belongs to a person, so what each one earns is
+/// the sum of their sources instead of a second figure typed by hand.
+fn migrate_to_v19(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "incomes", "person_id", "integer")
 }
 
 /// v17 to v18: how an investment earns (indexer, rate) and for how long.

@@ -1561,3 +1561,12 @@ input[type="month"]:focus-visible,
   background: color-mix(in srgb, var(--tone) 9%, transparent);
 }
 .health-row .installment-name .dot { width: 10px; height: 10px; }
+
+/* People: add/remove and what each one earns, now derived from their income sources. */
+.people-row { align-items: end; }
+.people-earns { display: grid; gap: 2px; min-width: 96px; text-align: right; }
+.people-earns strong { font-variant-numeric: tabular-nums; }
+.people-add { display: flex; gap: 8px; margin-top: 12px; }
+.people-add input { flex: 1; min-width: 0; }
+.split-balances { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; flex: 1; }
+.split-balances li { display: flex; align-items: center; gap: 8px; font-size: 13px; }

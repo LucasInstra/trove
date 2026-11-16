@@ -210,15 +210,16 @@ fn fill(connection: &Connection) -> Result<(), String> {
         add(checking, format!("2026-{month:02}-{day:02}"), *cents, text, cat(category)?)?;
     }
 
-    // December: 13th salaries and the year-end shopping.
+    // December: the year-end shopping.
     let dec = |day: u32| format!("2026-12-{day:02}");
-    add(checking, dec(20), USER_SALARY, "13O SALARIO EMPRESA LTDA", salary)?;
-    add(checking, dec(21), PARTNER_SALARY, "13O SALARIO CLINICA VIDA", salary)?;
     add(itau, dec(18), -28_000, "AMAZON PRESENTES NATAL", leisure)?;
     add(nubank, dec(19), -45_000, "MAGAZINE LUIZA", leisure)?;
     add(checking, dec(22), -32_000, "CEIA DE NATAL MERCADO", groceries)?;
     add(itau, dec(23), -76_000, "VIAGEM AEREA LATAM", leisure)?;
 
+    let household = planner::ensure_people(connection)?;
+    let partner_id = household.iter().find(|person| !person.is_self).map(|person| person.id);
+    let self_id = household.iter().find(|person| person.is_self).map(|person| person.id);
     planner::save_income(
         connection,
         &IncomeInput {
@@ -229,6 +230,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
             pay_day: 5,
             account_id: Some(checking),
             active: true,
+            person_id: self_id,
         },
     )?;
     planner::save_income(
@@ -241,6 +243,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
             pay_day: 7,
             account_id: Some(checking),
             active: true,
+            person_id: partner_id,
         },
     )?;
 

@@ -10,6 +10,7 @@ const income = (amountCents: number): Income => ({
   payDay: 5,
   accountId: null,
   active: true,
+  personId: null,
 });
 
 const bill = (id: number, amountCents: number, dueDay: number, patch: Partial<Bill> = {}): Bill => ({

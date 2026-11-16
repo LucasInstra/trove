@@ -419,6 +419,16 @@ fn erase_all_data(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn add_person(app: tauri::AppHandle, name: String) -> Result<i64, String> {
+    planner::add_person(&connection(&app)?, &name)
+}
+
+#[tauri::command]
+fn delete_person(app: tauri::AppHandle, id: i64) -> Result<(), String> {
+    planner::delete_person(&connection(&app)?, id)
+}
+
+#[tauri::command]
 fn delete_goal(app: tauri::AppHandle, id: i64) -> Result<(), String> {
     let connection = connection(&app)?;
     planner::delete_goal(&connection, id)
@@ -682,6 +692,8 @@ pub fn run() {
             save_income,
             delete_income,
             delete_goal,
+            add_person,
+            delete_person,
             erase_all_data,
             save_bill,
             delete_bill,

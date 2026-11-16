@@ -14,7 +14,17 @@ interface SplitLine {
   amountCents: number;
 }
 
+export interface PersonSplit {
+  person: Person;
+  paidCents: number;
+  pct: number;
+  targetCents: number;
+  /** Positive: paid more than their share and is owed the difference. */
+  balanceCents: number;
+}
+
 export interface SplitResult {
+  perPerson: PersonSplit[];
   totalCents: number;
   selfCents: number;
   partnerCents: number;
@@ -64,7 +74,16 @@ export function computeSplit(people: Person[], shares: Share[], bills: Bill[]): 
   const targetSelfCents = Math.round((totalCents * targetSelfPct) / 100);
   const balance = selfCents - targetSelfCents;
 
+  const perPerson: PersonSplit[] = people.map((person) => {
+    const paidCents = sum(
+      lines.filter((line) => line.person?.id === person.id).map((line) => line.amountCents),
+    );
+    const targetCents = Math.round((totalCents * person.weightPct) / 100);
+    return { person, paidCents, pct: share(paidCents), targetCents, balanceCents: paidCents - targetCents };
+  });
+
   return {
+    perPerson,
     totalCents,
     selfCents,
     partnerCents,

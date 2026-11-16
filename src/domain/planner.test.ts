@@ -99,6 +99,7 @@ describe("planner summaries", () => {
         payDay: 5,
         accountId: null,
         active: true,
+        personId: null,
       },
       {
         id: 2,
@@ -108,6 +109,7 @@ describe("planner summaries", () => {
         payDay: 5,
         accountId: null,
         active: false,
+        personId: null,
       },
     ];
     expect(activeIncomeCount(incomes)).toBe(1);

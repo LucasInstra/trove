@@ -16,6 +16,7 @@ pub struct Income {
     pub pay_day: i64,
     pub account_id: Option<i64>,
     pub active: bool,
+    pub person_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,6 +174,8 @@ pub struct IncomeInput {
     pub pay_day: i64,
     pub account_id: Option<i64>,
     pub active: bool,
+    #[serde(default)]
+    pub person_id: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -233,7 +236,7 @@ fn now() -> String {
 pub fn list_incomes(connection: &Connection) -> Result<Vec<Income>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, amount_cents, frequency, pay_day, account_id, active
+            "select id, name, amount_cents, frequency, pay_day, account_id, active, person_id
              from incomes
              where deleted_at is null
              order by amount_cents desc, id",
@@ -249,6 +252,7 @@ pub fn list_incomes(connection: &Connection) -> Result<Vec<Income>, String> {
                 pay_day: row.get(4)?,
                 account_id: row.get(5)?,
                 active: row.get::<_, i64>(6)? == 1,
+                person_id: row.get(7)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -264,8 +268,8 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                 .execute(
                     "update incomes
                      set name = ?1, amount_cents = ?2, frequency = ?3, pay_day = ?4,
-                         account_id = ?5, active = ?6, updated_at = ?7
-                     where id = ?8",
+                         account_id = ?5, active = ?6, person_id = ?7, updated_at = ?8
+                     where id = ?9",
                     params![
                         input.name,
                         input.amount_cents,
@@ -273,11 +277,13 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                         input.pay_day,
                         input.account_id,
                         input.active as i64,
+                        input.person_id,
                         stamp,
                         id
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
+            rebalance_weights(connection, false)?;
             Ok(id)
         }
         None => {
@@ -285,8 +291,8 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                 .execute(
                     "insert into incomes
                      (uid, name, amount_cents, frequency, pay_day, account_id, active,
-                      visibility, created_at, updated_at)
-                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, 'shared', ?7, ?7)",
+                      person_id, visibility, created_at, updated_at)
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'shared', ?8, ?8)",
                     params![
                         input.name,
                         input.amount_cents,
@@ -294,10 +300,12 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                         input.pay_day,
                         input.account_id,
                         input.active as i64,
+                        input.person_id,
                         stamp
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
+            rebalance_weights(connection, false)?;
             Ok(connection.last_insert_rowid())
         }
     }
@@ -311,6 +319,7 @@ pub fn delete_income(connection: &Connection, id: i64) -> Result<(), String> {
             params![stamp, id],
         )
         .map_err(|problem| problem.to_string())?;
+    rebalance_weights(connection, false)?;
     Ok(())
 }
 
@@ -815,10 +824,116 @@ pub fn set_setting(connection: &Connection, key: &str, value: &str) -> Result<()
     Ok(())
 }
 
+/// The target split follows what each person earns. With anyone at zero it stays
+/// where it was, unless the household just changed (`reset`), when it goes back
+/// to equal shares. The first person takes the rounding remainder.
+fn rebalance_weights(connection: &Connection, reset: bool) -> Result<(), String> {
+    let people = list_people(connection)?;
+    if people.len() < 2 {
+        return Ok(());
+    }
+    let total: i64 = people.iter().map(|person| person.income_cents).sum();
+    let proportional = people.iter().all(|person| person.income_cents > 0);
+    if !proportional && !reset {
+        return Ok(());
+    }
+    let count = people.len() as i64;
+    let mut weights: Vec<i64> = people
+        .iter()
+        .map(|person| {
+            if proportional {
+                (person.income_cents * 100 + total / 2) / total
+            } else {
+                100 / count
+            }
+        })
+        .collect();
+    let rest: i64 = weights.iter().skip(1).sum();
+    weights[0] = 100 - rest;
+    for (person, weight) in people.iter().zip(weights) {
+        connection
+            .execute("update people set weight_pct = ?1 where id = ?2", params![weight, person.id])
+            .map_err(|problem| problem.to_string())?;
+    }
+    Ok(())
+}
+
+const PERSON_COLORS: [&str; 6] = ["#2563eb", "#f43f5e", "#16a34a", "#f59e0b", "#7c3aed", "#0ea5e9"];
+
+/// Another person in the house; up to six.
+pub fn add_person(connection: &Connection, name: &str) -> Result<i64, String> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > 40 {
+        return Err("person name must have 1 to 40 characters".to_string());
+    }
+    let existing = list_people(connection)?;
+    if existing.len() >= PERSON_COLORS.len() {
+        return Err("the house is limited to six people".to_string());
+    }
+    let color = PERSON_COLORS[existing.len()];
+    connection
+        .execute(
+            "insert into people (uid, name, color, is_self, weight_pct, created_at, updated_at)
+             values (lower(hex(randomblob(16))), ?1, ?2, 0, 0, ?3, ?3)",
+            params![name, color, now()],
+        )
+        .map_err(|problem| problem.to_string())?;
+    let id = connection.last_insert_rowid();
+    rebalance_weights(connection, true)?;
+    Ok(id)
+}
+
+/// Removes someone other than the user. Their bills go back to the user and
+/// their income sources stay, unassigned. Open debts block the removal.
+pub fn delete_person(connection: &Connection, id: i64) -> Result<(), String> {
+    let people = list_people(connection)?;
+    let target = people
+        .iter()
+        .find(|person| person.id == id)
+        .ok_or_else(|| "person does not exist".to_string())?;
+    if target.is_self {
+        return Err("you cannot remove yourself".to_string());
+    }
+    let debts: i64 = connection
+        .query_row(
+            "select count(*) from debts where person_id = ?1 and deleted_at is null and settled_on is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .map_err(|problem| problem.to_string())?;
+    if debts > 0 {
+        return Err("this person still has open debts".to_string());
+    }
+    let owner = people.iter().find(|person| person.is_self).map_or(id, |person| person.id);
+    let stamp = now();
+    connection
+        .execute(
+            "update shares set person_id = ?2, updated_at = ?3 where person_id = ?1",
+            params![id, owner, stamp],
+        )
+        .map_err(|problem| problem.to_string())?;
+    connection
+        .execute(
+            "update incomes set person_id = null, updated_at = ?2 where person_id = ?1",
+            params![id, stamp],
+        )
+        .map_err(|problem| problem.to_string())?;
+    connection
+        .execute(
+            "update people set deleted_at = ?2, updated_at = ?2 where id = ?1",
+            params![id, stamp],
+        )
+        .map_err(|problem| problem.to_string())?;
+    rebalance_weights(connection, true)
+}
+
 pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, color, is_self, weight_pct, income_cents
+            "select id, name, color, is_self, weight_pct,
+                    coalesce((select sum(amount_cents) from incomes
+                              where person_id = people.id and active = 1 and deleted_at is null),
+                             income_cents)
              from people
              where deleted_at is null
              order by is_self desc, id",
@@ -884,23 +999,7 @@ pub fn save_person(connection: &Connection, input: &PersonInput) -> Result<(), S
     if affected == 0 {
         return Err("person does not exist".to_string());
     }
-    let people = list_people(connection)?;
-    if people.len() == 2 && people.iter().all(|person| person.income_cents > 0) {
-        let total: i64 = people.iter().map(|person| person.income_cents).sum();
-        let self_income = people
-            .iter()
-            .find(|person| person.is_self)
-            .map_or(0, |person| person.income_cents);
-        let self_pct = (self_income * 100 + total / 2) / total;
-        connection
-            .execute(
-                "update people set weight_pct = case when is_self = 1 then ?1 else ?2 end
-                 where deleted_at is null",
-                params![self_pct, 100 - self_pct],
-            )
-            .map_err(|problem| problem.to_string())?;
-    }
-    Ok(())
+    rebalance_weights(connection, false)
 }
 
 pub fn list_shares(connection: &Connection) -> Result<Vec<Share>, String> {
@@ -1366,6 +1465,7 @@ mod tests {
                 pay_day: 5,
                 account_id: None,
                 active: true,
+            person_id: None,
             },
         )
         .expect("should save");
@@ -1381,6 +1481,7 @@ mod tests {
                 pay_day: 5,
                 account_id: None,
                 active: true,
+            person_id: None,
             },
         )
         .expect("should update");
@@ -1603,6 +1704,40 @@ mod tests {
         .expect("should save the goal");
         assert_eq!(list_goals(&connection).expect("should list")[0].icon, "house");
 
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn people_can_be_added_and_removed_and_own_their_incomes() {
+        let path = temporary_database("people_crud");
+        let connection = db::open(&path).expect("should open");
+        let people = ensure_people(&connection).expect("should seed");
+        let third = add_person(&connection, "Mae").expect("should add");
+        let all = list_people(&connection).expect("should list");
+        assert_eq!(all.len(), 3);
+        assert_eq!(all.iter().map(|person| person.weight_pct).sum::<i64>(), 100);
+
+        save_income(
+            &connection,
+            &IncomeInput {
+                id: None,
+                name: "Salario".into(),
+                amount_cents: 300_000,
+                frequency: "monthly".into(),
+                pay_day: 5,
+                account_id: None,
+                active: true,
+                person_id: Some(third),
+            },
+        )
+        .expect("should save");
+        let mae = list_people(&connection).expect("should list").into_iter().find(|person| person.id == third).unwrap();
+        assert_eq!(mae.income_cents, 300_000, "a person earns the sum of their sources");
+
+        assert!(delete_person(&connection, people[0].id).is_err(), "you cannot remove yourself");
+        delete_person(&connection, third).expect("should remove");
+        assert_eq!(list_people(&connection).expect("should list").len(), 2);
+        assert!(list_incomes(&connection).expect("should list")[0].person_id.is_none());
         let _ = std::fs::remove_file(&path);
     }
 }

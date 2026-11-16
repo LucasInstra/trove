@@ -3,7 +3,7 @@ import { BANKS, CARD_DESIGNS, bankByTexture, designForName, designOf } from "../
 import { BankMark } from "./CreditCardArt";
 import { Dialog } from "./Dialog";
 import { GoalIconPicker } from "./GoalIcon";
-import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal } from "../lib/api";
+import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal, Person } from "../lib/api";
 import { monthLabel, todayIso } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
@@ -31,11 +31,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function IncomeDialog({ income, onClose, onSave, onDelete }: { income: Income | null; onClose: () => void; onSave: (input: IncomeInput) => void; onDelete?: (id: number) => void }) {
+export function IncomeDialog({ income, people = [], onClose, onSave, onDelete }: { income: Income | null; people?: Person[]; onClose: () => void; onSave: (input: IncomeInput) => void; onDelete?: (id: number) => void }) {
   const { t } = useLanguage();
   const [name, setName] = useState(income?.name ?? t("planner.incomeDefault"));
   const [amount, setAmount] = useState(income ? (income.amountCents / 100).toFixed(2) : "");
   const [payDay, setPayDay] = useState(income?.payDay ?? 5);
+  const [personId, setPersonId] = useState<number | null>(
+    income?.personId ?? (people.find((person) => person.isSelf) ?? people[0])?.id ?? null,
+  );
 
   return (
     <Dialog title={t("planner.incomeTitle")} onClose={onClose}>
@@ -51,6 +54,7 @@ export function IncomeDialog({ income, onClose, onSave, onDelete }: { income: In
             payDay,
             accountId: income?.accountId ?? null,
             active: income?.active ?? true,
+            personId,
           });
         }}
       >
@@ -63,6 +67,20 @@ export function IncomeDialog({ income, onClose, onSave, onDelete }: { income: In
         <Field label={t("planner.payDay")}>
           <input type="number" min={1} max={31} value={payDay} onChange={(event) => setPayDay(Number(event.target.value))} />
         </Field>
+        {people.length > 1 ? (
+          <Field label={t("income.owner")}>
+            <select
+              value={personId ?? ""}
+              onChange={(event) => setPersonId(event.target.value ? Number(event.target.value) : null)}
+            >
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.isSelf ? t("split.you") : person.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <div className="dialog-actions">
           {income && onDelete ? (
             <button type="button" className="ghost danger" onClick={() => onDelete(income.id)}>
@@ -80,6 +98,8 @@ export function IncomeDialog({ income, onClose, onSave, onDelete }: { income: In
 export function BillDialog({
   bill,
   categories,
+  people = [],
+  payerId = null,
   defaultCategoryId = null,
   onClose,
   onSave,
@@ -87,9 +107,12 @@ export function BillDialog({
 }: {
   bill: Bill | null;
   categories: Category[];
+  people?: Person[];
+  /** Who pays this bill today; the user when nobody was picked. */
+  payerId?: number | null;
   defaultCategoryId?: number | null;
   onClose: () => void;
-  onSave: (input: BillInput) => void;
+  onSave: (input: BillInput, payerId: number | null) => void;
   onDelete?: (id: number) => void;
 }) {
   const { t } = useLanguage();
@@ -97,6 +120,9 @@ export function BillDialog({
   const [amount, setAmount] = useState(bill ? (bill.amountCents / 100).toFixed(2) : "");
   const [dueDay, setDueDay] = useState(bill?.dueDay ?? 5);
   const [categoryId, setCategoryId] = useState<number | null>(bill?.categoryId ?? defaultCategoryId);
+  const [payer, setPayer] = useState<number | null>(
+    payerId ?? (people.find((person) => person.isSelf) ?? people[0])?.id ?? null,
+  );
   const [installments, setInstallments] = useState(
     bill?.installmentsTotal ? String(bill.installmentsTotal) : "",
   );
@@ -120,7 +146,7 @@ export function BillDialog({
             endsOn: bill?.endsOn ?? null,
             installmentsTotal: parseInstallments(installments),
             active: true,
-          });
+          }, people.length > 1 ? payer : null);
         }}
       >
         <Field label={t("planner.name")}>
@@ -149,6 +175,20 @@ export function BillDialog({
             onChange={(event) => setInstallments(event.target.value)}
           />
         </Field>
+        {people.length > 1 ? (
+          <Field label={t("bill.payer")}>
+            <select
+              value={payer ?? ""}
+              onChange={(event) => setPayer(event.target.value ? Number(event.target.value) : null)}
+            >
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.isSelf ? t("split.you") : person.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <div className="dialog-actions">
           {bill && onDelete ? (
             <button type="button" className="ghost danger" onClick={() => onDelete(bill.id)}>

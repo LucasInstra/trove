@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import type { Bill, CardMeta, Goal, Person, PersonInput, Share, TransactionRow } from "../lib/api";
-import { parseCents } from "./PlannerDialogs";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
@@ -753,9 +752,9 @@ export function SplitCard({
     );
   }
 
+  const many = people.length > 2;
   const selfName = t("split.you");
   const partnerName = split.partnerPerson?.name ?? t("split.partner");
-  const partner = split.partnerPerson;
 
   return (
     <article className="card split-card card-with-art">
@@ -771,25 +770,35 @@ export function SplitCard({
         <span className="muted small">{t("split.total")}</span>
       </div>
 
-      <div className="split-bar">
-        <span className="split-self" style={{ width: `${split.selfPct}%` }} />
-        <span className="split-partner" style={{ width: `${split.partnerPct}%` }} />
-        <span className="split-mark" style={{ left: `${split.targetSelfPct}%` }} />
-      </div>
+      {many ? (
+        <div className="split-bar">
+          {split.perPerson.map((entry) => (
+            <span
+              key={entry.person.id}
+              style={{ width: `${entry.pct}%`, background: entry.person.color }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="split-bar">
+          <span className="split-self" style={{ width: `${split.selfPct}%` }} />
+          <span className="split-partner" style={{ width: `${split.partnerPct}%` }} />
+          <span className="split-mark" style={{ left: `${split.targetSelfPct}%` }} />
+        </div>
+      )}
 
       <ul className="split-legend">
-        <li>
-          <span className="dot split-dot self" />
-          <span>{selfName}</span>
-          <strong>{formatCents(split.selfCents)}</strong>
-          <span className="muted">{Math.round(split.selfPct)}%</span>
-        </li>
-        <li>
-          <span className="dot split-dot partner" />
-          <span>{partnerName}</span>
-          <strong>{formatCents(split.partnerCents)}</strong>
-          <span className="muted">{Math.round(split.partnerPct)}%</span>
-        </li>
+        {split.perPerson.map((entry) => (
+          <li key={entry.person.id}>
+            <span
+              className={many ? "dot" : `dot split-dot ${entry.person.isSelf ? "self" : "partner"}`}
+              style={many ? { background: entry.person.color } : undefined}
+            />
+            <span>{entry.person.isSelf ? selfName : entry.person.name}</span>
+            <strong>{formatCents(entry.paidCents)}</strong>
+            <span className="muted">{Math.round(entry.pct)}%</span>
+          </li>
+        ))}
       </ul>
 
       <span className="upcoming-label">{t("split.whoPays")}</span>
@@ -799,7 +808,11 @@ export function SplitCard({
             <button
               type="button"
               className="split-row"
-              onClick={() => partner && onAssign(line.bill.id, line.person?.isSelf ? partner.id : (split.selfPerson?.id ?? 0))}
+              onClick={() => {
+                const index = people.findIndex((entry) => entry.id === line.person?.id);
+                const next = people[(index + 1) % people.length];
+                if (next) onAssign(line.bill.id, next.id);
+              }}
               aria-label={t("split.changePayer", { name: line.bill.name })}
             >
               <span className="dot" style={{ background: line.person?.color ?? "var(--faint)" }} />
@@ -810,7 +823,29 @@ export function SplitCard({
         ))}
       </ul>
 
-      {trackSettlement ? (
+      {trackSettlement && many ? (
+        <div className="split-foot">
+          <ul className="split-balances">
+            {split.perPerson
+              .filter((entry) => Math.abs(entry.balanceCents) > 0)
+              .map((entry) => (
+                <li key={entry.person.id} className={entry.balanceCents < 0 ? "down" : undefined}>
+                  <span className="dot" style={{ background: entry.person.color }} />
+                  {t(entry.balanceCents > 0 ? "split.receives" : "split.pays", {
+                    name: entry.person.isSelf ? selfName : entry.person.name,
+                    amount: formatCents(Math.abs(entry.balanceCents)),
+                  })}
+                </li>
+              ))}
+          </ul>
+          <button type="button" className="ghost small-button" onClick={onSettle} disabled={settled}>
+            <Icon name="check" size={15} />
+            {settled ? t("split.settled") : t("split.markDone")}
+          </button>
+        </div>
+      ) : null}
+
+      {trackSettlement && !many ? (
       <div className="split-foot">
         {split.owes === "partner" ? (
           <span className="split-owes">
@@ -847,37 +882,26 @@ export function PeopleCard({
   people,
   trackSettlement,
   onSave,
+  onAdd,
+  onRemove,
   onTrackSettlement,
 }: {
   people: Person[];
   trackSettlement: boolean;
   onSave: (inputs: PersonInput[]) => void;
+  onAdd: (name: string) => void;
+  onRemove: (id: number) => void;
   onTrackSettlement: (value: boolean) => void;
 }) {
   const { t } = useLanguage();
   const [drafts, setDrafts] = useState(() =>
-    people.map((person) => ({
-      id: person.id,
-      name: person.name,
-      income: person.incomeCents > 0 ? (person.incomeCents / 100).toFixed(2) : "",
-    })),
+    people.map((person) => ({ id: person.id, name: person.name })),
   );
-  const parsed = drafts.map((draft) => ({
-    id: draft.id,
-    name: draft.name.trim(),
-    incomeCents: draft.income.trim() === "" ? 0 : parseCents(draft.income),
-  }));
-  const total = parsed.reduce((sum, person) => sum + person.incomeCents, 0);
-  const both = parsed.length === 2 && parsed.every((person) => person.incomeCents > 0);
-  const dirty = parsed.some((person, index) => {
-    const original = people[index];
-    return !original || person.name !== original.name || person.incomeCents !== original.incomeCents;
-  });
-  const valid = parsed.every((person) => person.name.length > 0);
-  const firstPct = total > 0 ? Math.round((parsed[0].incomeCents / total) * 100) : 50;
-
-  const patch = (id: number, change: Partial<(typeof drafts)[number]>) =>
-    setDrafts((current) => current.map((item) => (item.id === id ? { ...item, ...change } : item)));
+  const [newName, setNewName] = useState("");
+  const dirty = drafts.some((draft, index) => draft.name.trim() !== people[index]?.name);
+  const valid = drafts.every((draft) => draft.name.trim().length > 0);
+  const patch = (id: number, name: string) =>
+    setDrafts((current) => current.map((item) => (item.id === id ? { ...item, name } : item)));
 
   return (
     <article className="card people-card">
@@ -891,60 +915,79 @@ export function PeopleCard({
         className="people-form"
         onSubmit={(event) => {
           event.preventDefault();
-          if (valid && dirty) onSave(parsed);
+          if (!valid || !dirty) return;
+          onSave(
+            drafts.map((draft, index) => ({
+              id: draft.id,
+              name: draft.name.trim(),
+              incomeCents: people[index]?.incomeCents ?? 0,
+            })),
+          );
         }}
       >
-        {drafts.map((draft, index) => (
-          <div className="people-row" key={draft.id}>
-            <span className="dot" style={{ background: people[index]?.color ?? "var(--faint)" }} />
-            <label className="field">
-              <span>{people[index]?.isSelf ? t("people.you") : t("people.partner")}</span>
-              <input
-                value={draft.name}
-                maxLength={40}
-                onChange={(event) => patch(draft.id, { name: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>{t("people.income")}</span>
-              <span className="input-affix">
-                <span>R$</span>
+        {drafts.map((draft, index) => {
+          const person = people[index];
+          return (
+            <div className="people-row" key={draft.id}>
+              <span className="dot" style={{ background: person?.color ?? "var(--faint)" }} />
+              <label className="field">
+                <span>{person?.isSelf ? t("people.you") : t("people.member")}</span>
                 <input
-                  value={draft.income}
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  onChange={(event) => patch(draft.id, { income: event.target.value })}
+                  value={draft.name}
+                  maxLength={40}
+                  onChange={(event) => patch(draft.id, event.target.value)}
                 />
-              </span>
-            </label>
-          </div>
-        ))}
-
-        {both ? (
-          <div className="people-share">
-            <div className="split-bar tight">
-              <span className="split-self" style={{ width: `${firstPct}%` }} />
-              <span className="split-partner" style={{ width: `${100 - firstPct}%` }} />
+              </label>
+              <div className="people-earns">
+                <span className="muted small">{t("people.income")}</span>
+                <strong>{formatCents(person?.incomeCents ?? 0)}</strong>
+                <span className="muted small">{Math.round(person?.weightPct ?? 0)}%</span>
+              </div>
+              {person && !person.isSelf ? (
+                <button
+                  type="button"
+                  className="icon-button danger"
+                  title={t("common.delete")}
+                  aria-label={`${t("common.delete")}: ${person.name}`}
+                  onClick={() => onRemove(person.id)}
+                >
+                  <Icon name="trash" size={15} />
+                </button>
+              ) : null}
             </div>
-            <span className="muted small">
-              {t("people.proportion", {
-                a: parsed[0].name,
-                aPct: firstPct,
-                b: parsed[1].name,
-                bPct: 100 - firstPct,
-              })}
-            </span>
-          </div>
-        ) : (
-          <span className="muted small">{t("people.needBoth")}</span>
-        )}
-
+          );
+        })}
+        <span className="muted small">{t("people.incomeHint")}</span>
         <div className="people-actions">
           <button type="submit" className="primary small-button" disabled={!dirty || !valid}>
             {t("common.save")}
           </button>
         </div>
       </form>
+
+      {people.length < 6 ? (
+        <form
+          className="people-add"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (newName.trim() === "") return;
+            onAdd(newName.trim());
+            setNewName("");
+          }}
+        >
+          <input
+            value={newName}
+            maxLength={40}
+            placeholder={t("people.addPlaceholder")}
+            aria-label={t("people.add")}
+            onChange={(event) => setNewName(event.target.value)}
+          />
+          <button type="submit" className="outline-button small-button" disabled={newName.trim() === ""}>
+            <Icon name="plus" size={14} />
+            {t("people.add")}
+          </button>
+        </form>
+      ) : null}
 
       <label className="check people-settle">
         <input

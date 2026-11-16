@@ -292,6 +292,7 @@ export interface Income {
   payDay: number;
   accountId: number | null;
   active: boolean;
+  personId: number | null;
 }
 
 export interface Bill {
@@ -421,6 +422,7 @@ export interface IncomeInput {
   payDay: number;
   accountId: number | null;
   active: boolean;
+  personId?: number | null;
 }
 
 export interface BillInput {
@@ -585,6 +587,8 @@ export const api = {
     invoke<number>("card_usage", { accountId, from, to }),
   setShare: (input: ShareInput) => invoke<void>("set_share", { input }),
   savePerson: (input: PersonInput) => invoke<void>("save_person", { input }),
+  addPerson: (name: string) => invoke<number>("add_person", { name }),
+  deletePerson: (id: number) => invoke<void>("delete_person", { id }),
   saveDebt: (input: DebtInput) => invoke<number>("save_debt", { input }),
   deleteDebt: (id: number) => invoke<void>("delete_debt", { id }),
   setDebtSettled: (id: number, settled: boolean) =>
