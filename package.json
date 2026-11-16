@@ -1,7 +1,7 @@
 {
   "name": "trove",
   "private": true,
-  "version": "0.7.6",
+  "version": "0.7.7",
   "type": "module",
   "description": "trove - a local-first personal finance app",
   "scripts": {
