@@ -181,33 +181,31 @@ export function setHeight(layout: LayoutCard[], id: CardId, height: number | nul
 }
 
 /**
- * Grouped by what the person is asking, three columns per row, every row full:
+ * The arrangement the app starts with, and what "reset layout" goes back to. Three columns,
+ * each stacked top to bottom:
  *
- *   where I stand   forecast | kpis | score
- *   this month      inout | series (2)
- *   what to pay     bills (2) | installments
- *   cards and debt  cards | debts | goals
- *   where it went   recent (2) | donut
- *   the household   housing (2) | split
+ *   column 1   forecast, housing, installments, inout
+ *   column 2   cards, kpis, series, debts
+ *   column 3   bills, recent, donut, goals
  *
- * The house split starts off the dashboard because most households do not split
- * anything, and the housing card only shows when there is rent to measure.
+ * The house split and the score start off the dashboard (they can be turned on from the
+ * layout editor), and the housing card only shows when there is rent to measure.
  */
 export const DEFAULT_LAYOUT: LayoutCard[] = [
-  { id: "forecast", span: 1, mode: "full" },
-  { id: "kpis", span: 1, mode: "full" },
-  { id: "score", span: 1, mode: "full" },
-  { id: "inout", span: 1, mode: "full" },
-  { id: "series", span: 2, mode: "full" },
-  { id: "bills", span: 2, mode: "full" },
-  { id: "installments", span: 1, mode: "full" },
-  { id: "cards", span: 1, mode: "full" },
-  { id: "debts", span: 1, mode: "full" },
-  { id: "goals", span: 1, mode: "full" },
-  { id: "recent", span: 2, mode: "full" },
-  { id: "donut", span: 1, mode: "full" },
-  { id: "housing", span: 2, mode: "full" },
-  { id: "split", span: 1, mode: "hidden" },
+  { id: "forecast", span: 1, mode: "full", col: 1 },
+  { id: "bills", span: 1, mode: "full", col: 3 },
+  { id: "recent", span: 1, mode: "full", col: 3 },
+  { id: "donut", span: 1, mode: "full", col: 3 },
+  { id: "housing", span: 1, mode: "full", col: 1 },
+  { id: "cards", span: 1, mode: "full", col: 2 },
+  { id: "kpis", span: 1, mode: "full", height: 311, col: 2 },
+  { id: "split", span: 1, mode: "hidden", col: 1 },
+  { id: "installments", span: 1, mode: "full", col: 1 },
+  { id: "inout", span: 1, mode: "full", height: 336, col: 1 },
+  { id: "score", span: 1, mode: "hidden", col: 2 },
+  { id: "goals", span: 1, mode: "full", col: 3 },
+  { id: "series", span: 1, mode: "full", col: 2 },
+  { id: "debts", span: 1, mode: "full", col: 2 },
 ];
 
 /** What the plan says about the household, for the cards that depend on it. */

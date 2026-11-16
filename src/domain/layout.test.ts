@@ -135,7 +135,8 @@ describe("resetCard", () => {
     const moved = moveCardTo(edited, "bills", "kpis");
     const back = resetCard(moved, "bills");
     const bills = back.find((entry) => entry.id === "bills");
-    expect(bills).toEqual({ id: "bills", span: 2, mode: "full" });
+    expect(bills).toMatchObject({ id: "bills", span: 1, mode: "full" });
+    expect(bills?.height).toBeUndefined();
     expect(back.map((entry) => entry.id)).toEqual(moved.map((entry) => entry.id));
   });
 });
@@ -320,7 +321,7 @@ describe("moveCardNear", () => {
   it("keeps every card once and returns the same array when nothing moves", () => {
     const layout = parseLayout(null);
     expect(ids(moveCardNear(layout, "kpis", "recent", "after")).sort()).toEqual(ids(layout).sort());
-    expect(moveCardNear(layout, "kpis", "forecast", "after")).toBe(layout);
+    expect(moveCardNear(layout, "kpis", "cards", "after")).toBe(layout);
     expect(moveCardNear(layout, "kpis", "kpis", "after")).toBe(layout);
   });
 });
@@ -330,7 +331,7 @@ describe("columns", () => {
     const cols = resolveColumns(parseLayout(null).filter((card) => card.mode !== "hidden"));
     expect(cols.get("forecast")).toBe(1);
     expect(cols.get("kpis")).toBe(2);
-    expect(cols.get("score")).toBe(3);
+    expect(cols.get("bills")).toBe(3);
     for (const card of parseLayout(null)) {
       if (card.mode === "hidden") continue;
       const col = cols.get(card.id) ?? 0;
