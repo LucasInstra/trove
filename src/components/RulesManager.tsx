@@ -8,17 +8,20 @@ import { useLanguage } from "../lib/language";
 
 const TARGETS = ["merchant", "description", "both"] as const;
 const SIGNS = ["any", "in", "out"] as const;
+const COLORS = ["#ef4444", "#f97316", "#f59e0b", "#84cc16", "#16a34a", "#14b8a6", "#0ea5e9", "#2563eb", "#7c3aed", "#ec4899"];
 
 function RuleDialog({
   initial,
   categories,
   onClose,
   onSave,
+  onCategoryColor,
 }: {
   initial: Rule | null;
   categories: Category[];
   onClose: () => void;
   onSave: (input: RuleInput) => void;
+  onCategoryColor?: (category: Category, color: string) => void;
 }) {
   const { t } = useLanguage();
   const [pattern, setPattern] = useState(initial?.pattern ?? "");
@@ -32,6 +35,8 @@ function RuleDialog({
     initial?.maxAmountCents != null ? (initial.maxAmountCents / 100).toFixed(2) : "",
   );
   const [priority, setPriority] = useState(initial?.priority ?? 0);
+  const chosen = categories.find((category) => category.id === categoryId);
+  const [color, setColor] = useState(chosen?.color ?? COLORS[0]);
 
   return (
     <Dialog title={initial ? t("rules.edit") : t("rules.new")} onClose={onClose}>
@@ -43,6 +48,7 @@ function RuleDialog({
           const minCents = min.trim() === "" ? null : parseCents(min);
           const maxCents = max.trim() === "" ? null : parseCents(max);
           if (minCents !== null && maxCents !== null && minCents > maxCents) return;
+          if (chosen && color !== chosen.color) onCategoryColor?.(chosen, color);
           onSave({
             id: initial?.id ?? null,
             pattern: pattern.trim(),
@@ -77,7 +83,14 @@ function RuleDialog({
           </label>
           <label className="field">
             <span>{t("planner.category")}</span>
-            <select value={categoryId} onChange={(event) => setCategoryId(Number(event.target.value))}>
+            <select
+              value={categoryId}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setCategoryId(next);
+                setColor(categories.find((category) => category.id === next)?.color ?? color);
+              }}
+            >
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {categoryName(t, category.name)}
@@ -108,6 +121,28 @@ function RuleDialog({
             <input value={max} onChange={(event) => setMax(event.target.value)} inputMode="decimal" />
           </label>
         </div>
+        {onCategoryColor ? (
+          <div className="field">
+            <span>{t("rules.color")}</span>
+            <span className="color-swatches" role="radiogroup" aria-label={t("rules.color")}>
+              {COLORS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={color === option}
+                  aria-label={option}
+                  className="color-swatch"
+                  data-selected={color === option || undefined}
+                  style={{ background: option }}
+                  onClick={() => setColor(option)}
+                />
+              ))}
+              <input type="color" value={color} onChange={(event) => setColor(event.target.value)} aria-label={t("rules.color")} />
+            </span>
+            <span className="muted small">{t("rules.colorHint")}</span>
+          </div>
+        ) : null}
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>
             {t("common.cancel")}
@@ -132,12 +167,14 @@ export function RulesManager({
   onSave,
   onDelete,
   onApply,
+  onCategoryColor,
 }: {
   rules: Rule[];
   categories: Category[];
   onSave: (input: RuleInput) => void;
   onDelete: (id: number) => void;
   onApply: () => Promise<number>;
+  onCategoryColor?: (category: Category, color: string) => void;
 }) {
   const { t } = useLanguage();
   const [dialog, setDialog] = useState<{ rule: Rule | null } | null>(null);
@@ -210,6 +247,7 @@ export function RulesManager({
         <RuleDialog
           initial={dialog.rule}
           categories={categories}
+          onCategoryColor={onCategoryColor}
           onClose={() => setDialog(null)}
           onSave={(input) => {
             onSave(input);

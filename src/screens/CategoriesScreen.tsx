@@ -282,6 +282,17 @@ export function CategoriesScreen({
         onSave={onSaveRule}
         onDelete={onDeleteRule}
         onApply={onApplyRules}
+        onCategoryColor={(category, color) =>
+          onSave({
+            id: category.id,
+            name: category.name,
+            kind: category.kind,
+            color,
+            parentId: category.parentId,
+            emoji: category.emoji,
+            sortOrder: category.sortOrder,
+          })
+        }
       />
 
       {confirmDelete ? (
