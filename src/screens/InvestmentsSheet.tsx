@@ -16,6 +16,9 @@ import { formatCents, todayIso } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 const SERIES = ["#2563eb", "#0ea5e9", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed", "#14b8a6", "#ef4444"];
+/** Most bars a ranked chart shows; the tail folds into "others". */
+const MAX_BARS = 8;
+const MAX_RETURNS = 12;
 const INDEXERS = ["none", "cdi", "selic", "ipca", "fixed"] as const;
 const TIPPED = new Set(["date", "rate", "annualRate", "applied", "days", "daysLeft", "value", "gross", "grossPct", "irRate", "ir", "net"]);
 const NEW_PERSON = "__new_person__";
@@ -131,6 +134,13 @@ function groupBy(rows: { key: string; cents: number }[], empty: string): Group[]
   const map = new Map<string, number>();
   for (const row of rows) map.set(row.key || empty, (map.get(row.key || empty) ?? 0) + row.cents);
   return [...map.entries()].map(([label, cents]) => ({ label, cents })).sort((a, b) => b.cents - a.cents);
+}
+
+/** Keeps the biggest `max - 1` groups and folds the rest into one "others" group, so a long tail never makes a chart tall. */
+function capGroups(groups: Group[], max: number, others: string): Group[] {
+  if (groups.length <= max) return groups;
+  const rest = groups.slice(max - 1);
+  return [...groups.slice(0, max - 1), { label: `${others} (${rest.length})`, cents: rest.reduce((sum, group) => sum + group.cents, 0) }];
 }
 
 /** The CDI the sheet converts "% of CDI" with; it is edited in Settings. */
@@ -275,7 +285,7 @@ export function InvestmentsSheet({
           </button>
           </div>
         </header>
-        <div className="sheet-wrap">
+        <div className="sheet-wrap is-long">
           <table className="sheet-table">
             <thead>
               <tr>
@@ -583,11 +593,11 @@ export function InvestmentsCharts({
   const split = (id: string, label: string, pick: (holding: Holding) => string): Grouping => ({
     id,
     label,
-    rows: groupBy(rows.map((row) => ({ key: pick(row.holding), cents: row.line.valueCents })), none).map((group, index) => ({
+    rows: capGroups(groupBy(rows.map((row) => ({ key: pick(row.holding), cents: row.line.valueCents })), none), MAX_BARS, t("transactions.sheet.others")).map((group, index, list) => ({
       label: group.label,
       value: group.cents,
       display: formatCents(group.cents),
-      color: SERIES[index % SERIES.length],
+      color: index === list.length - 1 && list.length === MAX_BARS && group.label.startsWith(t("transactions.sheet.others")) ? "#94a3b8" : SERIES[index % SERIES.length],
     })),
   });
   const groupings = [
@@ -645,6 +655,15 @@ export function InvestmentsCharts({
       tax: row.line.irCents ?? 0,
     }))
     .sort((a, b) => b.invested + b.net + b.tax - (a.invested + a.net + a.tax));
+  if (returns.length > MAX_RETURNS) {
+    const rest = returns.splice(MAX_RETURNS - 1);
+    returns.push({
+      name: `${t("transactions.sheet.others")} (${rest.length})`,
+      invested: rest.reduce((sum, item) => sum + item.invested, 0),
+      net: rest.reduce((sum, item) => sum + item.net, 0),
+      tax: rest.reduce((sum, item) => sum + item.tax, 0),
+    });
+  }
   const reach = Math.max(...returns.map((item) => item.invested + item.net + item.tax), 1);
 
   const stats = (
@@ -739,8 +758,8 @@ export function InvestmentsCharts({
             </ul>
           </header>
           <ul className="barlist">
-            {returns.map((item) => (
-              <li key={item.name} className="barlist-row">
+            {returns.map((item, index) => (
+              <li key={`${index}:${item.name}`} className="barlist-row">
                 <span className="barlist-label">{item.name}</span>
                 <span className="barlist-track stacked">
                   {[

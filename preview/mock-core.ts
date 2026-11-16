@@ -231,11 +231,27 @@ const settings: Record<string, string | null> = {
   housing_category: "1",
 };
 
+/** `?many=1` in the preview URL adds 100 sample investments, to see how the sheet copes with a big portfolio. */
+function manyHoldings() {
+  if (!/[?&]many=1/.test(window.location.search)) return [];
+  const owners = ["Família Albuquerque de Oliveira Santos", "Casa", "Pai", "Mãe", "Lucas"];
+  const banks = ["Corretora Internacional de Valores e Câmbio Ltda", "Nubank", "Itaú", "Inter", "XP", "BTG", "Bradesco", "Santander", "C6", "Caixa"];
+  const products = ["Certificado de Recebíveis Imobiliários Estruturado", "CDB", "LCI", "LCA", "Tesouro", "Fundo", "Debênture", "Ações"];
+  return Array.from({ length: 100 }, (_, index) => ({
+    id: 100 + index, name: `Exemplo ${String(index + 1).padStart(3, "0")}`, kind: "investment",
+    amountCents: 150000 + ((index * 7919) % 90) * 25000, updatedOn: `${MONTH}-01`, costCents: 140000 + ((index * 7919) % 90) * 24000,
+    indexer: ["cdi", "selic", "ipca", "fixed"][index % 4], rateBps: [11000, 10000, 600, 1150][index % 4], termMonths: 12 + (index % 6) * 12,
+    startedOn: `2026-0${1 + (index % 9)}-10`, owner: owners[index % owners.length], institution: banks[index % banks.length],
+    product: products[index % products.length], taxable: true, maturityOn: `${2027 + (index % 12)}-0${1 + (index % 9)}-10`, notes: "",
+  }));
+}
+
 const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   list_accounts: () => accounts,
   list_categories: () => categories,
   list_tags: () => tags,
   list_holdings: () => [
+    ...manyHoldings(),
     { id: 3, name: "Fundo IVVB11", kind: "investment", amountCents: 1450000, updatedOn: `${MONTH}-01`, costCents: 1600000, indexer: "none", rateBps: 0, termMonths: 0, startedOn: "", owner: "", institution: "", product: "", taxable: true, maturityOn: "", notes: "" },
     { id: 4, name: "CDB Nubank", kind: "investment", amountCents: 820000, updatedOn: `${MONTH}-01`, costCents: 800000, indexer: "cdi", rateBps: 11000, termMonths: 24, startedOn: "2026-03-10", owner: "Casa", institution: "Nubank", product: "CDB", taxable: true, maturityOn: "2028-03-10", notes: "" },
     { id: 1, name: "Tesouro Selic", kind: "investment", amountCents: 3200000, updatedOn: `${MONTH}-01`, costCents: 2900000, indexer: "selic", rateBps: 10000, termMonths: 0, startedOn: "", owner: "Casa", institution: "Tesouro Direto", product: "Tesouro", taxable: true, maturityOn: "", notes: "" },

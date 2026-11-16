@@ -116,7 +116,30 @@ export function sheetLine(
   };
 }
 
-export const PRODUCTS = ["CDB", "LCI", "LCA", "CRI", "CRA", "Debênture", "Tesouro Direto", "Poupança", "Fundo", "Outro"];
+export const PRODUCTS = [
+  "CDB",
+  "LC",
+  "LCI",
+  "LCA",
+  "LIG",
+  "CRI",
+  "CRA",
+  "Debênture",
+  "Tesouro Selic",
+  "Tesouro IPCA+",
+  "Tesouro Prefixado",
+  "Tesouro Direto",
+  "Poupança",
+  "Fundo",
+  "Fundo imobiliário",
+  "Ações",
+  "ETF",
+  "BDR",
+  "COE",
+  "Previdência",
+  "Cripto",
+  "Outro",
+];
 
 /** The date `months` after `iso`, clamped to the end of a shorter month (31 Jan + 1 = 28/29 Feb). */
 export function addMonthsIso(iso: string, months: number): string {
