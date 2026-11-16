@@ -314,6 +314,30 @@ pub fn delete_income(connection: &Connection, id: i64) -> Result<(), String> {
     Ok(())
 }
 
+/// Removes a goal and the deposits made into it; bills that fed it stay, unlinked.
+pub fn delete_goal(connection: &Connection, id: i64) -> Result<(), String> {
+    let stamp = now();
+    connection
+        .execute(
+            "update goal_deposits set deleted_at = ?1, updated_at = ?1 where goal_id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    connection
+        .execute(
+            "update bills set goal_id = null, updated_at = ?1 where goal_id = ?2",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    connection
+        .execute(
+            "update goals set deleted_at = ?1, updated_at = ?1 where id = ?2 and deleted_at is null",
+            params![stamp, id],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
 pub fn list_bills(connection: &Connection) -> Result<Vec<Bill>, String> {
     let mut statement = connection
         .prepare(

@@ -4,6 +4,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
 import { fileName } from "../lib/format";
 import { AccountsManager } from "../components/AccountsManager";
+import { Dialog } from "../components/Dialog";
 import { SectionPage } from "../components/SectionPage";
 import { PageHeader } from "./PlannerScreens";
 import type { Theme } from "../lib/theme";
@@ -46,6 +47,7 @@ export function SettingsScreen({
   onAvatar,
   onLoadDemo,
   onRemoveDemo,
+  onEraseAll,
   theme,
   onTheme,
 }: {
@@ -59,6 +61,7 @@ export function SettingsScreen({
   onAvatar: (next: string | null) => void;
   onLoadDemo: () => Promise<void>;
   onRemoveDemo: () => Promise<void>;
+  onEraseAll: () => Promise<void>;
   theme: Theme;
   onTheme: (theme: Theme) => void;
 }) {
@@ -71,6 +74,8 @@ export function SettingsScreen({
   const [nameError, setNameError] = useState("");
   const [demoLoaded, setDemoLoaded] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
+  const [eraseOpen, setEraseOpen] = useState(false);
+  const [eraseWord, setEraseWord] = useState("");
   const [tab, setTab] = useState<"account" | "appearance" | "updates" | "about">("account");
   const [pathCopied, setPathCopied] = useState(false);
 
@@ -447,6 +452,57 @@ export function SettingsScreen({
           )}
         </div>
       </details>
+
+      <article className="card" hidden={tab !== "account"}>
+        <header className="card-head">
+          <h2>{t("settings.erase")}</h2>
+        </header>
+        <p className="muted">{t("settings.eraseDesc")}</p>
+        <button
+          type="button"
+          className="ghost danger"
+          onClick={() => {
+            setEraseWord("");
+            setEraseOpen(true);
+          }}
+        >
+          {t("settings.eraseButton")}
+        </button>
+      </article>
+
+      {eraseOpen ? (
+        <Dialog title={t("settings.eraseTitle")} onClose={() => setEraseOpen(false)}>
+          <p className="muted">{t("settings.eraseConfirm", { word: t("settings.eraseWord") })}</p>
+          <input
+            value={eraseWord}
+            onChange={(event) => setEraseWord(event.target.value)}
+            aria-label={t("settings.eraseWord")}
+            autoFocus
+          />
+          <div className="dialog-actions">
+            <button type="button" className="ghost" onClick={() => setEraseOpen(false)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              disabled={demoBusy || eraseWord.trim().toLowerCase() !== t("settings.eraseWord").toLowerCase()}
+              onClick={async () => {
+                setDemoBusy(true);
+                try {
+                  await onEraseAll();
+                  setDemoLoaded(false);
+                  setEraseOpen(false);
+                } finally {
+                  setDemoBusy(false);
+                }
+              }}
+            >
+              {t("settings.eraseButton")}
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
 
       <article className="card" hidden={tab !== "about"}>
         <header className="card-head">

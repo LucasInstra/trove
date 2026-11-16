@@ -31,7 +31,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function IncomeDialog({ income, onClose, onSave }: { income: Income | null; onClose: () => void; onSave: (input: IncomeInput) => void }) {
+export function IncomeDialog({ income, onClose, onSave, onDelete }: { income: Income | null; onClose: () => void; onSave: (input: IncomeInput) => void; onDelete?: (id: number) => void }) {
   const { t } = useLanguage();
   const [name, setName] = useState(income?.name ?? t("planner.incomeDefault"));
   const [amount, setAmount] = useState(income ? (income.amountCents / 100).toFixed(2) : "");
@@ -64,6 +64,11 @@ export function IncomeDialog({ income, onClose, onSave }: { income: Income | nul
           <input type="number" min={1} max={31} value={payDay} onChange={(event) => setPayDay(Number(event.target.value))} />
         </Field>
         <div className="dialog-actions">
+          {income && onDelete ? (
+            <button type="button" className="ghost danger" onClick={() => onDelete(income.id)}>
+              {t("common.delete")}
+            </button>
+          ) : null}
           <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" className="primary">{t("common.save")}</button>
         </div>
@@ -323,7 +328,7 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
 
 const GOAL_COLORS = ["#16a34a", "#0ea5e9", "#2563eb", "#7c3aed", "#ec4899", "#ef4444", "#f59e0b", "#8a6a2f"];
 
-export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClose: () => void; onSave: (input: GoalInput) => void }) {
+export function GoalDialog({ goal, onClose, onSave, onDelete }: { goal: Goal | null; onClose: () => void; onSave: (input: GoalInput) => void; onDelete?: (id: number) => void }) {
   const { t } = useLanguage();
   const [name, setName] = useState(goal?.name ?? "");
   const [target, setTarget] = useState(goal ? (goal.targetCents / 100).toFixed(2) : "");
@@ -394,6 +399,11 @@ export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClo
           </span>
         </div>
         <div className="dialog-actions">
+          {goal && onDelete ? (
+            <button type="button" className="ghost danger" onClick={() => onDelete(goal.id)}>
+              {t("common.delete")}
+            </button>
+          ) : null}
           <button type="button" className="ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" className="primary">{t("common.save")}</button>
         </div>

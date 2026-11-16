@@ -76,10 +76,12 @@ export function Donut({
       {centerValue ? (
         <text
           x={center}
-          y={center + size * 0.035}
+          y={centerLabel ? center - size * 0.03 : center}
           textAnchor="middle"
+          dominantBaseline="central"
           fill="var(--ink)"
-          fontSize={Math.min(12, size * 0.09)}
+          fontSize={size * 0.24}
+          fontWeight={700}
           className="donut-center-value"
         >
           {centerValue}
@@ -88,10 +90,11 @@ export function Donut({
       {centerLabel ? (
         <text
           x={center}
-          y={center + size * 0.19}
+          y={center + size * 0.17}
           textAnchor="middle"
+          dominantBaseline="central"
           fill="var(--muted)"
-          fontSize={Math.min(9, size * 0.07)}
+          fontSize={size * 0.1}
         >
           {centerLabel}
         </text>

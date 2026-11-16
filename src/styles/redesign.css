@@ -1503,9 +1503,26 @@ input[type="month"]:focus-visible,
 /* Trends: the charts sit two by two instead of each taking a full row. */
 .flow-screen {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
+  align-items: start;
 }
+.card-head .segmented {
+  display: inline-flex;
+  width: auto;
+  flex: none;
+}
+.card-head .segmented button { padding: 5px 14px; }
 .flow-screen .flow-bars { height: 180px; }
 @media (max-width: 1000px) {
   .flow-screen { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Goals card: room between the name, the bar and the progress line. */
+.goals-card .card-head { margin-bottom: 16px; }
+.goal-list { gap: 20px; }
+.goal-list .goal-head {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  margin-bottom: 8px;
+}
+.goal-list .goal-head > .muted { font-variant-numeric: tabular-nums; }
+.goal-list li > .muted.small { display: block; margin-top: 7px; }

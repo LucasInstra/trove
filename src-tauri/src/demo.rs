@@ -434,6 +434,48 @@ pub fn remove(connection: &Connection) -> Result<(), String> {
     }
 }
 
+/// Everything the user entered, gone: accounts, transactions, plans, rules and
+/// tags. Categories, settings and the user's own profile stay.
+pub fn erase_all(connection: &Connection) -> Result<(), String> {
+    connection.execute_batch("begin").map_err(|problem| problem.to_string())?;
+    let result = (|| {
+        for sql in [
+            "delete from notification_reads",
+            "delete from transaction_tags",
+            "delete from tags",
+            "delete from shares",
+            "delete from bill_payments",
+            "delete from goal_deposits",
+            "delete from bills",
+            "delete from goals",
+            "delete from incomes",
+            "delete from cards",
+            "delete from debts",
+            "delete from holdings",
+            "delete from budgets",
+            "delete from rules",
+            "delete from csv_profiles",
+            "delete from transactions",
+            "delete from imports",
+            "delete from accounts",
+            "delete from people where is_self = 0",
+        ] {
+            connection.execute(sql, []).map_err(|problem| problem.to_string())?;
+        }
+        connection
+            .execute("delete from settings where key = ?1", params![MARKER])
+            .map_err(|problem| problem.to_string())?;
+        Ok::<(), String>(())
+    })();
+    match result {
+        Ok(()) => connection.execute_batch("commit").map_err(|problem| problem.to_string()),
+        Err(problem) => {
+            let _ = connection.execute_batch("rollback");
+            Err(problem)
+        }
+    }
+}
+
 fn quoted(names: &[&str]) -> String {
     names.iter().map(|name| format!("'{name}'")).collect::<Vec<_>>().join(", ")
 }
@@ -512,6 +554,14 @@ mod tests {
             assert_eq!(left, 0, "{table} must be empty after removing the sample");
         }
         load(&connection).expect("the sample can be loaded again after removing it");
+        erase_all(&connection).expect("should erase everything");
+        for table in ["accounts", "transactions", "bills", "goals", "incomes", "holdings", "rules", "debts"] {
+            let left: i64 = connection
+                .query_row(&format!("select count(*) from {table}"), [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(left, 0, "{table} must be empty after erasing");
+        }
+        assert!(!is_loaded(&connection).unwrap());
         drop(connection);
         let _ = std::fs::remove_file(&path);
     }

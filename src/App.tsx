@@ -528,6 +528,12 @@ export function App() {
   const saveIncome = (input: IncomeInput) =>
     mutateAndRefresh(() => api.saveIncome(input), { closeDialog: true });
 
+  const removeIncome = (id: number) =>
+    mutateAndRefresh(() => api.deleteIncome(id), { closeDialog: true });
+
+  const removeGoal = (id: number) =>
+    mutateAndRefresh(() => api.deleteGoal(id), { closeDialog: true });
+
   const saveBill = (input: BillInput) =>
     mutateAndRefresh(() => api.saveBill(input), { closeDialog: true });
 
@@ -616,6 +622,8 @@ export function App() {
     await mutateAndRefresh(() => api.loadDemoData());
     setMonth("2026-12");
   };
+
+  const eraseAll = () => mutateAndRefresh(() => api.eraseAllData());
 
   const removeDemo = () => mutateAndRefresh(() => api.removeDemoData());
 
@@ -1208,6 +1216,7 @@ export function App() {
                 }}
                 onLoadDemo={loadDemo}
                 onRemoveDemo={removeDemo}
+                onEraseAll={eraseAll}
                 theme={theme}
                 onTheme={(next) => {
                   setTheme(next);
@@ -1247,6 +1256,7 @@ export function App() {
           income={dialog.income}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveIncome(input)}
+          onDelete={(id) => void removeIncome(id)}
         />
       ) : null}
 
@@ -1277,6 +1287,7 @@ export function App() {
           goal={dialog.goal}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveGoal(input)}
+          onDelete={(id) => void removeGoal(id)}
         />
       ) : null}
 
