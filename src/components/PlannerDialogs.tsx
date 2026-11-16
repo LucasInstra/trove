@@ -367,7 +367,11 @@ export function GoalDialog({ goal, onClose, onSave }: { goal: Goal | null; onClo
             value={icon}
             color={color}
             label={t("goal.icon")}
-            onChange={setIcon}
+            onChange={(next) => {
+              // A blank name, or one that is still the previous icon's example, follows the picked icon.
+              if (!name.trim() || name === t(`goal.icon_${icon}`)) setName(t(`goal.icon_${next}`));
+              setIcon(next);
+            }}
             nameOf={(name) => t(`goal.icon_${name}`)}
           />
         </div>

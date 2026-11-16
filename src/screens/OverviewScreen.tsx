@@ -1172,7 +1172,13 @@ export function OverviewScreen({
           <div className="layout-bar-row">
             <span className="muted small">{t("layout.hint")}</span>
             <div className="layout-actions">
-              <button type="button" className="ghost small-button" onClick={onLayoutReset}>
+              <button
+                type="button"
+                className="ghost small-button"
+                title={t("layout.resetTitle")}
+                onClick={onLayoutReset}
+              >
+                <Icon name="reset" size={13} />
                 {t("layout.reset")}
               </button>
               <button type="button" className="primary small-button" onClick={onLayoutDone}>

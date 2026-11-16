@@ -37,13 +37,13 @@ export function Onboarding({
           <button type="button" className="primary" onClick={onImport}>
             {t("onboard.import")}
           </button>
-          <button type="button" className="outline-button" onClick={onDemo} disabled={busy}>
-            {t("onboard.demo")}
-          </button>
           <button type="button" className="ghost" onClick={onDismiss}>
             {t("onboard.dismiss")}
           </button>
         </div>
+        <button type="button" className="onboarding-demo" onClick={onDemo} disabled={busy}>
+          {t("onboard.demo")}
+        </button>
       </div>
       <div className="onboarding-photos">
         <Polaroid icon="bank" caption={t("onboard.cap1")} tilt={-3} />

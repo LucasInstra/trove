@@ -575,6 +575,7 @@ export const api = {
   saveCard: (input: CardInput) => invoke<number>("save_card", { input }),
   deleteCard: (id: number) => invoke<void>("delete_card", { id }),
   loadDemoData: () => invoke<void>("load_demo_data"),
+  removeDemoData: () => invoke<void>("remove_demo_data"),
   demoLoaded: () => invoke<boolean>("demo_loaded"),
   reorderCards: (ids: number[]) => invoke<void>("reorder_cards", { ids }),
   saveGoal: (input: GoalInput) => invoke<number>("save_goal", { input }),

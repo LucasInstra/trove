@@ -181,24 +181,32 @@ export function setHeight(layout: LayoutCard[], id: CardId, height: number | nul
 }
 
 /**
- * Three cards per row at one column each, with the bills card taking two so its
- * list has room: 1+1+1 | 2+1 | 1+1+1 | 1+1+1 | 1+1. The house split starts off
- * the dashboard because most households do not split anything.
+ * Grouped by what the person is asking, three columns per row, every row full:
+ *
+ *   where I stand   forecast | kpis | score
+ *   this month      inout | series (2)
+ *   what to pay     bills (2) | installments
+ *   cards and debt  cards | debts | goals
+ *   where it went   recent (2) | donut
+ *   the household   housing (2) | split
+ *
+ * The house split starts off the dashboard because most households do not split
+ * anything, and the housing card only shows when there is rent to measure.
  */
 export const DEFAULT_LAYOUT: LayoutCard[] = [
   { id: "forecast", span: 1, mode: "full" },
   { id: "kpis", span: 1, mode: "full" },
-  { id: "inout", span: 1, mode: "full" },
-  { id: "bills", span: 2, mode: "full" },
-  { id: "recent", span: 1, mode: "full" },
-  { id: "series", span: 1, mode: "full" },
-  { id: "cards", span: 1, mode: "full" },
-  { id: "donut", span: 1, mode: "full" },
-  { id: "goals", span: 1, mode: "full" },
-  { id: "debts", span: 1, mode: "full" },
   { id: "score", span: 1, mode: "full" },
+  { id: "inout", span: 1, mode: "full" },
+  { id: "series", span: 2, mode: "full" },
+  { id: "bills", span: 2, mode: "full" },
   { id: "installments", span: 1, mode: "full" },
-  { id: "housing", span: 1, mode: "full" },
+  { id: "cards", span: 1, mode: "full" },
+  { id: "debts", span: 1, mode: "full" },
+  { id: "goals", span: 1, mode: "full" },
+  { id: "recent", span: 2, mode: "full" },
+  { id: "donut", span: 1, mode: "full" },
+  { id: "housing", span: 2, mode: "full" },
   { id: "split", span: 1, mode: "hidden" },
 ];
 

@@ -617,6 +617,8 @@ export function App() {
     setMonth("2026-12");
   };
 
+  const removeDemo = () => mutateAndRefresh(() => api.removeDemoData());
+
   const archiveAccount = (id: number) => mutateAndRefresh(() => api.archiveAccount(id));
 
   const saveDeposit = (input: DepositInput) =>
@@ -1205,6 +1207,7 @@ export function App() {
                   void api.setSetting("user_avatar", next ?? "");
                 }}
                 onLoadDemo={loadDemo}
+                onRemoveDemo={removeDemo}
                 theme={theme}
                 onTheme={(next) => {
                   setTheme(next);

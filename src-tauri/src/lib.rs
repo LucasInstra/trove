@@ -455,6 +455,12 @@ fn load_demo_data(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn remove_demo_data(app: tauri::AppHandle) -> Result<(), String> {
+    let connection = connection(&app)?;
+    demo::remove(&connection)
+}
+
+#[tauri::command]
 fn demo_loaded(app: tauri::AppHandle) -> Result<bool, String> {
     let connection = connection(&app)?;
     demo::is_loaded(&connection)
@@ -671,6 +677,7 @@ pub fn run() {
             reorder_cards,
             load_demo_data,
             demo_loaded,
+            remove_demo_data,
             delete_card,
             save_goal,
             card_usage,

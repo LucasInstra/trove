@@ -45,6 +45,7 @@ export function SettingsScreen({
   avatar,
   onAvatar,
   onLoadDemo,
+  onRemoveDemo,
   theme,
   onTheme,
 }: {
@@ -57,6 +58,7 @@ export function SettingsScreen({
   avatar: string | null;
   onAvatar: (next: string | null) => void;
   onLoadDemo: () => Promise<void>;
+  onRemoveDemo: () => Promise<void>;
   theme: Theme;
   onTheme: (theme: Theme) => void;
 }) {
@@ -403,28 +405,48 @@ export function SettingsScreen({
         ) : null}
       </article>
 
-      <article className="card" hidden={tab !== "account"}>
-        <header className="card-head">
-          <h2>{t("settings.demo")}</h2>
-        </header>
+      <details className="card demo-details" hidden={tab !== "account"}>
+        <summary>{t("settings.demo")}</summary>
         <p className="muted">{t("settings.demoDesc")}</p>
-        <button
-          type="button"
-          className="primary"
-          disabled={demoLoaded || demoBusy}
-          onClick={async () => {
-            setDemoBusy(true);
-            try {
-              await onLoadDemo();
-              setDemoLoaded(true);
-            } finally {
-              setDemoBusy(false);
-            }
-          }}
-        >
-          {demoLoaded ? t("settings.demoDone") : t("settings.demoLoad")}
-        </button>
-      </article>
+        <div className="onboarding-actions">
+          {demoLoaded ? (
+            <button
+              type="button"
+              className="ghost danger"
+              disabled={demoBusy}
+              onClick={async () => {
+                if (!window.confirm(t("settings.demoRemoveConfirm"))) return;
+                setDemoBusy(true);
+                try {
+                  await onRemoveDemo();
+                  setDemoLoaded(false);
+                } finally {
+                  setDemoBusy(false);
+                }
+              }}
+            >
+              {t("settings.demoRemove")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="outline-button"
+              disabled={demoBusy}
+              onClick={async () => {
+                setDemoBusy(true);
+                try {
+                  await onLoadDemo();
+                  setDemoLoaded(true);
+                } finally {
+                  setDemoBusy(false);
+                }
+              }}
+            >
+              {t("settings.demoLoad")}
+            </button>
+          )}
+        </div>
+      </details>
 
       <article className="card" hidden={tab !== "about"}>
         <header className="card-head">

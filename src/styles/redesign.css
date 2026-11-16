@@ -1455,3 +1455,22 @@ input[type="month"]:focus-visible,
 .housing-card .meter-mark {
   background: var(--ink);
 }
+
+.onboarding-demo {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted, #8a8a8a);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.onboarding-demo:hover { color: var(--text, inherit); }
+
+.demo-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted, #8a8a8a);
+}
+.demo-details[open] summary { margin-bottom: 8px; }

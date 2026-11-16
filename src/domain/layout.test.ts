@@ -330,7 +330,7 @@ describe("columns", () => {
     const cols = resolveColumns(parseLayout(null).filter((card) => card.mode !== "hidden"));
     expect(cols.get("forecast")).toBe(1);
     expect(cols.get("kpis")).toBe(2);
-    expect(cols.get("inout")).toBe(3);
+    expect(cols.get("score")).toBe(3);
     for (const card of parseLayout(null)) {
       if (card.mode === "hidden") continue;
       const col = cols.get(card.id) ?? 0;
