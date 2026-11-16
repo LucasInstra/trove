@@ -42,6 +42,7 @@ import type {
 import {
   formatCents,
   formatDate,
+  formatDelta,
   monthLabel,
   monthName,
   monthShort,
@@ -717,8 +718,7 @@ export function PatrimonyScreen({
                   <span className="tip-row muted">
                     {t("chart.monthNet")}
                     <b className={curve[index].netCents < 0 ? "negative" : "positive"}>
-                      {curve[index].netCents > 0 ? "+" : ""}
-                      {formatCents(curve[index].netCents)}
+                      {formatDelta(curve[index].netCents)}
                     </b>
                   </span>
                   <span className="tip-row muted">
@@ -1453,26 +1453,26 @@ export function FlowsScreen({
           {incomes.length === 0 ? (
             <EmptyList label={t("planner.noIncome")} action={onAddIncome} />
           ) : (
-            <ul className="installment-list">
+            <ul className="income-grid">
               {incomes.map((income) => (
-                <li key={income.id} className="installment">
-                  <div className="installment-head">
-                    <span className="installment-name">{income.name}</span>
-                    <span className="muted small">{formatCents(income.amountCents)}</span>
-                  </div>
-                  <span className="muted small">
-                    {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
-                    {income.active ? t("planner.active") : t("planner.inactive")}
+                <li key={income.id} className="income-item">
+                  <span className="income-text">
+                    <strong>{income.name}</strong>
+                    <span className="muted small">
+                      {t("planner.payDayLabel", { day: income.payDay })} ·{" "}
+                      {income.active ? t("planner.active") : t("planner.inactive")}
+                    </span>
                   </span>
-                  <div>
-                    <button
-                      type="button"
-                      className="outline-button small-button"
-                      onClick={() => onEditIncome(income)}
-                    >
-                      {t("common.edit")}
-                    </button>
-                  </div>
+                  <span className="income-amount">{formatCents(income.amountCents)}</span>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    title={t("common.edit")}
+                    aria-label={`${t("common.edit")}: ${income.name}`}
+                    onClick={() => onEditIncome(income)}
+                  >
+                    <Icon name="pencil" size={15} />
+                  </button>
                 </li>
               ))}
             </ul>

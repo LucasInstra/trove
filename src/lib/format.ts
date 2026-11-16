@@ -4,15 +4,28 @@ import { MASK, isPrivate } from "./privacy";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+/** "R$ 1,00" with the sign tucked in after the currency: "R$ -1,00". */
+function withSign(cents: number, plus: boolean): string {
+  const text = brl.format(Math.abs(cents) / 100);
+  const sign = cents < 0 ? "-" : plus && cents > 0 ? "+" : "";
+  if (!sign) return text;
+  const match = text.match(/^(\D*?\s+)(\d.*)$/);
+  return match ? `${match[1]}${sign}${match[2]}` : `${sign}${text}`;
+}
+
 export function formatCents(cents: number): string {
   if (isPrivate()) return MASK;
-  return brl.format(cents / 100);
+  return withSign(cents, false);
 }
 
 export function formatSignedCents(cents: number): string {
+  return formatCents(cents);
+}
+
+/** An amount that always shows its direction, "R$ +85,00" or "R$ -85,00"; masked, no sign leaks. */
+export function formatDelta(cents: number): string {
   if (isPrivate()) return MASK;
-  const text = brl.format(Math.abs(cents) / 100);
-  return cents < 0 ? `-${text}` : text;
+  return withSign(cents, true);
 }
 
 export function formatDate(iso: string): string {

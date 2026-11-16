@@ -1,5 +1,5 @@
 import { cumulative } from "../../domain/chart";
-import { formatCents } from "../../lib/format";
+import { formatCents, formatDelta } from "../../lib/format";
 import { useLanguage } from "../../lib/language";
 import type { DailyPoint } from "../../lib/api";
 import { LineChart } from "./LineChart";
@@ -53,8 +53,7 @@ export function DailyChart({
                     <i className="chart-swatch pace" />
                     {t("chart.pace")}
                     <b className={over > 0 ? "negative" : "positive"}>
-                      {over > 0 ? "+" : ""}
-                      {formatCents(over)}
+                      {formatDelta(over)}
                     </b>
                   </span>
                 ) : null}

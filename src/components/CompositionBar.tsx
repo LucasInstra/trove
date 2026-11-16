@@ -1,4 +1,5 @@
 import type { Composition } from "../domain/projection";
+import { formatDelta } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 const LABELS: Record<Composition["key"], string> = {
@@ -26,6 +27,8 @@ interface Props {
 export function CompositionBar({ parts, format }: Props) {
   const { t } = useLanguage();
   if (parts.length === 0) return null;
+  const show = (part: Composition) =>
+    SIGNS[part.key] === "" ? format(part.amountCents) : formatDelta(SIGNS[part.key] === "+" ? part.amountCents : -part.amountCents);
   // Slivers under 5% are unreadable in the legend, so they share one line.
   const small = parts.filter((part) => part.key !== "free" && part.sharePct < 5);
   const legend = small.length > 1 ? parts.filter((part) => !small.includes(part)) : parts;
@@ -43,8 +46,7 @@ export function CompositionBar({ parts, format }: Props) {
             <span className="col-tip" role="tooltip">
               <strong>{t(LABELS[part.key])}</strong>
               <span className="tip-row">
-                {SIGNS[part.key]}
-                {format(part.amountCents)}
+                {show(part)}
                 <b>{Math.round(part.sharePct)}%</b>
               </span>
             </span>
@@ -59,8 +61,7 @@ export function CompositionBar({ parts, format }: Props) {
               {t(LABELS[part.key])}
             </span>
             <span className="composition-value">
-              {SIGNS[part.key]}
-              {format(part.amountCents)}
+              {show(part)}
               <em>{Math.round(part.sharePct)}%</em>
             </span>
           </li>
@@ -72,8 +73,7 @@ export function CompositionBar({ parts, format }: Props) {
               {t("overview.compositionOther")}
             </span>
             <span className="composition-value">
-              {otherCents < 0 ? "−" : "+"}
-              {format(Math.abs(otherCents))}
+              {formatDelta(otherCents)}
               <em>{Math.round(otherShare)}%</em>
             </span>
           </li>

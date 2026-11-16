@@ -5,7 +5,7 @@ import { Icon3DSet } from "../components/Icon3DSet";
 import { HoldingDialog, PageHeader } from "./PlannerScreens";
 import { DEFAULT_RATES, investmentLines, investmentSummary, type RateAssumptions } from "../domain/patrimony";
 import { api, type Holding, type HoldingInput } from "../lib/api";
-import { formatCents } from "../lib/format";
+import { formatCents, formatDelta } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 const SERIES = ["#2563eb", "#0ea5e9", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed", "#14b8a6", "#ef4444"];
@@ -19,7 +19,7 @@ function percent(value: number, lang: string): string {
 }
 
 function signed(cents: number): string {
-  return `${cents > 0 ? "+" : ""}${formatCents(cents)}`;
+  return formatDelta(cents);
 }
 
 /**

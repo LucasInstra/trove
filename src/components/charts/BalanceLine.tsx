@@ -1,5 +1,5 @@
 import { cumulative } from "../../domain/chart";
-import { formatCents, monthLabel, monthShort } from "../../lib/format";
+import { formatCents, formatDelta, monthLabel, monthShort } from "../../lib/format";
 import { useLanguage } from "../../lib/language";
 import { LineChart } from "./LineChart";
 
@@ -45,8 +45,7 @@ export function BalanceLine({
               <span className="tip-row muted">
                 {t("chart.monthNet")}
                 <b className={net[index] < 0 ? "negative" : undefined}>
-                  {net[index] > 0 ? "+" : ""}
-                  {formatCents(net[index])}
+                  {formatDelta(net[index])}
                 </b>
               </span>
             </>
