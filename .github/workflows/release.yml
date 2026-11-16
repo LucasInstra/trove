@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  # Lets the last step start the site workflow.
+  actions: write
 
 jobs:
   release:
@@ -107,3 +109,13 @@ jobs:
           if (-not $msi) { throw "no MSI produced" }
           node scripts/updater-json.mjs --tag=$tag --installer="$($msi.FullName)" --signature="$($msi.FullName).sig" --notes="release-notes/${version}.md"
           gh release upload $tag latest.json --clobber
+
+      # A release created with GITHUB_TOKEN does not trigger the `release: published`
+      # event of the site workflow, and the site build that ran on the push came
+      # before this release existed. Starting it here makes the download page show
+      # the new "latest version" and the changelog.
+      - name: Rebuild the website
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run site.yml --ref main
