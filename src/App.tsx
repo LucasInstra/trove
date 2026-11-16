@@ -1013,6 +1013,7 @@ export function App() {
                 splitSettled={splitSettled}
                 trackSettlement={trackSettlement}
                 onAddDebt={() => setDialog({ kind: "debt", debt: null })}
+                onEditDebt={(debt) => setDialog({ kind: "debt", debt })}
                 onToggleDebt={(id, settled) => void toggleDebt(id, settled)}
                 layout={layout}
                 layoutEditing={layoutEditing}
@@ -1438,7 +1439,6 @@ export function App() {
       {dialog?.kind === "debt" ? (
         <DebtDialog
           debt={dialog.debt}
-          people={planner.people}
           month={month ?? currentMonth()}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveDebt(input)}

@@ -376,6 +376,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
                 label: "Jantar".to_string(),
                 amount_cents: 8_500,
                 month: "2026-12".to_string(),
+                ..Default::default()
             },
         )?;
     }

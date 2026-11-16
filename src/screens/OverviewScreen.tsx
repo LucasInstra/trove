@@ -141,6 +141,7 @@ interface OverviewProps {
   onAssignShare: (billId: number, personId: number) => void;
   onSettle: () => void;
   onAddDebt: () => void;
+  onEditDebt: (debt: Debt) => void;
   onToggleDebt: (id: number, settled: boolean) => void;
   layout: LayoutCard[];
   layoutEditing: boolean;
@@ -188,6 +189,7 @@ export function OverviewScreen({
   onSettle,
   debts,
   onAddDebt,
+  onEditDebt,
   onToggleDebt,
   layout,
   layoutEditing,
@@ -373,7 +375,7 @@ export function OverviewScreen({
   const cells: Record<CardId, ReactNode> = {
     kpis: <KpisCard plan={plan} series={series} month={month} span={spanOf("kpis")} />,
     installments: <InstallmentsCard plan={plan} month={month} />,
-    debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} />,
+    debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} onEdit={onEditDebt} />,
     score: <ScoreCard plan={plan} />,
     forecast: (
       <AnchorCard>

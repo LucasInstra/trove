@@ -5,28 +5,25 @@ import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Money } from "./Money";
 import { parseCents } from "./PlannerDialogs";
-import type { Debt, DebtInput, Person } from "../lib/api";
+import type { Debt, DebtInput } from "../lib/api";
 import { formatCents, monthLabel } from "../lib/format";
 import { useLanguage } from "../lib/language";
 
 export function DebtDialog({
   debt,
-  people,
   month,
   onClose,
   onSave,
   onDelete,
 }: {
   debt: Debt | null;
-  people: Person[];
   month: string;
   onClose: () => void;
   onSave: (input: DebtInput) => void;
   onDelete?: (id: number) => void;
 }) {
   const { t } = useLanguage();
-  const fallbackPerson = people.find((person) => !person.isSelf) ?? people[0] ?? null;
-  const [personId, setPersonId] = useState(debt?.personId ?? fallbackPerson?.id ?? 0);
+  const [debtor, setDebtor] = useState(debt?.personName ?? "");
   const [label, setLabel] = useState(debt?.label ?? "");
   const [amount, setAmount] = useState(debt ? (debt.amountCents / 100).toFixed(2) : "");
 
@@ -37,10 +34,10 @@ export function DebtDialog({
         onSubmit={(event) => {
           event.preventDefault();
           const cents = parseCents(amount);
-          if (cents <= 0 || personId === 0) return;
+          if (cents <= 0 || debtor.trim() === "") return;
           onSave({
             id: debt?.id ?? null,
-            personId,
+            debtor: debtor.trim(),
             label: label.trim(),
             amountCents: cents,
             month: debt?.month ?? month,
@@ -49,13 +46,7 @@ export function DebtDialog({
       >
         <label className="field">
           <span>{t("debts.person")}</span>
-          <select value={personId} onChange={(event) => setPersonId(Number(event.target.value))}>
-            {people.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
+          <input value={debtor} maxLength={80} onChange={(event) => setDebtor(event.target.value)} required />
         </label>
         <label className="field">
           <span>{t("debts.label")}</span>
@@ -97,12 +88,15 @@ export function DebtsCard({
   month,
   onToggleSettled,
   onAdd,
+  onEdit,
   compact = false,
 }: {
   debts: Debt[];
   month: string;
   onToggleSettled: (id: number, settled: boolean) => void;
   onAdd: () => void;
+  /** Opens the debt to edit it or delete it. */
+  onEdit?: (debt: Debt) => void;
   compact?: boolean;
 }) {
   const { lang, t } = useLanguage();
@@ -161,13 +155,19 @@ export function DebtsCard({
                     </span>
                   </div>
                   <span className="debt-amount">{formatCents(debt.amountCents)}</span>
-                  <button
-                    type="button"
-                    className={received ? "ghost small-button" : "outline-button small-button"}
-                    onClick={() => onToggleSettled(debt.id, !received)}
-                  >
-                    {received ? t("debts.received") : t("debts.markReceived")}
-                  </button>
+                  <label className="debt-check" title={received ? t("debts.received") : t("debts.markReceived")}>
+                    <input
+                      type="checkbox"
+                      checked={received}
+                      aria-label={`${t("debts.markReceived")}: ${debt.label}`}
+                      onChange={() => onToggleSettled(debt.id, !received)}
+                    />
+                  </label>
+                  {onEdit ? (
+                    <button type="button" className="icon-button" title={t("common.edit")} aria-label={`${t("common.edit")}: ${debt.label}`} onClick={() => onEdit(debt)}>
+                      <Icon name="pencil" size={15} />
+                    </button>
+                  ) : null}
                 </li>
               );
             })}

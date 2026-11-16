@@ -36,7 +36,7 @@ export const en: Strings = {
     items: [
       {
         title: "A dashboard that is yours",
-        text: "Drag cards anywhere, set each card's width and pick how much detail it shows. A wide card shows more of it, not the same content stretched.",
+        text: "Drag cards anywhere, set each card's width and pick how much detail it shows.",
       },
       {
         title: "Imports that do not duplicate",
@@ -80,7 +80,7 @@ export const en: Strings = {
       },
     ],
     diagram: { bank: "Your bank", file: "statement.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "updates only" },
-    close: "There is no server of ours to leak, because there is no server of ours.",
+    close: "Your data never leaves your computer: no account, no cloud, no server in the way.",
   },
   proof: {
     eyebrow: "The real app",

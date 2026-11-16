@@ -142,11 +142,16 @@ pub struct Debt {
     pub settled_on: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DebtInput {
     pub id: Option<i64>,
+    /// Optional: 0 or absent means no household member, and the debt is kept under the user.
+    #[serde(default)]
     pub person_id: i64,
+    /// Who owes it, as typed; it need not be a household member.
+    #[serde(default)]
+    pub debtor: String,
     pub label: String,
     pub amount_cents: i64,
     pub month: String,
@@ -1055,7 +1060,7 @@ pub fn set_share(connection: &Connection, input: &ShareInput) -> Result<(), Stri
 pub fn list_debts(connection: &Connection, month: &str) -> Result<Vec<Debt>, String> {
     let mut statement = connection
         .prepare(
-            "select d.id, d.person_id, p.name, d.label, d.amount_cents, d.month, d.settled_on
+            "select d.id, d.person_id, coalesce(nullif(trim(d.debtor), ''), p.name), d.label, d.amount_cents, d.month, d.settled_on
              from debts d
              left join people p on p.id = d.person_id
              where d.month = ?1 and d.deleted_at is null
@@ -1088,32 +1093,48 @@ pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, Stri
         return Err("debt needs a label".to_string());
     }
     crate::db::check_month(&input.month)?;
-    let person: Option<i64> = connection
-        .query_row(
-            "select id from people where id = ?1 and deleted_at is null",
-            params![input.person_id],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|problem| problem.to_string())?;
-    if person.is_none() {
-        return Err(format!("person {} does not exist", input.person_id));
+    let debtor = input.debtor.trim().to_string();
+    if debtor.chars().count() > 80 {
+        return Err("debtor name is too long".to_string());
     }
+    // A named debtor needs no household member; the row still points at one (the user's own).
+    let person_id = if input.person_id == 0 && !debtor.is_empty() {
+        connection
+            .query_row(
+                "select id from people where deleted_at is null order by is_self desc, id limit 1",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?
+            .ok_or_else(|| "there is no person to keep the debt under".to_string())?
+    } else {
+        let person: Option<i64> = connection
+            .query_row(
+                "select id from people where id = ?1 and deleted_at is null",
+                params![input.person_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|problem| problem.to_string())?;
+        person.ok_or_else(|| format!("person {} does not exist", input.person_id))?
+    };
     let stamp = now();
     match input.id {
         Some(id) => {
             connection
                 .execute(
                     "update debts
-                     set person_id = ?1, label = ?2, amount_cents = ?3, month = ?4, updated_at = ?5
+                     set person_id = ?1, label = ?2, amount_cents = ?3, month = ?4, updated_at = ?5, debtor = ?7
                      where id = ?6",
                     params![
-                        input.person_id,
+                        person_id,
                         label,
                         input.amount_cents,
                         input.month,
                         stamp,
-                        id
+                        id,
+                        debtor
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
@@ -1123,14 +1144,15 @@ pub fn save_debt(connection: &Connection, input: &DebtInput) -> Result<i64, Stri
             connection
                 .execute(
                     "insert into debts
-                     (uid, person_id, label, amount_cents, month, created_at, updated_at)
-                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5)",
+                     (uid, person_id, label, amount_cents, month, created_at, updated_at, debtor)
+                     values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?5, ?6)",
                     params![
-                        input.person_id,
+                        person_id,
                         label,
                         input.amount_cents,
                         input.month,
-                        stamp
+                        stamp,
+                        debtor
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
@@ -1399,6 +1421,23 @@ mod tests {
     }
 
     #[test]
+    fn debtor_is_free_text() {
+        let path = temporary_database("debtor");
+        let connection = db::open(&path).expect("should open");
+        ensure_people(&connection).expect("should seed");
+        let id = save_debt(
+            &connection,
+            &DebtInput { debtor: "  Seu João ".into(), label: "Empréstimo".into(), amount_cents: 5_000, month: "2026-11".into(), ..Default::default() },
+        )
+        .expect("a typed debtor needs no household member");
+        let debts = list_debts(&connection, "2026-11").expect("should list");
+        let saved = debts.iter().find(|debt| debt.id == id).expect("saved");
+        assert_eq!(saved.person_name.as_deref(), Some("Seu João"));
+        // No name and no person is still refused.
+        assert!(save_debt(&connection, &DebtInput { label: "x".into(), amount_cents: 1, month: "2026-11".into(), ..Default::default() }).is_err());
+    }
+
+    #[test]
     fn debts_settle_one_by_one() {
         let path = temporary_database("debts");
         let connection = db::open(&path).expect("should open");
@@ -1411,6 +1450,7 @@ mod tests {
             label: "Cobasi".into(),
             amount_cents: 6_800,
             month: "2026-11".into(),
+            ..Default::default()
         };
         // Zero and negative amounts, blank labels, bad months and strangers
         // are refused before they reach the table.
@@ -1430,6 +1470,7 @@ mod tests {
                 label: "Cinema".into(),
                 amount_cents: 4_000,
                 month: "2026-11".into(),
+                ..Default::default()
             },
         )
         .expect("should save");
@@ -1454,6 +1495,7 @@ mod tests {
                 label: "Outubro".into(),
                 amount_cents: 1_000,
                 month: "2026-10".into(),
+                ..Default::default()
             },
         )
         .expect("should save");

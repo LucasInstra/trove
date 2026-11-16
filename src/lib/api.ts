@@ -404,7 +404,9 @@ export interface Debt {
 
 export interface DebtInput {
   id: number | null;
-  personId: number;
+  /** Optional: who owes it is the typed `debtor`, which need not be a household member. */
+  personId?: number;
+  debtor: string;
   label: string;
   amountCents: number;
   month: string;

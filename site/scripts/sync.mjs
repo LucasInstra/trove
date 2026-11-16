@@ -31,7 +31,7 @@ for (const f of [
 
 const iconDir = join(site, "src", "assets", "icons3d");
 mkdirSync(iconDir, { recursive: true });
-for (const f of ["piggy", "house", "coins", "safe", "checklist"]) {
+for (const f of ["piggy", "house", "coins", "safe", "checklist", "receipt", "chart-up", "shield", "gear", "badge", "plate", "car", "cart", "cinema", "bank", "wallet"]) {
   cpSync(join(app, "assets", "icons3d", `${f}.png`), join(iconDir, `${f}.png`));
 }
 // The site's plane is the redrawn one (right wings, with a suitcase), kept under the old name.

@@ -34,7 +34,7 @@ export const pt = {
     items: [
       {
         title: "Dashboard que é seu",
-        text: "Arraste os cards, escolha a largura de cada um e o nível de detalhe. Card largo mostra mais conteúdo, não o mesmo conteúdo esticado.",
+        text: "Arraste os cards, escolha a largura de cada um e o nível de detalhe.",
       },
       {
         title: "Importação que não duplica",
@@ -82,7 +82,7 @@ export const pt = {
       },
     ],
     diagram: { bank: "Seu banco", file: "extrato.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "só atualização" },
-    close: "Não existe servidor nosso para vazar, porque não existe servidor nosso.",
+    close: "Seus dados nunca saem do seu computador: sem conta, sem nuvem e sem servidor no caminho.",
   },
   proof: {
     eyebrow: "O app de verdade",

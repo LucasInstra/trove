@@ -11,6 +11,18 @@ import house from "../assets/icons3d/house.png";
 import coins from "../assets/icons3d/coins.png";
 import safe from "../assets/icons3d/safe.png";
 import checklist from "../assets/icons3d/checklist.png";
+import picReceipt from "../assets/icons3d/receipt.png";
+import picChart from "../assets/icons3d/chart-up.png";
+import picShield from "../assets/icons3d/shield.png";
+import picSafe from "../assets/icons3d/safe.png";
+import picGear from "../assets/icons3d/gear.png";
+import picBadge from "../assets/icons3d/badge.png";
+import picPlate from "../assets/icons3d/plate.png";
+import picCar from "../assets/icons3d/car.png";
+import picCart from "../assets/icons3d/cart.png";
+import picCinema from "../assets/icons3d/cinema.png";
+import picBank from "../assets/icons3d/bank.png";
+import picWallet from "../assets/icons3d/wallet.png";
 
 interface Props {
   t: Strings;
@@ -32,7 +44,8 @@ const polaroids = [
   { img: safe, bg: "#efe6ff" },
   { img: checklist, bg: "#dff5f2" },
 ];
-const sealIcons: Record<string, string> = { mit: "shield", sqlite: "db", telemetry: "lock", signed: "refresh" };
+const sealPics: Record<string, ImageMetadata> = { mit: picBadge, sqlite: picSafe, telemetry: picShield, signed: picGear };
+const rowPics = [picPlate, picCar, picCart, picCinema];
 // The composition bar of the forecast card, as a graphic: share and colour of each part.
 const parts = [
   { w: 13, c: "var(--bills-segment)" },
@@ -84,7 +97,7 @@ const toneVar: Record<string, string> = {
         <div class="demo-body">
           <div class="layer" style="--i:0">
             <div class="drop">
-              <span class="drop-ic"><Icon name="file" size={22} /></span>
+              <span class="drop-ic"><Image src={picReceipt} alt="" width={36} height={36} /></span>
               <span class="drop-file">{d.file}</span>
               <span class="drop-meta">{d.fileMeta}</span>
             </div>
@@ -120,7 +133,7 @@ const toneVar: Record<string, string> = {
       </div>
 
       <div class="fcard tx" aria-hidden="true">
-        <span class="fic" style="--tone:var(--chart-teal)"><Icon name="trend" size={18} /></span>
+        <span class="fic" style="--tone:var(--chart-teal)"><Image src={picChart} alt="" width={28} height={28} /></span>
         <div>
           <b>{d.floatTx.name}</b>
           <span>{d.floatTx.cat}</span>
@@ -143,7 +156,7 @@ const toneVar: Record<string, string> = {
       {
         t.seals.map((s) => (
           <li>
-            <span class="seal-ic"><Icon name={sealIcons[s.key]} size={18} /></span>
+            <span class="seal-ic"><Image src={sealPics[s.key]} alt="" width={24} height={24} /></span>
             <span><b>{s.title}</b> {s.text}</span>
           </li>
         ))
@@ -185,7 +198,7 @@ const toneVar: Record<string, string> = {
                   <div class="reel-track">
                     {[0, 1, 2, 0, 1, 2].map((n) => (
                       <div class="fcard-s">
-                        <span class="fic" style="--tone:var(--primary)"><Icon name="file" size={16} /></span>
+                        <span class="fic" style="--tone:var(--primary)"><Image src={picReceipt} alt="" width={26} height={26} /></span>
                         <b>2026-{10 + n}.ofx</b>
                         <span class="chips"><span class="chip" style="--tone:var(--chart-teal)">{f.import.fresh}</span><span class="chip" style="--tone:var(--faint)">{f.import.dup}</span></span>
                       </div>
@@ -197,7 +210,7 @@ const toneVar: Record<string, string> = {
                 <div class="cyc">
                   {d.rows.map((r, k) => (
                     <div class="cy" style={`--i:${k};--tone:${toneVar[r.tone]}`}>
-                      <span class="cy-ic"><Icon name={["fork", "car", "cart", "film"][k]} size={26} /></span>
+                      <span class="cy-ic"><Image src={rowPics[k]} alt="" width={40} height={40} /></span>
                       <b>{r.name}</b>
                       <span class="chip" style={`--tone:${toneVar[r.tone]}`}>{r.cat}</span>
                     </div>
@@ -206,9 +219,9 @@ const toneVar: Record<string, string> = {
               )}
               {i === 3 && (
                 <div class="xfer">
-                  <div class="acct"><Icon name="bank" size={18} /><span>{f.transfer.a}</span></div>
+                  <div class="acct"><Image src={picBank} alt="" width={26} height={26} /><span>{f.transfer.a}</span></div>
                   <div class="wire"><i class="coin"></i><span class="num">{t.frag.transfer.amount}</span></div>
-                  <div class="acct"><Icon name="wallet" size={18} /><span>{f.transfer.b}</span></div>
+                  <div class="acct"><Image src={picWallet} alt="" width={26} height={26} /><span>{f.transfer.b}</span></div>
                   <span class="chip" style="--tone:var(--faint)">{f.transfer.off}</span>
                 </div>
               )}

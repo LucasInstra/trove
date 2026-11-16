@@ -2134,3 +2134,7 @@ html.js .theme-btn {
     background: var(--bg);
   }
 }
+
+/* The generated 3D icons carry their own color: the tinted tile behind them stays soft. */
+.drop-ic { background: color-mix(in srgb, var(--primary) 14%, var(--surface)); }
+.drop-ic img, .fic img, .seal-ic img, .cy-ic img, .acct img { display: block; object-fit: contain; }
