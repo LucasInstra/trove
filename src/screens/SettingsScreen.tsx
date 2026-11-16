@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { api, type Account } from "../lib/api";
+import { api, type Account, type Category } from "../lib/api";
 import { fileName } from "../lib/format";
 import { AccountsManager } from "../components/AccountsManager";
 import { Dialog } from "../components/Dialog";
@@ -9,7 +9,7 @@ import { SectionPage } from "../components/SectionPage";
 import { PageHeader } from "./PlannerScreens";
 import type { Theme } from "../lib/theme";
 import { BUILD_LABEL, BUILD_NUMBER } from "../lib/build";
-import { LANGUAGES, type Lang } from "../lib/i18n";
+import { LANGUAGES, categoryName, type Lang } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 import type { Translate } from "../lib/i18n";
 import type { UpdaterState } from "../lib/updater";
@@ -48,6 +48,9 @@ export function SettingsScreen({
   onLoadDemo,
   onRemoveDemo,
   onEraseAll,
+  categories,
+  housingCategoryId,
+  onHousingCategory,
   theme,
   onTheme,
 }: {
@@ -62,6 +65,9 @@ export function SettingsScreen({
   onLoadDemo: () => Promise<void>;
   onRemoveDemo: () => Promise<void>;
   onEraseAll: () => Promise<void>;
+  categories: Category[];
+  housingCategoryId: number | null;
+  onHousingCategory: (categoryId: number | null) => void;
   theme: Theme;
   onTheme: (theme: Theme) => void;
 }) {
@@ -408,6 +414,33 @@ export function SettingsScreen({
             </div>
           </div>
         ) : null}
+      </article>
+
+      <article className="card" hidden={tab !== "account"}>
+        <header className="card-head">
+          <h2>{t("planner.housingCategory")}</h2>
+        </header>
+        <p className="muted">
+          {t("planner.housingHint", {
+            category:
+              categoryName(t, categories.find((item) => item.id === housingCategoryId)?.name ?? "") ||
+              t("planner.housing"),
+          })}
+        </p>
+        <label className="field">
+          <span>{t("planner.category")}</span>
+          <select
+            value={housingCategoryId ?? ""}
+            onChange={(event) => onHousingCategory(event.target.value ? Number(event.target.value) : null)}
+          >
+            <option value="">{t("ledger.noCategory")}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {categoryName(t, category.name)}
+              </option>
+            ))}
+          </select>
+        </label>
       </article>
 
       <details className="card demo-details" hidden={tab !== "account"}>

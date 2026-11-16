@@ -26,7 +26,6 @@ import type {
   Bill,
   BudgetStatus,
   CardMeta,
-  Category,
   CategoryTotal,
   Goal,
   Holding,
@@ -354,7 +353,6 @@ export function ReserveScreen({
 
 export function HouseScreen({
   plan,
-  categories,
   housingCategoryId,
   housingScope,
   people,
@@ -363,7 +361,6 @@ export function HouseScreen({
   trackSettlement,
   onSavePeople,
   onTrackSettlement,
-  onCategory,
   onScope,
   onEditCeiling,
   onAddBill,
@@ -372,7 +369,6 @@ export function HouseScreen({
   onSettle,
 }: {
   plan: MonthPlan;
-  categories: Category[];
   housingCategoryId: number | null;
   housingScope: "primary" | "total";
   people: Person[];
@@ -381,7 +377,6 @@ export function HouseScreen({
   trackSettlement: boolean;
   onSavePeople: (inputs: PersonInput[]) => void;
   onTrackSettlement: (value: boolean) => void;
-  onCategory: (categoryId: number | null) => void;
   onScope: (scope: "primary" | "total") => void;
   onEditCeiling: () => void;
   onAddBill: () => void;
@@ -402,35 +397,18 @@ export function HouseScreen({
         description={t("planner.houseDescription")}
         polaroid={{ icon: "house", caption: t("polaroid.house"), tilt: 2 }}
       />
-      <article className="card house-settings-card">
-        <div className="house-settings-copy">
-          <h2>{t("planner.housingCategory")}</h2>
-          <span className="muted small">
-            {t("planner.housingHint", {
-              category:
-                categories.find((item) => item.id === housingCategoryId)?.name ??
-                t("planner.housing"),
-            })}
-          </span>
-        </div>
-        <label className="field house-category-field">
-          <span>{t("planner.category")}</span>
-          <select
-            value={housingCategoryId ?? ""}
-            onChange={(event) => onCategory(event.target.value ? Number(event.target.value) : null)}
-          >
-            <option value="">{t("ledger.noCategory")}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {categoryName(t, category.name)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </article>
-
       <div className="house-overview-grid">
+        <div className="house-column">
         <HousingCard plan={plan} scope={housingScope} onScope={onScope} onEdit={onEditCeiling} />
+        <PeopleCard
+          key={people.map((person) => `${person.id}:${person.name}:${person.incomeCents}`).join("|")}
+          people={people}
+          trackSettlement={trackSettlement}
+          onSave={onSavePeople}
+          onTrackSettlement={onTrackSettlement}
+        />
+        </div>
+        <div className="house-column">
         {housingBills.length > 0 ? (
           <article className="card rent-card">
             <header className="card-head">
@@ -503,16 +481,6 @@ export function HouseScreen({
             </button>
           </article>
         )}
-      </div>
-
-      <PeopleCard
-        key={people.map((person) => `${person.id}:${person.name}:${person.incomeCents}`).join("|")}
-        people={people}
-        trackSettlement={trackSettlement}
-        onSave={onSavePeople}
-        onTrackSettlement={onTrackSettlement}
-      />
-
       {people.length > 1 ? (
         <SplitCard
           people={people}
@@ -534,6 +502,8 @@ export function HouseScreen({
           </div>
         </article>
       )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -1080,9 +1050,9 @@ export function RetirementScreen({ plan }: { plan: MonthPlan }) {
 }
 
 const HEALTH_TONE: Record<HealthStatus, string> = {
-  ok: "var(--positive)",
-  warn: "var(--warning)",
-  bad: "var(--negative)",
+  ok: "#16a34a",
+  warn: "#f59e0b",
+  bad: "#ef4444",
 };
 
 export function HealthScreen({
@@ -1142,7 +1112,7 @@ export function HealthScreen({
       <article className="card">
         <header className="card-head">
           <div className="card-title">
-            <span className="card-icon slate">
+            <span className="card-icon blue">
               <Icon name="scale" size={15} />
             </span>
             <h2>{t("health.checklist")}</h2>
@@ -1150,7 +1120,11 @@ export function HealthScreen({
         </header>
         <ul className="installment-list">
           {signals.map((signal) => (
-            <li key={signal.id} className="installment">
+            <li
+              key={signal.id}
+              className="installment health-row"
+              style={{ "--tone": HEALTH_TONE[signal.status] } as CSSProperties}
+            >
               <div className="installment-head">
                 <span className="installment-name">
                   <span className="dot" style={{ background: HEALTH_TONE[signal.status] }} />
@@ -1522,7 +1496,7 @@ export function FlowsScreen({
                         <em className="pill-soft">{t("budgets.overridden")}</em>
                       ) : null}
                     </span>
-                    <span className={over ? "muted small over" : "muted small"}>
+                    <span className={over ? "small over" : "muted small"}>
                       {formatCents(item.totalCents)}
                       {cap != null ? ` / ${formatCents(cap)}` : null}
                     </span>
@@ -1530,7 +1504,10 @@ export function FlowsScreen({
                   <div className="meter-track slim">
                     <div
                       className={over ? "meter-fill over" : "meter-fill"}
-                      style={{ width: `${Math.max(2, pct)}%` }}
+                      style={{
+                        width: `${Math.max(2, pct)}%`,
+                        background: over ? "#ef4444" : item.color,
+                      }}
                     />
                   </div>
                   {paceKey && pace ? (
@@ -1648,38 +1625,38 @@ export function DebtsScreen({
               <h2>{t("planner.installments")}</h2>
             </div>
           </header>
-          <ul className="installment-list">
+          <ul className="inst-grid">
             {installments.map(({ bill, left, leftCents: leftValue, ends }) => {
-              const current = bill.installmentsTotal
-                ? Math.floor(bill.installmentsTotal) - left
-                : 0;
+              const total = bill.installmentsTotal ? Math.floor(bill.installmentsTotal) : 0;
+              const current = total ? total - left : 0;
               return (
-                <li key={bill.id} className="installment">
-                  <div className="installment-head">
-                    <span className="installment-name">{bill.name}</span>
-                    <span className="muted small">
-                      {current}/{bill.installmentsTotal} · {formatCents(bill.amountCents)}
+                <li key={bill.id} className="inst-item">
+                  <div className="inst-top">
+                    <strong className="inst-name">{bill.name}</strong>
+                    <span className="pill-soft">
+                      {current}/{total}
                     </span>
                     <button
                       type="button"
-                      className="outline-button small-button"
+                      className="icon-button"
+                      title={t("common.edit")}
+                      aria-label={`${t("common.edit")}: ${bill.name}`}
                       onClick={() => onEditBill(bill)}
                     >
-                      {t("common.edit")}
+                      <Icon name="pencil" size={15} />
                     </button>
                   </div>
-                  <div className="meter-track slim">
-                    <div
-                      className="meter-fill"
-                      style={{
-                        width: `${bill.installmentsTotal ? (current / Math.floor(bill.installmentsTotal)) * 100 : 0}%`,
-                      }}
-                    />
+                  <div className="inst-amount">
+                    <strong>{formatCents(bill.amountCents)}</strong>
+                    <span className="muted small">{t("debts.leftTotal", { amount: formatCents(leftValue) })}</span>
                   </div>
-                  <span className="muted small">
-                    {t("debts.leftToGo", { left, amount: formatCents(leftValue) })} ·{" "}
-                    {t("debts.payoff", { month: monthLabel(ends, lang) })}
-                  </span>
+                  <div className="meter-track slim">
+                    <div className="meter-fill" style={{ width: `${total ? (current / total) * 100 : 0}%` }} />
+                  </div>
+                  <div className="inst-foot muted small">
+                    <span>{t("debts.partsLeft", { left })}</span>
+                    <span>{t("debts.payoff", { month: monthLabel(ends, lang) })}</span>
+                  </div>
                 </li>
               );
             })}
@@ -1697,17 +1674,41 @@ export function DebtsScreen({
               <h2>{t("debts.openInvoicesTitle")}</h2>
             </div>
           </header>
-          <ul className="installment-list">
-            {openInvoices.map(({ meta, usageCents }) => (
-              <li key={meta.id} className="installment">
-                <div className="installment-head">
-                  <span className="installment-name">
-                    {meta.brand || t("planner.card")} •••• {meta.last4 || "0000"}
-                  </span>
-                  <span className="muted small">{formatCents(usageCents)}</span>
-                </div>
-              </li>
-            ))}
+          <ul className="inst-grid">
+            {openInvoices.map(({ meta, usageCents }) => {
+              const used = meta.limitCents > 0 ? Math.min(100, (usageCents / meta.limitCents) * 100) : null;
+              return (
+                <li key={meta.id} className="inst-item">
+                  <div className="inst-top">
+                    <strong className="inst-name">
+                      {meta.brand || t("planner.card")} •••• {meta.last4 || "0000"}
+                    </strong>
+                    <span className="muted small">{t("debts.dueDay", { day: meta.dueDay })}</span>
+                  </div>
+                  <div className="inst-amount">
+                    <strong>{formatCents(usageCents)}</strong>
+                    {meta.limitCents > 0 ? (
+                      <span className="muted small">
+                        {t("debts.ofLimit", { limit: formatCents(meta.limitCents) })}
+                      </span>
+                    ) : null}
+                  </div>
+                  {used !== null ? (
+                    <>
+                      <div className="meter-track slim">
+                        <div
+                          className={used >= 80 ? "meter-fill over" : "meter-fill"}
+                          style={{ width: `${Math.max(2, used)}%` }}
+                        />
+                      </div>
+                      <div className="inst-foot muted small">
+                        <span>{t("debts.limitUsed", { percent: Math.round(used) })}</span>
+                      </div>
+                    </>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </article>
       ) : null}

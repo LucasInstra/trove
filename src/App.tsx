@@ -1099,7 +1099,6 @@ export function App() {
                 {tabOf<string>("goals", "goals") === "house" ? (
                   <HouseScreen
                                     plan={plan}
-                                    categories={categories}
                                     housingCategoryId={housingCategoryId}
                                     housingScope={housingScope}
                                     people={planner.people}
@@ -1111,7 +1110,6 @@ export function App() {
                                       setTrackSettlement(value);
                                       void api.setSetting("split_track", value ? "1" : "0");
                                     }}
-                                    onCategory={(categoryId) => void saveHousingCategory(categoryId)}
                                     onScope={(scope) => {
                                       setHousingScope(scope);
                                       void api.setSetting("housing_scope", scope);
@@ -1217,6 +1215,9 @@ export function App() {
                 onLoadDemo={loadDemo}
                 onRemoveDemo={removeDemo}
                 onEraseAll={eraseAll}
+                categories={categories}
+                housingCategoryId={housingCategoryId}
+                onHousingCategory={(categoryId) => void saveHousingCategory(categoryId)}
                 theme={theme}
                 onTheme={(next) => {
                   setTheme(next);

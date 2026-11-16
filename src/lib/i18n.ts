@@ -304,6 +304,11 @@ const en: Dictionary = {
   "debts.lastPayoff": "Last payoff",
   "debts.leftToGo": "{left} left · {amount}",
   "debts.payoff": "payoff {month}",
+  "debts.leftTotal": "{amount} left to pay",
+  "debts.partsLeft": "{left} installments left",
+  "debts.dueDay": "due day {day}",
+  "debts.ofLimit": "of {limit}",
+  "debts.limitUsed": "{percent}% of the limit",
   "planner.installmentsCount": "{count} purchases",
 
   "planner.section": "Planning",
@@ -1094,6 +1099,11 @@ const pt: Dictionary = {
   "debts.lastPayoff": "Última parcela",
   "debts.leftToGo": "{left} restantes · {amount}",
   "debts.payoff": "quitação {month}",
+  "debts.leftTotal": "faltam {amount}",
+  "debts.partsLeft": "{left} parcelas restantes",
+  "debts.dueDay": "vence dia {day}",
+  "debts.ofLimit": "de {limit}",
+  "debts.limitUsed": "{percent}% do limite",
   "planner.installmentsCount": "{count} compras",
 
   "planner.section": "Planejamento",

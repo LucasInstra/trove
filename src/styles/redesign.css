@@ -1526,3 +1526,38 @@ input[type="month"]:focus-visible,
 }
 .goal-list .goal-head > .muted { font-variant-numeric: tabular-nums; }
 .goal-list li > .muted.small { display: block; margin-top: 7px; }
+
+/* House screen: two stacks side by side, so neither card leaves a gap beneath it. */
+.house-column { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+/* Installments and open invoices: one tidy tile each, two to a row. */
+.inst-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.inst-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  border-radius: 14px;
+}
+.inst-top { display: flex; align-items: center; gap: 8px; }
+.inst-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inst-amount { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.inst-amount strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.inst-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* Checkup: each signal carries its status colour, bright. */
+.card-icon.blue { color: #1d4ed8; background: #dbe7ff; }
+.health-row {
+  padding: 10px 12px;
+  border-left: 4px solid var(--tone);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 9%, transparent);
+}
+.health-row .installment-name .dot { width: 10px; height: 10px; }
