@@ -35,6 +35,17 @@
   </tr>
 </table>
 
+<table>
+  <tr>
+    <td width="50%"><b>Spending sheet</b><br>The month as a budget: income, expenses with "paid", totals and the expected final balance. Edit in place, sort, filter, drag rows, and track a partner's share.</td>
+    <td width="50%"><b>Investments sheet</b><br>Owner, institution, product, tax and maturity per holding, with estimated yield and charts below.</td>
+  </tr>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="site/src/assets/shots/sheets-spending-dark-en.png"><img alt="Spending sheet" src="site/src/assets/shots/sheets-spending-light-en.png"></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="site/src/assets/shots/sheets-investments-dark-en.png"><img alt="Investments sheet" src="site/src/assets/shots/sheets-investments-light-en.png"></picture></td>
+  </tr>
+</table>
+
 <sub>Screens are generated from the repository's own preview with sample data (see [site/README.md](site/README.md)), so they match the app.</sub>
 
 ## Why another finance app
@@ -55,7 +66,10 @@ Updates are automatic: the app checks on launch and offers the install from Sett
 
 ## What it does
 
-- **A dashboard that is yours.** Drag cards anywhere in the grid with a live preview, set each card's width in columns, and pick how much detail it shows: compact, minimised or expanded. A wide card shows more of it, not the same content stretched.
+- **A dashboard that is yours.** Drag cards anywhere in the grid with a live preview, set each card's width in columns, and pick how much detail it shows: compact, minimised or expanded.
+- **Spreadsheet mode.** A spending sheet that works as a monthly budget (income sources, expenses, paid marks, totals, expected balance) and an investments sheet with owner, institution, product, tax regime and maturity. Cells edit in place, headers sort, rows drag to reorder, and charts sit under each sheet.
+- **Partner expenses.** Turn it on beside the sheet tabs to say whose each income and expense is; names and amounts take the person's color and charts split income, expenses, paid and what is left per person.
+- **House and receivables.** Rent and household bills are editable right in the Housing card, every person has their own color, and money owed to you records who owes it as plain text.
 - **A ledger you can manage.** Import statements or create manual accounts and entries; search by description, merchant or category; edit manual entries; and export filtered results to CSV.
 - **OFX and CSV import.** Reads OFX 1.x/2.x and configurable bank CSV layouts, with preview, saved profiles and import history. Reimports deduplicate by `FITID` or fingerprint, including matching transactions between OFX and CSV.
 - **Categories and rules.** Organize categories in a tree, set budgets, and use matching rules to categorize imports without overwriting explicit choices.

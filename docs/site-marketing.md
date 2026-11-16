@@ -116,7 +116,7 @@ Fecho: CSV também funciona, com perfil configurável por banco.
 
 Seis cards, dois deles em azul sólido, os outros em `#f7f8fa`. Título de card em 20px, corpo em 15px.
 
-1. **Dashboard que é seu.** Arraste os cards, escolha a largura de cada um e o nível de detalhe. Card largo mostra mais conteúdo, não o mesmo conteúdo esticado.
+1. **Dashboard que é seu.** Arraste os cards, escolha a largura de cada um e o nível de detalhe.
 2. **Importação que não duplica.** OFX 1.x e 2.x, CSV de banco configurável, deduplicação por FITID e por impressão digital, histórico de cada arquivo que entrou.
 3. **Categorias e regras.** Árvore de categorias, orçamento por categoria e regras que classificam sem sobrescrever o que você escolheu à mão.
 4. **Transferências e estornos.** Par de transferência não infla receita nem despesa. Estorno compensa a compra original.

@@ -58,6 +58,7 @@ export const pt = {
       },
     ],
     small: [
+      "Modo planilha para gastos e investimentos",
       "Backup e restauração com verificação",
       "Inglês e português",
       "Atualização automática",

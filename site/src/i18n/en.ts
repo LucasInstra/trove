@@ -59,7 +59,7 @@ export const en: Strings = {
         text: "Accounts, cards, investments and debts side by side, with their evolution over time.",
       },
     ],
-    small: ["Backup and restore with verification", "English and Portuguese", "Automatic updates"],
+    small: ["Spreadsheet mode for spending and investments", "Backup and restore with verification", "English and Portuguese", "Automatic updates"],
   },
   data: {
     eyebrow: "Where the data lives",
