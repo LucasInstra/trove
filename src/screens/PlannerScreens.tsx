@@ -355,6 +355,7 @@ export function ReserveScreen({
 export function HouseScreen({
   plan,
   categories,
+  incomes,
   housingCategoryId,
   housingScope,
   people,
@@ -364,6 +365,8 @@ export function HouseScreen({
   onSavePeople,
   onAddPerson,
   onRemovePerson,
+  onAddIncome,
+  onEditIncome,
   onTrackSettlement,
   onCategory,
   onScope,
@@ -375,6 +378,7 @@ export function HouseScreen({
 }: {
   plan: MonthPlan;
   categories: Category[];
+  incomes: Income[];
   housingCategoryId: number | null;
   housingScope: "primary" | "total";
   people: Person[];
@@ -384,6 +388,8 @@ export function HouseScreen({
   onSavePeople: (inputs: PersonInput[]) => void;
   onAddPerson: (name: string) => void;
   onRemovePerson: (id: number) => void;
+  onAddIncome: (personId: number) => void;
+  onEditIncome: (income: Income) => void;
   onTrackSettlement: (value: boolean) => void;
   onCategory: (categoryId: number | null) => void;
   onScope: (scope: "primary" | "total") => void;
@@ -442,6 +448,9 @@ export function HouseScreen({
           onSave={onSavePeople}
           onAdd={onAddPerson}
           onRemove={onRemovePerson}
+          incomes={incomes}
+          onAddIncome={onAddIncome}
+          onEditIncome={onEditIncome}
           onTrackSettlement={onTrackSettlement}
         />
         </div>

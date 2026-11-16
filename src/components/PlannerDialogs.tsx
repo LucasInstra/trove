@@ -31,13 +31,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function IncomeDialog({ income, people = [], onClose, onSave, onDelete }: { income: Income | null; people?: Person[]; onClose: () => void; onSave: (input: IncomeInput) => void; onDelete?: (id: number) => void }) {
+export function IncomeDialog({ income, people = [], defaultPersonId = null, onClose, onSave, onDelete }: { income: Income | null; people?: Person[]; defaultPersonId?: number | null; onClose: () => void; onSave: (input: IncomeInput) => void; onDelete?: (id: number) => void }) {
   const { t } = useLanguage();
   const [name, setName] = useState(income?.name ?? t("planner.incomeDefault"));
   const [amount, setAmount] = useState(income ? (income.amountCents / 100).toFixed(2) : "");
   const [payDay, setPayDay] = useState(income?.payDay ?? 5);
   const [personId, setPersonId] = useState<number | null>(
-    income?.personId ?? (people.find((person) => person.isSelf) ?? people[0])?.id ?? null,
+    income?.personId ?? defaultPersonId ?? (people.find((person) => person.isSelf) ?? people[0])?.id ?? null,
   );
 
   return (

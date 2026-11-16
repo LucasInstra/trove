@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Bill, CardMeta, Goal, Person, PersonInput, Share, TransactionRow } from "../lib/api";
+import type { Bill, CardMeta, Goal, Income, Person, PersonInput, Share, TransactionRow } from "../lib/api";
 import type { InvoiceWindow } from "../domain/invoice";
 import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
@@ -884,9 +884,15 @@ export function PeopleCard({
   onSave,
   onAdd,
   onRemove,
+  incomes,
+  onAddIncome,
+  onEditIncome,
   onTrackSettlement,
 }: {
   people: Person[];
+  incomes: Income[];
+  onAddIncome: (personId: number) => void;
+  onEditIncome: (income: Income) => void;
   trackSettlement: boolean;
   onSave: (inputs: PersonInput[]) => void;
   onAdd: (name: string) => void;
@@ -927,37 +933,57 @@ export function PeopleCard({
       >
         {drafts.map((draft, index) => {
           const person = people[index];
+          const sources = person ? incomes.filter((entry) => entry.personId === person.id) : [];
           return (
-            <div className="people-row" key={draft.id}>
-              <span className="dot" style={{ background: person?.color ?? "var(--faint)" }} />
-              <label className="field">
-                <span>{person?.isSelf ? t("people.you") : t("people.member")}</span>
+            <div className="person-tile" key={draft.id}>
+              <div className="person-head">
+                <span className="dot" style={{ background: person?.color ?? "var(--faint)" }} />
                 <input
                   value={draft.name}
                   maxLength={40}
+                  aria-label={person?.isSelf ? t("people.you") : t("people.member")}
                   onChange={(event) => patch(draft.id, event.target.value)}
                 />
-              </label>
-              <div className="people-earns">
+                {person?.isSelf ? <span className="pill-soft">{t("people.you")}</span> : null}
+                {person && !person.isSelf ? (
+                  <button
+                    type="button"
+                    className="icon-button danger"
+                    title={t("people.remove")}
+                    aria-label={`${t("people.remove")}: ${person.name}`}
+                    onClick={() => onRemove(person.id)}
+                  >
+                    <Icon name="trash" size={15} />
+                  </button>
+                ) : null}
+              </div>
+              <div className="person-income">
                 <span className="muted small">{t("people.income")}</span>
                 <strong>{formatCents(person?.incomeCents ?? 0)}</strong>
-                <span className="muted small">{Math.round(person?.weightPct ?? 0)}%</span>
+                <span className="muted small">{t("people.shareOfHouse", { percent: Math.round(person?.weightPct ?? 0) })}</span>
               </div>
-              {person && !person.isSelf ? (
-                <button
-                  type="button"
-                  className="icon-button danger"
-                  title={t("common.delete")}
-                  aria-label={`${t("common.delete")}: ${person.name}`}
-                  onClick={() => onRemove(person.id)}
-                >
-                  <Icon name="trash" size={15} />
-                </button>
-              ) : null}
+              <div className="person-sources">
+                {sources.map((source) => (
+                  <button
+                    key={source.id}
+                    type="button"
+                    className="source-chip"
+                    title={t("common.edit")}
+                    onClick={() => onEditIncome(source)}
+                  >
+                    {source.name} · {formatCents(source.amountCents)}
+                  </button>
+                ))}
+                {person ? (
+                  <button type="button" className="source-chip add" onClick={() => onAddIncome(person.id)}>
+                    <Icon name="plus" size={12} />
+                    {t("people.addIncome")}
+                  </button>
+                ) : null}
+              </div>
             </div>
           );
         })}
-        <span className="muted small">{t("people.incomeHint")}</span>
         <div className="people-actions">
           <button type="submit" className="primary small-button" disabled={!dirty || !valid}>
             {t("common.save")}

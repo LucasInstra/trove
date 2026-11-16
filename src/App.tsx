@@ -149,7 +149,7 @@ const ADJUST: Array<{ route: Route; icon: IconName }> = [
 ];
 
 type DialogState =
-  | { kind: "income"; income: Income | null }
+  | { kind: "income"; income: Income | null; personId?: number | null }
   | { kind: "bill"; bill: Bill | null }
   | { kind: "card"; card: CardMeta | null }
   | { kind: "goal"; goal: Goal | null }
@@ -1132,6 +1132,7 @@ export function App() {
                 <HouseScreen
                                     plan={plan}
                                     categories={categories}
+                                    incomes={planner.incomes}
                                     housingCategoryId={housingCategoryId}
                                     housingScope={housingScope}
                                     people={planner.people}
@@ -1141,6 +1142,8 @@ export function App() {
                                     onSavePeople={(inputs) => void savePeople(inputs)}
                                     onAddPerson={(name) => void addPerson(name)}
                                     onRemovePerson={(id) => void removePerson(id)}
+                                    onAddIncome={(personId) => setDialog({ kind: "income", income: null, personId })}
+                                    onEditIncome={(income) => setDialog({ kind: "income", income })}
                                     onCategory={(categoryId) => void saveHousingCategory(categoryId)}
                                     onTrackSettlement={(value) => {
                                       setTrackSettlement(value);
@@ -1279,6 +1282,7 @@ export function App() {
         <IncomeDialog
           income={dialog.income}
           people={planner.people}
+          defaultPersonId={dialog.personId ?? null}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveIncome(input)}
           onDelete={(id) => void removeIncome(id)}

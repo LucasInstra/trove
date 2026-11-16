@@ -1570,3 +1570,28 @@ input[type="month"]:focus-visible,
 .people-add input { flex: 1; min-width: 0; }
 .split-balances { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; flex: 1; }
 .split-balances li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+/* People tiles: name, trash, income and its sources in one place */
+.person-tile {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2, transparent);
+}
+.person-head { display: flex; align-items: center; gap: 8px; }
+.person-head input { flex: 1; min-width: 0; }
+.person-head .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.person-income { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.person-income strong { font-size: 1.1rem; }
+.person-sources { display: flex; flex-wrap: wrap; gap: 6px; }
+.source-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent;
+  color: inherit; font: inherit; font-size: 0.8rem; cursor: pointer;
+}
+.source-chip:hover { border-color: var(--accent, currentColor); }
+.source-chip.add { border-style: dashed; }
+.icon-button.danger { color: var(--danger, #dc2626); }
