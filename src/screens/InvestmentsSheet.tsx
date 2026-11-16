@@ -136,13 +136,6 @@ function groupBy(rows: { key: string; cents: number }[], empty: string): Group[]
   return [...map.entries()].map(([label, cents]) => ({ label, cents })).sort((a, b) => b.cents - a.cents);
 }
 
-/** Keeps the biggest `max - 1` groups and folds the rest into one "others" group, so a long tail never makes a chart tall. */
-function capGroups(groups: Group[], max: number, others: string): Group[] {
-  if (groups.length <= max) return groups;
-  const rest = groups.slice(max - 1);
-  return [...groups.slice(0, max - 1), { label: `${others} (${rest.length})`, cents: rest.reduce((sum, group) => sum + group.cents, 0) }];
-}
-
 /** The CDI the sheet converts "% of CDI" with; it is edited in Settings. */
 function useCdi(): { rates: RateAssumptions } {
   const [rates, setRates] = useState<RateAssumptions>(DEFAULT_RATES);
@@ -571,6 +564,7 @@ export function InvestmentsCharts({
 }) {
   const { lang, t } = useLanguage();
   const { rates } = useCdi();
+  const [allReturns, setAllReturns] = useState(false);
   const today = asOfMonth(month);
   const rows = holdings
     .filter((holding) => holding.kind === "investment" && (!holding.startedOn || holding.startedOn <= today))
@@ -593,11 +587,11 @@ export function InvestmentsCharts({
   const split = (id: string, label: string, pick: (holding: Holding) => string): Grouping => ({
     id,
     label,
-    rows: capGroups(groupBy(rows.map((row) => ({ key: pick(row.holding), cents: row.line.valueCents })), none), MAX_BARS, t("transactions.sheet.others")).map((group, index, list) => ({
+    rows: groupBy(rows.map((row) => ({ key: pick(row.holding), cents: row.line.valueCents })), none).map((group, index) => ({
       label: group.label,
       value: group.cents,
       display: formatCents(group.cents),
-      color: index === list.length - 1 && list.length === MAX_BARS && group.label.startsWith(t("transactions.sheet.others")) ? "#94a3b8" : SERIES[index % SERIES.length],
+      color: SERIES[index % SERIES.length],
     })),
   });
   const groupings = [
@@ -655,7 +649,8 @@ export function InvestmentsCharts({
       tax: row.line.irCents ?? 0,
     }))
     .sort((a, b) => b.invested + b.net + b.tax - (a.invested + a.net + a.tax));
-  if (returns.length > MAX_RETURNS) {
+  const returnCount = returns.length;
+  if (returns.length > MAX_RETURNS && !allReturns) {
     const rest = returns.splice(MAX_RETURNS - 1);
     returns.push({
       name: `${t("transactions.sheet.others")} (${rest.length})`,
@@ -690,6 +685,9 @@ export function InvestmentsCharts({
           groupings={groupings}
           centerLabel={t("investments.sheet.col_value")}
           centerValue={compactMoney(total, lang)}
+          max={MAX_BARS}
+          others={t("transactions.sheet.others")}
+          format={formatCents}
         />
 
         <article className="card">
@@ -710,7 +708,7 @@ export function InvestmentsCharts({
               <h2>{t("investments.sheet.byOwner")}</h2>
             </div>
           </header>
-          <BarList rows={groupings[2].rows} label={t("investments.sheet.byOwner")} />
+          <BarList rows={groupings[2].rows} label={t("investments.sheet.byOwner")} max={MAX_BARS} others={t("transactions.sheet.others")} format={formatCents} />
         </article>
         <article className="card">
           <header className="card-head">
@@ -718,7 +716,7 @@ export function InvestmentsCharts({
               <h2>{t("investments.sheet.byInstitution")}</h2>
             </div>
           </header>
-          <BarList rows={groupings[1].rows} label={t("investments.sheet.byInstitution")} />
+          <BarList rows={groupings[1].rows} label={t("investments.sheet.byInstitution")} max={MAX_BARS} others={t("transactions.sheet.others")} format={formatCents} />
         </article>
       </div>
 
@@ -757,7 +755,7 @@ export function InvestmentsCharts({
               <li><i style={{ background: SERIES[3] }} />{t("investments.sheet.col_ir")}</li>
             </ul>
           </header>
-          <ul className="barlist">
+          <ul className={`barlist${allReturns ? " is-scroll" : ""}`}>
             {returns.map((item, index) => (
               <li key={`${index}:${item.name}`} className="barlist-row">
                 <span className="barlist-label">{item.name}</span>
@@ -778,6 +776,11 @@ export function InvestmentsCharts({
               </li>
             ))}
           </ul>
+          {returnCount > MAX_RETURNS ? (
+            <button type="button" className="outline-button show-all" onClick={() => setAllReturns((value) => !value)}>
+              {allReturns ? t("investments.sheet.showLess") : t("investments.sheet.showAll", { count: returnCount })}
+            </button>
+          ) : null}
         </article>
       ) : null}
 
@@ -788,7 +791,7 @@ export function InvestmentsCharts({
               <h2>{t("investments.sheet.maturities")}</h2>
             </div>
           </header>
-          <BarList rows={maturities} label={t("investments.sheet.maturities")} />
+          <BarList rows={maturities} label={t("investments.sheet.maturities")} max={MAX_BARS} others={t("transactions.sheet.others")} format={formatCents} />
         </article>
       ) : null}
       </div>

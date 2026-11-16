@@ -1,9 +1,30 @@
+import { useState } from "react";
+import { useLanguage } from "../../lib/language";
+
 export interface BarListRow {
   label: string;
   value: number;
   /** Text for the value; the share of the total follows it. */
   display: string;
   color: string;
+}
+
+/** Keeps the biggest `max - 1` rows and folds the tail into one grey "others (N)" row. */
+export function foldRows(rows: BarListRow[], max: number, others: string, format: (value: number) => string): BarListRow[] {
+  if (rows.length <= max) return rows;
+  const rest = rows.slice(max - 1);
+  const value = rest.reduce((sum, row) => sum + Math.max(0, row.value), 0);
+  return [...rows.slice(0, max - 1), { label: `${others} (${rest.length})`, value, display: format(value), color: "#94a3b8" }];
+}
+
+/** The "show all N / show fewer" button under a folded list. */
+export function ShowAll({ open, count, onToggle }: { open: boolean; count: number; onToggle: () => void }) {
+  const { t } = useLanguage();
+  return (
+    <button type="button" className="outline-button show-all" aria-expanded={open} onClick={onToggle}>
+      {open ? t("investments.sheet.showLess") : t("investments.sheet.showAll", { count })}
+    </button>
+  );
 }
 
 /**
@@ -16,17 +37,29 @@ export function BarList({
   label,
   active = null,
   onHover,
+  max,
+  others,
+  format,
 }: {
   rows: BarListRow[];
   label: string;
   /** Row the pointer is on (here or on the donut); the others step back. */
   active?: number | null;
   onHover?: (index: number | null) => void;
+  /** With these three, a long list folds its tail into "others" and offers a button to see everything. */
+  max?: number;
+  others?: string;
+  format?: (value: number) => string;
 }) {
+  const [open, setOpen] = useState(false);
+  const foldable = max !== undefined && others !== undefined && format !== undefined && rows.length > max;
+  const all = rows;
+  if (foldable && !open) rows = foldRows(rows, max, others, format);
   const total = rows.reduce((sum, row) => sum + Math.max(0, row.value), 0);
   const peak = Math.max(...rows.map((row) => row.value), 1);
   return (
-    <ul className="barlist" aria-label={label}>
+    <>
+    <ul className={`barlist${foldable && open ? " is-scroll" : ""}`} aria-label={label}>
       {rows.map((row, index) => (
         <li
           key={row.label}
@@ -46,5 +79,7 @@ export function BarList({
         </li>
       ))}
     </ul>
+    {foldable ? <ShowAll open={open} count={all.length} onToggle={() => setOpen((value) => !value)} /> : null}
+    </>
   );
 }

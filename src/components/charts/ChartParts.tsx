@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Donut } from "../Donut";
-import { BarList, type BarListRow } from "./BarList";
+import { BarList, ShowAll, foldRows, type BarListRow } from "./BarList";
 
 export function compactMoney(cents: number, lang: string): string {
   return new Intl.NumberFormat(lang === "pt" ? "pt-BR" : "en-US", {
@@ -39,17 +39,27 @@ export function GroupedDistribution({
   centerLabel,
   centerValue,
   action,
+  max,
+  others,
+  format,
 }: {
   title: string;
   groupings: Grouping[];
   centerLabel: string;
   centerValue: string;
   action?: ReactNode;
+  /** Fold the tail of long lists into "others", with a button to see everything. */
+  max?: number;
+  others?: string;
+  format?: (value: number) => string;
 }) {
+  const [open, setOpen] = useState(false);
   const [pick, setPick] = useState(groupings[0]?.id ?? "");
   const [hover, setHover] = useState<number | null>(null);
   const current = groupings.find((group) => group.id === pick) ?? groupings[0];
   if (!current) return null;
+  const foldable = max !== undefined && others !== undefined && format !== undefined && current.rows.length > max;
+  const shown = foldable && !open ? foldRows(current.rows, max, others, format) : current.rows;
   return (
     <article className="card">
       <header className="card-head">
@@ -77,13 +87,16 @@ export function GroupedDistribution({
       </header>
       <div className="sheet-donut">
         <Donut
-          segments={current.rows.map((row) => ({ color: row.color, value: row.value }))}
+          segments={shown.map((row) => ({ color: row.color, value: row.value }))}
           centerLabel={centerLabel}
           centerValue={centerValue}
           activeIndex={hover}
           onActive={setHover}
         />
-        <BarList rows={current.rows} label={current.label} active={hover} onHover={setHover} />
+        <div className={foldable && open ? "is-scroll-wrap" : undefined}>
+          <BarList rows={shown} label={current.label} active={hover} onHover={setHover} />
+          {foldable ? <ShowAll open={open} count={current.rows.length} onToggle={() => { setOpen((value) => !value); setHover(null); }} /> : null}
+        </div>
       </div>
     </article>
   );
@@ -175,6 +188,20 @@ export function CrossBars({
           </li>
         ))}
       </ul>
+      {keep.length < ranked.length ? (
+        <details className="cross-others">
+          <summary>
+            {others} ({ranked.length - keep.length})
+          </summary>
+          <ul>
+            {ranked.slice(keep.length).map((key) => (
+              <li key={key}>
+                {key}: {format(totals.get(key) ?? 0)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <ul className="barlist" aria-label={label}>
         {folded.map((row) => (
           <li key={row.label} className="barlist-row">
