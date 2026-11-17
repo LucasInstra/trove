@@ -26,7 +26,7 @@ import { installmentEndMonth, remainingInstallments } from "../domain/installmen
 import { netWorthCurve, holdingsTotal, totalWealth } from "../domain/patrimony";
 import { retirementProjection } from "../domain/retirement";
 import type { MonthPlan } from "../domain/projection";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import type {
   Bill,
   BillInput,
@@ -82,7 +82,6 @@ export function PageHeader({
   description,
   action,
   polaroid,
-  children,
 }: {
   eyebrow: string;
   title: string;
@@ -90,8 +89,6 @@ export function PageHeader({
   action?: { label: string; onClick: () => void };
   /** Plan screens only: the pinned picture with its handwritten caption. */
   polaroid?: { icon: Icon3DName; caption: string; tilt?: number };
-  /** Extra content under the description, inside the header card. */
-  children?: ReactNode;
 }) {
   const frame = useScreenFrame();
   return (
@@ -102,7 +99,6 @@ export function PageHeader({
         ) : null}
         <h1>{title}</h1>
         <p className="muted">{description}</p>
-        {children}
       </div>
       {action ? (
         <button type="button" className="primary" onClick={action.onClick}>
@@ -113,37 +109,6 @@ export function PageHeader({
       {polaroid ? <Polaroid icon={polaroid.icon} caption={polaroid.caption} tilt={polaroid.tilt} /> : null}
       {frame?.tabs ? <div className="planner-screen-tabs">{frame.tabs}</div> : null}
     </header>
-  );
-}
-
-/** The three numbers of the house at a glance, under the title of the Casa screen. */
-function HouseHero({ plan, scope }: { plan: MonthPlan; scope: "primary" | "total" }) {
-  const { lang, t } = useLanguage();
-  const ratioPct = scope === "primary" ? plan.housingRatioPrimaryPct : plan.housingRatioPct;
-  const over = ratioPct > plan.ceilingPct;
-  const ratioText = ratioPct.toLocaleString(lang === "pt" ? "pt-BR" : "en-US", { maximumFractionDigits: 1 });
-  return (
-    <dl className="house-hero">
-      <div>
-        <dt>{t("house.heroCost")}</dt>
-        <dd>{formatCents(plan.housingCents)}</dd>
-      </div>
-      <div>
-        <dt>{t("house.heroShare")}</dt>
-        <dd className={over ? "over" : undefined}>{ratioText}%</dd>
-        <span className="house-hero-bar" aria-hidden="true">
-          <span
-            className={over ? "over" : undefined}
-            style={{ width: `${Math.min(100, plan.ceilingPct > 0 ? (ratioPct / plan.ceilingPct) * 100 : 0)}%` }}
-          />
-        </span>
-        <small className="muted">{t("house.heroCeiling", { ceiling: plan.ceilingPct })}</small>
-      </div>
-      <div>
-        <dt>{t("house.heroBills")}</dt>
-        <dd>{plan.housingBills.length}</dd>
-      </div>
-    </dl>
   );
 }
 
@@ -473,9 +438,7 @@ export function HouseScreen({
         title={t("nav.house")}
         description={t("planner.houseDescription")}
         polaroid={{ icon: "house", caption: t("polaroid.house"), tilt: 2 }}
-      >
-        <HouseHero plan={plan} scope={housingScope} />
-      </PageHeader>
+      />
       <div className="house-overview-grid">
         <div className="house-column">
         <HousingCard plan={plan} scope={housingScope} onScope={onScope} onEdit={onEditCeiling} />
