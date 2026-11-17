@@ -76,6 +76,9 @@ Updates are automatic: the app checks on launch and offers the install from Sett
 - **Transfers and refunds.** Paired transfers stay out of income and spending totals; refunds net against their original transaction.
 - **Cash flow and planning.** Category and whole-month budgets, carryover, free-to-spend, recurring-charge detection, 3/6/12-month forecasts and monthly reports.
 - **Charts and net worth.** Daily spending, KPI sparklines, a running balance, tags and holdings alongside statement balances.
+- **Several accounts, if you want them.** Off by default: turn it on to see every figure for all accounts or for one, with each account's result for the month and an optional opening balance. Goals can be tied to an account.
+- **Crypto holdings.** What you paid, what it is worth now and the gain or loss, with optional price lookups.
+- **Display currency.** Choose the symbol amounts are shown with; nothing is converted.
 - **Backup and restore.** Create a local database backup and restore a validated backup from Settings.
 - **Clean merchant names**: `IFD*IFOOD SAO PAULO` becomes `IFOOD SAO PAULO`.
 - **Month navigation** with in, out and net computed locally, opening on the most recent month that has data.

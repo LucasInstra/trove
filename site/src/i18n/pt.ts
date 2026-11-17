@@ -63,6 +63,8 @@ export const pt = {
       "Inglês e português",
       "Atualização automática",
       "Cotação de criptomoedas opcional (desligada por padrão)",
+      "Várias contas como opção",
+      "Moeda de exibição",
     ],
   },
   data: {
