@@ -1,4 +1,5 @@
 import type { CardMeta } from "../lib/api";
+import { formatCents } from "../lib/format";
 import type { InvoiceWindow } from "./invoice";
 import type { MonthPlan } from "./projection";
 
@@ -11,7 +12,8 @@ export interface PlanNotification {
 
 export interface NotificationInput {
   plan: MonthPlan;
-  cards: { meta: CardMeta; window: InvoiceWindow }[];
+  /** `usageCents` is what is still to pay on the invoice; `paid` is whether it was marked as paid. */
+  cards: { meta: CardMeta; window: InvoiceWindow; usageCents?: number; paid?: boolean }[];
   today: string;
   reads: string[];
   hasIncome: boolean;
@@ -52,7 +54,18 @@ export function buildNotifications(input: NotificationInput): PlanNotification[]
       }
     }
 
-    for (const { meta, window } of input.cards) {
+    for (const { meta, window, usageCents = 0, paid = false } of input.cards) {
+      if (usageCents > 0) {
+        const delta = daysUntil(meta.dueDay, today);
+        const vars = { name: meta.accountName, day: meta.dueDay, amount: formatCents(usageCents) };
+        if (paid) {
+          out.push({ key: `card:${meta.id}:${plan.month}:grew:${usageCents}`, kind: "card", messageKey: "notify.cardGrew", vars });
+        } else if (delta < 0) {
+          out.push({ key: `card:${meta.id}:${plan.month}:overdue`, kind: "late", messageKey: "notify.cardLate", vars });
+        } else if (delta <= 3) {
+          out.push({ key: `card:${meta.id}:${plan.month}:due`, kind: "soon", messageKey: "notify.cardDue", vars });
+        }
+      }
       const delta = daysUntil(Number(window.to.slice(8, 10)), today);
       if (window.to.slice(0, 7) === currentMonth && delta >= 0 && delta <= 3) {
         out.push({
