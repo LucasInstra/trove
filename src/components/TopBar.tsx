@@ -109,7 +109,6 @@ export function TopBar({
         >
           <Icon name="chevron-right" size={18} />
         </button>
-        <MonthPicker month={month} onPick={onPickMonth} />
         <div id="topbar-slot" className="topbar-slot" />
         </div>
       </div>
