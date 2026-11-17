@@ -757,3 +757,59 @@ html.vt-privacy::view-transition-new(root) {
 .bank-mark.bank-itau svg, .bank-mark.bank-bb svg { display: none; }
 .network-mark:is(svg) { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
 .card-art-real:is([data-texture="bb"], [data-texture="itau-platinum"], [data-texture="santander-silver"], [data-texture="c6-platinum"]) svg.network-mark:is(.network-visa, .network-elo) { color: #14213d; }
+
+/* Text-like fields anywhere in the app: the same look as the dialogs, at zero specificity so any
+   component that styles its own field (sheet cells, search boxes) keeps winning. */
+:where(
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="button"], [type="submit"], [type="date"], [type="month"]),
+    textarea
+  ) {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background-color: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+}
+
+:where(textarea) {
+  padding: 10px 12px;
+  line-height: 1.45;
+}
+
+:where(input, textarea):hover:not(:disabled) {
+  border-color: var(--faint);
+}
+
+:where(input, textarea):focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--faint);
+}
+
+:where(input, textarea):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* The open list of a select: the browser draws the frame, but it takes our colors and size. */
+select option {
+  background-color: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
