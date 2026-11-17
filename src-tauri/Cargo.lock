@@ -4119,7 +4119,7 @@ dependencies = [
 
 [[package]]
 name = "trove"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "chrono",
  "encoding_rs",
