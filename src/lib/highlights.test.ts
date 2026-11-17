@@ -14,7 +14,11 @@ The ledger counts the salary.
 
 describe("release highlights", () => {
   it("takes the bold lead-in of each bullet, or the first sentence", () => {
-    expect(highlights(notes)).toEqual(["Salary in the ledger summary", "Crypto notice", "A plain bullet"]);
+    expect(highlights(notes)).toEqual([
+      { title: "Salary in the ledger summary", detail: '"In" now includes the salary.' },
+      { title: "Crypto notice", detail: 'It only closes with "Turn on".' },
+      { title: "A plain bullet", detail: "With a second sentence." },
+    ]);
   });
 
   it("stops at the limit", () => {

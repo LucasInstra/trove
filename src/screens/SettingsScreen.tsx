@@ -402,7 +402,10 @@ export function SettingsScreen({
         {updater.notes && updater.status === "available" ? (
           <ul className="whatsnew-list">
             {highlights(lang === "pt" && updater.notesPt ? updater.notesPt : updater.notes).map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item.title}>
+                <strong>{item.title}</strong>
+                {item.detail ? <span className="muted small"> {item.detail}</span> : null}
+              </li>
             ))}
           </ul>
         ) : null}
@@ -413,7 +416,10 @@ export function SettingsScreen({
             {installedNotes.summary ? <p className="muted small">{installedNotes.summary}</p> : null}
             <ul className="whatsnew-list">
               {installedNotes.items.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item.title}>
+                  <strong>{item.title}</strong>
+                  {item.detail ? <span className="muted small"> {item.detail}</span> : null}
+                </li>
               ))}
             </ul>
           </>
