@@ -410,7 +410,7 @@ export function GoalDialog({ goal, accounts = [], onClose, onSave, onDelete }: {
             <input value={monthly} onChange={(event) => setMonthly(event.target.value)} inputMode="decimal" />
           </Field>
         </div>
-        {accounts.length > 1 ? (
+        {accounts.length > 0 ? (
           <Field label={t("goal.account")}>
             <select value={accountId ?? ""} onChange={(event) => setAccountId(event.target.value ? Number(event.target.value) : null)}>
               <option value="">{t("goal.noAccount")}</option>
