@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 22;
+pub const SCHEMA_VERSION: i64 = 23;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -432,8 +432,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v21(&connection)?;
         write_version(&connection, 21)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 22 {
         migrate_to_v22(&connection)?;
+        write_version(&connection, 22)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v23(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -633,6 +637,12 @@ fn migrate_to_v19(connection: &Connection) -> Result<(), String> {
 /// v20 to v21: who owes a debt is free text, since the debtor is not always a household member.
 fn migrate_to_v21(connection: &Connection) -> Result<(), String> {
     add_column(connection, "debts", "debtor", "text not null default ''")
+}
+
+/// v22 to v23: a holding can be a crypto position (symbol and quantity) whose value follows the price.
+fn migrate_to_v23(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "holdings", "symbol", "text not null default ''")?;
+    add_column(connection, "holdings", "units", "text not null default ''")
 }
 
 /// v21 to v22: an income can start and end in a given month (YYYY-MM, empty = open),
@@ -2381,6 +2391,9 @@ pub struct Holding {
     pub taxable: bool,
     pub maturity_on: String,
     pub notes: String,
+    /// Crypto symbol (BTC...) and how many units are held; empty when not crypto.
+    pub symbol: String,
+    pub units: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -2416,6 +2429,10 @@ pub struct HoldingInput {
     pub maturity_on: String,
     #[serde(default)]
     pub notes: String,
+    #[serde(default)]
+    pub symbol: String,
+    #[serde(default)]
+    pub units: String,
 }
 
 fn default_taxable() -> bool {
@@ -2442,6 +2459,8 @@ impl HoldingInput {
             taxable: self.taxable,
             maturity_on: self.maturity_on.clone(),
             notes: self.notes.clone(),
+            symbol: self.symbol.clone(),
+            units: self.units.clone(),
         }
     }
 }
@@ -2464,7 +2483,7 @@ pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
     let mut statement = connection
         .prepare(
             "select id, name, kind, amount_cents, updated_on, cost_cents, indexer, rate_bps, term_months, started_on,
-                    owner, institution, product, taxable, maturity_on, notes from holdings
+                    owner, institution, product, taxable, maturity_on, notes, symbol, units from holdings
              where deleted_at is null order by name",
         )
         .map_err(|problem| problem.to_string())?;
@@ -2487,6 +2506,8 @@ pub fn list_holdings(connection: &Connection) -> Result<Vec<Holding>, String> {
                 taxable: row.get::<_, i64>(13)? != 0,
                 maturity_on: row.get(14)?,
                 notes: row.get(15)?,
+                symbol: row.get(16)?,
+                units: row.get(17)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -2543,6 +2564,10 @@ pub fn save_holding(connection: &Connection, input: &HoldingInput) -> Result<i64
             params![name],
         )
         .map_err(|problem| problem.to_string())?;
+    let symbol = input.symbol.trim().to_uppercase();
+    if symbol.chars().count() > 12 || input.units.trim().chars().count() > 30 {
+        return Err("holding crypto fields are too long".to_string());
+    }
     let indexer = if input.indexer.is_empty() { "none" } else { input.indexer.as_str() };
     let stamp = Utc::now().to_rfc3339();
     let affected = match input.id {
@@ -2550,23 +2575,24 @@ pub fn save_holding(connection: &Connection, input: &HoldingInput) -> Result<i64
             "update holdings set name = ?1, kind = ?2, amount_cents = ?3, updated_on = ?4,
                     cost_cents = ?5, indexer = ?6, rate_bps = ?7, term_months = ?8,
                     started_on = ?9, updated_at = ?10, owner = ?12, institution = ?13,
-                    product = ?14, taxable = ?15, maturity_on = ?16, notes = ?17
+                    product = ?14, taxable = ?15, maturity_on = ?16, notes = ?17,
+                    symbol = ?18, units = ?19
              where id = ?11 and deleted_at is null",
             params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents,
                     indexer, input.rate_bps, input.term_months, input.started_on, stamp, id,
                     input.owner, input.institution, input.product, input.taxable as i64,
-                    input.maturity_on, input.notes],
+                    input.maturity_on, input.notes, symbol, input.units.trim()],
         ),
         None => connection.execute(
             "insert into holdings (uid, name, kind, amount_cents, updated_on, cost_cents,
                     indexer, rate_bps, term_months, started_on, created_at, updated_at,
-                    owner, institution, product, taxable, maturity_on, notes)
+                    owner, institution, product, taxable, maturity_on, notes, symbol, units)
              values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10,
-                    ?11, ?12, ?13, ?14, ?15, ?16)",
+                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
             params![name, input.kind, input.amount_cents, input.updated_on, input.cost_cents,
                     indexer, input.rate_bps, input.term_months, input.started_on, stamp,
                     input.owner, input.institution, input.product, input.taxable as i64,
-                    input.maturity_on, input.notes],
+                    input.maturity_on, input.notes, symbol, input.units.trim()],
         ),
     }
     .map_err(|problem| {

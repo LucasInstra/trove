@@ -47,6 +47,9 @@ export interface Holding {
   /** Maturity date, YYYY-MM-DD; empty when open-ended. */
   maturityOn: string;
   notes: string;
+  /** Crypto symbol (BTC...) and units held; empty when it is not a crypto position. */
+  symbol?: string;
+  units?: string;
 }
 
 export interface HoldingInput {
@@ -66,6 +69,8 @@ export interface HoldingInput {
   taxable?: boolean;
   maturityOn?: string;
   notes?: string;
+  symbol?: string;
+  units?: string;
 }
 
 export interface TransactionRow {
@@ -619,6 +624,7 @@ export const api = {
   saveDeposit: (input: DepositInput) => invoke<number>("save_deposit", { input }),
   markNotificationsRead: (keys: string[]) =>
     invoke<void>("mark_notifications_read", { keys }),
+  refreshCryptoPrices: () => invoke<number>("refresh_crypto_prices"),
   getSetting: (key: string) => invoke<string | null>("get_setting", { key }),
   setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
 };

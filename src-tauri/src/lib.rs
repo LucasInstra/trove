@@ -1,3 +1,4 @@
+mod crypto;
 mod csv;
 mod db;
 mod demo;
@@ -563,6 +564,25 @@ fn mark_notifications_read(app: tauri::AppHandle, keys: Vec<String>) -> Result<(
     planner::mark_read(&connection, &keys)
 }
 
+/// Fetches the current prices for the user's crypto holdings and updates their value.
+/// Does nothing unless crypto was turned on in Settings.
+#[tauri::command]
+fn refresh_crypto_prices(app: tauri::AppHandle) -> Result<usize, String> {
+    let ids = {
+        let connection = connection(&app)?;
+        if planner::get_setting(&connection, crypto::SETTING)?.as_deref() != Some("on") {
+            return Ok(0);
+        }
+        crypto::wanted_coins(&connection)?
+    };
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let prices = crypto::fetch_prices(&ids)?;
+    let connection = connection(&app)?;
+    crypto::apply_prices(&connection, &prices, &chrono::Local::now().format("%Y-%m-%d").to_string())
+}
+
 #[tauri::command]
 fn get_setting(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
     let connection = connection(&app)?;
@@ -718,6 +738,7 @@ pub fn run() {
             set_debt_settled,
             save_deposit,
             mark_notifications_read,
+            refresh_crypto_prices,
             get_setting,
             set_setting
         ])

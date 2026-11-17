@@ -354,6 +354,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     planner.cards.sort((left, right) => ids.indexOf(left.id) - ids.indexOf(right.id));
     return null;
   },
+  refresh_crypto_prices: () => 0,
   get_setting: (args) => settings[args.key as string] ?? null,
   set_setting: (args) => {
     settings[args.key as string] = args.value as string;

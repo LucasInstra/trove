@@ -1,3 +1,4 @@
+import { CryptoCard } from "../components/CryptoCard";
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -313,6 +314,10 @@ export function SettingsScreen({
           </div>
         ) : null}
       </article>
+
+      <div hidden={tab !== "account"}>
+        <CryptoCard />
+      </div>
 
       <article className="card" hidden={tab !== "updates"}>
         <header className="card-head">

@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CRYPTO_SETTING, CRYPTO_SYMBOLS } from "../domain/crypto";
+import { api } from "../lib/api";
 import { DateCell } from "../components/DateField";
 import { PRODUCTS, reconcileTerm } from "../domain/investmentSheet";
 import { CreditCardArt } from "../components/CreditCardArt";
@@ -843,6 +845,16 @@ export function HoldingDialog({
   const [institution, setInstitution] = useState(initial?.institution ?? "");
   const [product, setProduct] = useState(initial?.product ?? "");
   const [taxable, setTaxable] = useState(initial?.taxable ?? true);
+  const [symbol, setSymbol] = useState(initial?.symbol ?? "");
+  const [units, setUnits] = useState(initial?.units ?? "");
+  const [cryptoOn, setCryptoOn] = useState(false);
+  useEffect(() => {
+    api
+      .getSetting(CRYPTO_SETTING)
+      .then((value) => setCryptoOn(value === "on"))
+      .catch(() => {});
+  }, []);
+  const crypto = kind === "investment" && symbol !== "";
   // Start, term and maturity describe the same period: changing one updates the others.
   const applyTerm = (next: { startedOn: string; maturityOn: string; term: string }, changed: "start" | "maturity" | "term") => {
     const result = reconcileTerm({ startedOn: next.startedOn, maturityOn: next.maturityOn, termMonths: Math.max(0, Math.round(Number(next.term) || 0)) }, changed);
@@ -859,7 +871,7 @@ export function HoldingDialog({
         onSubmit={(event) => {
           event.preventDefault();
           if (name.trim() === "") return;
-          const cents = parseCents(amount);
+          const cents = crypto && amount.trim() === "" ? 0 : parseCents(amount);
           if (!updatedOn) return;
           onSave({
             id: initial?.id ?? null,
@@ -878,6 +890,8 @@ export function HoldingDialog({
             taxable: kind === "investment" ? taxable : (initial?.taxable ?? true),
             maturityOn: kind === "investment" ? maturityOn : "",
             notes: initial?.notes ?? "",
+            symbol: kind === "investment" ? symbol : "",
+            units: kind === "investment" && symbol !== "" ? units.trim() : "",
           });
         }}
       >
@@ -909,11 +923,33 @@ export function HoldingDialog({
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="decimal"
-                required
+                required={!crypto}
               />
             </span>
           </label>
         </div>
+        {kind === "investment" && (cryptoOn || symbol !== "") ? (
+          <div className="form-grid">
+            <label className="field">
+              <span>{t("crypto.symbol")}</span>
+              <select value={symbol} onChange={(event) => setSymbol(event.target.value)}>
+                <option value="">{t("crypto.symbolNone")}</option>
+                {CRYPTO_SYMBOLS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {symbol !== "" ? (
+              <label className="field">
+                <span>{t("crypto.units")}</span>
+                <input value={units} onChange={(event) => setUnits(event.target.value)} inputMode="decimal" placeholder="0.015" maxLength={30} required />
+                <small className="field-hint">{t("crypto.unitsHint")}</small>
+              </label>
+            ) : null}
+          </div>
+        ) : null}
         {kind === "investment" ? (
           <label className="field">
             <span>{t("investments.cost")}</span>

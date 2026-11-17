@@ -43,6 +43,8 @@ import {
 import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { InvestmentsScreen } from "./screens/InvestmentsScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
+import { CryptoPrompt } from "./components/CryptoCard";
+import { CRYPTO_EVENT, CRYPTO_SETTING } from "./domain/crypto";
 import type {
   Account,
   Bill,
@@ -274,6 +276,35 @@ export function App() {
       return false;
     }
   });
+  // Crypto prices are opt-in: null means the user was never asked (first use, or an update from a version without it).
+  const [cryptoChoice, setCryptoChoice] = useState<string | null | undefined>(undefined);
+  const refreshDataRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    const read = () => {
+      api
+        .getSetting(CRYPTO_SETTING)
+        .then(setCryptoChoice)
+        .catch(() => setCryptoChoice("off"));
+    };
+    read();
+    window.addEventListener(CRYPTO_EVENT, read);
+    return () => window.removeEventListener(CRYPTO_EVENT, read);
+  }, []);
+  useEffect(() => {
+    if (cryptoChoice !== "on") return;
+    const update = () => {
+      api
+        .refreshCryptoPrices()
+        .then((count) => {
+          if (count > 0) void refreshDataRef.current();
+        })
+        .catch(() => {});
+    };
+    update();
+    const timer = window.setInterval(update, 15 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [cryptoChoice]);
+
   const finishOnboarding = () => {
     setOnboarded(true);
     try {
@@ -452,6 +483,8 @@ export function App() {
     },
     [month, search, accountFilter, tagFilter, reload],
   );
+
+  refreshDataRef.current = () => refreshData();
 
   const mutateAndRefresh = useCallback(
     async (
@@ -668,7 +701,12 @@ export function App() {
     }
   };
 
-  const saveHolding = (input: HoldingInput) => mutateAndRefresh(() => api.saveHolding(input));
+  const saveHolding = (input: HoldingInput) =>
+    mutateAndRefresh(async () => {
+      const id = await api.saveHolding(input);
+      if (input.symbol) await api.refreshCryptoPrices().catch(() => 0);
+      return id;
+    });
 
   const savePeople = (inputs: PersonInput[]) =>
     mutateAndRefresh(async () => {
@@ -1396,6 +1434,9 @@ export function App() {
         />
       ) : null}
 
+      {cryptoChoice === null && !loading && (onboarded || accounts.length > 0) ? (
+        <CryptoPrompt />
+      ) : null}
       {dialog?.kind === "bill" ? (
         <BillDialog
           bill={dialog.bill}
