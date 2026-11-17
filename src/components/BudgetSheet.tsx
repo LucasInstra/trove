@@ -3,7 +3,7 @@ import { SortHeader } from "./SortHeader";
 import { nextSort, sortRows, type SortState } from "../domain/sort";
 import { useState } from "react";
 import { Icon } from "./Icons";
-import type { Bill, BillInput, BillPayment, Income, IncomeInput, Person, Share } from "../lib/api";
+import type { Bill, BillInput, BillPayment, Income, IncomeInput, Person, Share, TransactionRow } from "../lib/api";
 import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { isDueIn } from "../domain/projection";
@@ -84,6 +84,8 @@ export const plain = (cents: number) => (cents / 100).toFixed(2).replace(".", ",
 export function BudgetSheet({
   month,
   incomes,
+  entries,
+  onEditEntry,
   bills,
   payments,
   incomeCents,
@@ -101,6 +103,9 @@ export function BudgetSheet({
 }: {
   month: string;
   incomes: Income[];
+  /** The month's ledger entries: what was really earned and spent, shown next to the planned rows. */
+  entries: TransactionRow[];
+  onEditEntry: (entry: TransactionRow) => void;
   bills: Bill[];
   payments: BillPayment[];
   /** Total income the plan uses for the month (falls back to the statement when no income is set). */
@@ -227,8 +232,13 @@ export function BudgetSheet({
       active: true,
     });
   const sources = applyOrder(incomes.filter((income) => income.active), order.incomes);
-  const expenses = due.reduce((sum, bill) => sum + bill.amountCents, 0);
-  const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0);
+  const realEntries = entries.filter((entry) => entry.transferGroup == null);
+  const entryIncome = realEntries.filter((entry) => entry.amountCents > 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
+  const entryExpense = realEntries.filter((entry) => entry.amountCents < 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
+  const entryIncomeCents = entryIncome.reduce((sum, entry) => sum + entry.amountCents, 0);
+  const entryExpenseCents = entryExpense.reduce((sum, entry) => sum - entry.amountCents, 0);
+  const expenses = due.reduce((sum, bill) => sum + bill.amountCents, 0) + entryExpenseCents;
+  const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryExpenseCents;
   const paidCount = due.filter((bill) => paidOf.has(bill.id)).length;
   const paidPct = expenses > 0 ? Math.min(100, Math.round((paid / expenses) * 100)) : 0;
   const unpaid = dueByDay.filter((bill) => !paidOf.has(bill.id));
@@ -240,15 +250,43 @@ export function BudgetSheet({
   );
   const biggest = due.reduce<Bill | null>((top, bill) => (top === null || bill.amountCents > top.amountCents ? bill : top), null);
 
+  const entryRow = (entry: TransactionRow, expense: boolean) => {
+    const title = entry.merchant || entry.description;
+    const [, month, day] = entry.postedOn.split("-");
+    return (
+      <tr key={`entry-${entry.id}`} className={expense ? "is-paid is-entry" : "is-entry"}>
+        <td className="budget-grip" />
+        <td title={entry.postedOn}>
+          {title} <small className="muted">{day}/{month}</small>
+        </td>
+        <td className="num">{plain(Math.abs(entry.amountCents))}</td>
+        {partnerMode ? <td /> : null}
+        {expense ? (
+          <td className="num">
+            <label className="budget-paid">
+              <input type="checkbox" checked readOnly disabled aria-label={`${t("budget.paid")}: ${title}`} />
+              <span>{formatCents(-entry.amountCents)}</span>
+            </label>
+          </td>
+        ) : null}
+        <td className="budget-actions">
+          <button type="button" className="icon-button" title={t("common.edit")} aria-label={`${t("common.edit")}: ${title}`} onClick={() => onEditEntry(entry)}>
+            <Icon name="pencil" size={15} />
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="budget">
       <StatTiles
         items={[
-          { label: t("budget.totalIncome"), value: formatCents(incomeCents) },
+          { label: t("budget.totalIncome"), value: formatCents(incomeCents + entryIncomeCents) },
           { label: t("budget.totalExpenses"), value: formatCents(expenses) },
           { label: t("budget.paidExpenses"), value: formatCents(paid) },
-          { label: t("budget.balance"), value: formatCents(incomeCents - paid) },
-          { label: t("budget.expected"), value: formatCents(incomeCents - expenses) },
+          { label: t("budget.balance"), value: formatCents(incomeCents + entryIncomeCents - paid) },
+          { label: t("budget.expected"), value: formatCents(incomeCents + entryIncomeCents - expenses) },
         ]}
       />
       <div className={partnerMode ? "budget-tables partner" : "budget-tables"}>
@@ -318,7 +356,8 @@ export function BudgetSheet({
                     </td>
                   </tr>
                 ))}
-                {sources.length === 0 ? (
+                {entryIncome.map((entry) => entryRow(entry, false))}
+                {sources.length === 0 && entryIncome.length === 0 ? (
                   <tr>
                     <td colSpan={partnerMode ? 5 : 4} className="muted">
                       {t("budget.noIncome")}
@@ -465,7 +504,8 @@ export function BudgetSheet({
                     </tr>
                   );
                 })}
-                {due.length === 0 ? (
+                {entryExpense.map((entry) => entryRow(entry, true))}
+                {due.length === 0 && entryExpense.length === 0 ? (
                   <tr>
                     <td colSpan={partnerMode ? 6 : 5} className="muted">
                       {t("budget.noBills")}

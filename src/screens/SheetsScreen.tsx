@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { BudgetCharts } from "../components/BudgetCharts";
 import { BudgetSheet } from "../components/BudgetSheet";
-import { TransactionsCharts, TransactionsSheet } from "../components/TransactionsSheet";
-import type { Bill, BillInput, BillPayment, Category, IncomeInput, Share, Holding, HoldingInput, Income, Person, TransactionRow } from "../lib/api";
+import { TransactionsCharts } from "../components/TransactionsSheet";
+import type { Bill, BillInput, BillPayment, IncomeInput, Share, Holding, HoldingInput, Income, Person, TransactionRow } from "../lib/api";
 import { useLanguage } from "../lib/language";
 import { InvestmentsCharts, InvestmentsSheet } from "./InvestmentsSheet";
 
@@ -32,10 +32,7 @@ export function SheetsScreen({
   onSaveHolding,
   onDeleteHolding,
   rows,
-  categories,
-  onCategory,
   onEditEntry,
-  onDeleteEntry,
   incomes,
   bills,
   payments,
@@ -62,10 +59,7 @@ export function SheetsScreen({
   onSaveHolding: (input: HoldingInput) => void;
   onDeleteHolding: (id: number) => void;
   rows: TransactionRow[];
-  categories: Category[];
-  onCategory: (transactionId: number, categoryId: number | null) => void;
   onEditEntry: (entry: TransactionRow) => void;
-  onDeleteEntry: (id: number) => void;
   incomes: Income[];
   bills: Bill[];
   payments: BillPayment[];
@@ -162,6 +156,8 @@ export function SheetsScreen({
         <BudgetSheet
           month={month}
           incomes={incomes}
+          entries={rows}
+          onEditEntry={onEditEntry}
           bills={bills}
           payments={payments}
           incomeCents={incomeCents}
@@ -177,8 +173,6 @@ export function SheetsScreen({
           onSaveBill={onSaveBill}
           onEditBill={onEditBill}
         />
-          <h2 className="sheet-section">{t("budget.entries")}</h2>
-          <TransactionsSheet rows={rows} categories={categories} onCategory={onCategory} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />
           {partnerMode ? <BudgetCharts month={month} people={people} incomes={incomes} bills={bills} payments={payments} shares={shares} /> : null}
           {CHARTS_INLINE ? <TransactionsCharts rows={rows} /> : null}
         </>
