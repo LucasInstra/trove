@@ -221,10 +221,16 @@ export function OverviewScreen({
   // The layout being shown, which is the drag preview while a card moves.
   const shown = preview ?? layout;
   const spanOf = (id: CardId) => shown.find((entry) => entry.id === id)?.span ?? 1;
+  const heightOf = (id: CardId) => shown.find((entry) => entry.id === id)?.height;
+  // A taller card has room for more rows: each row takes about `row` px after the header.
+  const rowsFor = (id: CardId, base: number, chrome: number, row: number) => {
+    const height = heightOf(id);
+    return height ? Math.max(base, Math.floor((height - chrome) / row)) : base;
+  };
   const spending = byCategory.reduce((total, item) => total + item.totalCents, 0);
   // Biggest first, and the tail becomes one slice: a legend of twelve rows is a
   // list, not a chart. A wider card has room for more rows.
-  const legendLimit = 5;
+  const legendLimit = rowsFor("donut", 5, 250, 30);
   const ranked = [...byCategory].sort((left, right) => right.totalCents - left.totalCents);
   // Over five, the legend keeps four rows and one "Other": five lines at most.
   const keep = ranked.length > legendLimit ? legendLimit - 1 : legendLimit;
@@ -261,7 +267,7 @@ export function OverviewScreen({
 
   // The ledger arrives newest first; sort defensively and keep the head. The
   // card shows four entries and a link to the rest.
-  const recentLimit = 4;
+  const recentLimit = rowsFor("recent", 4, 100, 50);
   const recent = [...rows]
     .sort((left, right) =>
       left.postedOn === right.postedOn ? right.id - left.id : left.postedOn < right.postedOn ? 1 : -1,
