@@ -2064,3 +2064,52 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
     flex-wrap: wrap;
   }
 }
+
+.house-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+  margin: 18px 0 0;
+}
+
+.house-hero > div {
+  display: grid;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.house-hero dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.house-hero dd {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.house-hero dd.over {
+  color: var(--negative);
+}
+
+.house-hero-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  overflow: hidden;
+}
+
+.house-hero-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--positive);
+}
+
+.house-hero-bar > span.over {
+  background: var(--negative);
+}
