@@ -229,6 +229,7 @@ const planner = {
 const settings: Record<string, string | null> = {
   user_name: "Lucas",
   housing_category: "1",
+  crypto_enabled: "on",
 };
 
 /** `?many=1` in the preview URL adds 100 sample investments, to see how the sheet copes with a big portfolio. */

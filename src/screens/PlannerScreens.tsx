@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CRYPTO_SETTING, CRYPTO_SYMBOLS } from "../domain/crypto";
+import { CRYPTO_NAMES, CRYPTO_SETTING, CRYPTO_SYMBOLS } from "../domain/crypto";
 import { api } from "../lib/api";
 import { DateCell } from "../components/DateField";
 import { PRODUCTS, reconcileTerm } from "../domain/investmentSheet";
@@ -854,6 +854,7 @@ export function HoldingDialog({
       .then((value) => setCryptoOn(value === "on"))
       .catch(() => {});
   }, []);
+  const showCrypto = kind === "investment" && (cryptoOn || symbol !== "");
   const crypto = kind === "investment" && symbol !== "";
   // Start, term and maturity describe the same period: changing one updates the others.
   const applyTerm = (next: { startedOn: string; maturityOn: string; term: string }, changed: "start" | "maturity" | "term") => {
@@ -915,6 +916,26 @@ export function HoldingDialog({
               ))}
             </select>
           </label>
+          {showCrypto ? (
+            <label className="field">
+              <span>{t("crypto.symbol")}</span>
+              <select
+                value={symbol}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setSymbol(next);
+                  if (next && (name.trim() === "" || Object.values(CRYPTO_NAMES).includes(name))) setName(CRYPTO_NAMES[next] ?? next);
+                }}
+              >
+                <option value="">{t("crypto.symbolNone")}</option>
+                {CRYPTO_SYMBOLS.map((option) => (
+                  <option key={option} value={option}>
+                    {CRYPTO_NAMES[option]} ({option})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
           <label className="field">
             <span>{t("planner.amount")}</span>
             <span className="input-affix">
@@ -923,36 +944,42 @@ export function HoldingDialog({
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="decimal"
-                required={!crypto}
+                required
               />
             </span>
           </label>
+          )}
         </div>
-        {kind === "investment" && (cryptoOn || symbol !== "") ? (
-          <div className="form-grid">
+        {showCrypto && !crypto ? (
+          <label className="field">
+            <span>{t("planner.amount")}</span>
+            <span className="input-affix">
+              <span>R$</span>
+              <input
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                inputMode="decimal"
+                required
+              />
+            </span>
+          </label>
+        ) : null}
+        {crypto ? (
+          <>
             <label className="field">
-              <span>{t("crypto.symbol")}</span>
-              <select value={symbol} onChange={(event) => setSymbol(event.target.value)}>
-                <option value="">{t("crypto.symbolNone")}</option>
-                {CRYPTO_SYMBOLS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <span>{t("crypto.units")}</span>
+              <input value={units} onChange={(event) => setUnits(event.target.value)} inputMode="decimal" placeholder="0.015" maxLength={30} required />
+              <small className="field-hint">{t("crypto.unitsHint")}</small>
             </label>
-            {symbol !== "" ? (
-              <label className="field">
-                <span>{t("crypto.units")}</span>
-                <input value={units} onChange={(event) => setUnits(event.target.value)} inputMode="decimal" placeholder="0.015" maxLength={30} required />
-                <small className="field-hint">{t("crypto.unitsHint")}</small>
-              </label>
-            ) : null}
-          </div>
+            <label className="field">
+              <span>{t("crypto.boughtOn")}</span>
+              <DateCell className="date-field" lang={lang} label={t("crypto.boughtOn")} value={startedOn} onCommit={(iso) => setStartedOn(iso)} />
+            </label>
+          </>
         ) : null}
         {kind === "investment" ? (
           <label className="field">
-            <span>{t("investments.cost")}</span>
+            <span>{crypto ? t("crypto.paid") : t("investments.cost")}</span>
             <span className="input-affix">
               <span>R$</span>
               <input
@@ -962,10 +989,10 @@ export function HoldingDialog({
                 placeholder={t("investments.costPlaceholder")}
               />
             </span>
-            <small className="field-hint">{t("investments.costHint")}</small>
+            <small className="field-hint">{crypto ? t("crypto.paidHint") : t("investments.costHint")}</small>
           </label>
         ) : null}
-        {kind === "investment" ? (
+        {kind === "investment" && !crypto ? (
           <>
             <div className="form-grid">
               <label className="field">
@@ -1070,6 +1097,24 @@ export function HoldingDialog({
             </div>
           </>
         ) : null}
+        {crypto ? (
+          <div className="form-grid">
+            <label className="field">
+              <span>{t("investments.sheet.col_institution")}</span>
+              <input value={institution} onChange={(event) => setInstitution(event.target.value)} maxLength={60} />
+            </label>
+            <label className="field">
+              <span>{t("investments.sheet.col_owner")}</span>
+              <input value={owner} onChange={(event) => setOwner(event.target.value)} maxLength={60} list="holding-owners" />
+              <datalist id="holding-owners">
+                {people.map((person) => (
+                  <option key={person} value={person} />
+                ))}
+              </datalist>
+            </label>
+          </div>
+        ) : null}
+        {!crypto ? (
         <label className="field">
           <span>{t("holdings.updatedOnLabel")}</span>
           <input
@@ -1079,6 +1124,7 @@ export function HoldingDialog({
             required
           />
         </label>
+        ) : null}
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>
             {t("common.cancel")}
