@@ -13,12 +13,14 @@ interface Props {
   lines: TransactionRow[];
   totalCents: number;
   paid: boolean;
+  /** What was paid, shown once the invoice is marked as paid. */
+  paidCents: number;
   onTogglePaid: () => void;
   onClose: () => void;
 }
 
 /** The invoice of one card and one month, straight from the statement window. */
-export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents, paid, onTogglePaid, onClose }: Props) {
+export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents, paid, paidCents, onTogglePaid, onClose }: Props) {
   const { lang, t } = useLanguage();
 
   return (
@@ -29,7 +31,7 @@ export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents,
           <strong>
             {formatCents(paid ? 0 : totalCents)}
           </strong>
-          {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(totalCents) })}</span> : null}
+          {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(paidCents) })}</span> : null}
         </div>
         <div className="invoice-dates">
           <span className="muted small">{t("planner.dueDate", { date: formatDate(dueDate) })}</span>

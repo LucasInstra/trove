@@ -17,6 +17,7 @@ import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Progress } from "./ui/progress";
 import { InvoiceDialog } from "./InvoiceDialog";
+import { PayInvoiceDialog } from "./PayInvoiceDialog";
 import { usePaidInvoices } from "../lib/paidInvoices";
 import { UpcomingInvoices } from "./UpcomingInvoices";
 
@@ -243,6 +244,7 @@ export function CardsCard({
   const [monthIndex, setMonthIndex] = useState(0);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const invoices = usePaidInvoices();
+  const [payOpen, setPayOpen] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
   // One fetch per card account gives the dialog its lines and the tiles their
@@ -341,6 +343,12 @@ export function CardsCard({
   const window = invoiceWindow(entry.meta.closingDay, entry.meta.dueDay, activeMonth);
   const entryOpen = window.to >= today;
   const paid = invoices.isPaid(entry.meta.id, activeMonth);
+  const record = invoices.paidInvoice(entry.meta.id, activeMonth);
+  const paidCents = record && record.amountCents > 0 ? record.amountCents : usage;
+  const togglePaid = () => {
+    if (paid) void invoices.unmarkPaid(entry.meta.id, activeMonth);
+    else setPayOpen(true);
+  };
   const lines = list ? invoiceLines(list, window) : [];
   const canScroll = cards.length > 1;
   const split = !lean && span >= 3;
@@ -409,7 +417,7 @@ export function CardsCard({
           {entry.meta.brand || t("planner.card")} •••• {entry.meta.last4 || "0000"} ·{" "}
           {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
         </span>
-        {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(usage) })}</span> : null}
+        {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(paidCents) })}</span> : null}
         <span className="card-status">
           <span
             className="dot"
@@ -424,7 +432,7 @@ export function CardsCard({
           <Icon name="file-text" size={16} />
           {t("planner.viewInvoice")}
         </button>
-        <button type="button" className="outline-button" aria-pressed={paid} onClick={() => invoices.setPaid(entry.meta.id, activeMonth, !paid)}>
+        <button type="button" className="outline-button" aria-pressed={paid} onClick={togglePaid}>
           <Icon name="check" size={16} />
           {paid ? t("planner.unmarkPaid") : t("planner.markPaid")}
         </button>
@@ -498,8 +506,18 @@ export function CardsCard({
           lines={lines}
           totalCents={usage}
           paid={paid}
-          onTogglePaid={() => invoices.setPaid(entry.meta.id, activeMonth, !paid)}
+          paidCents={paidCents}
+          onTogglePaid={togglePaid}
           onClose={() => setInvoiceOpen(false)}
+        />
+      ) : null}
+      {payOpen ? (
+        <PayInvoiceDialog
+          card={entry.meta}
+          month={activeMonth}
+          amountCents={usage}
+          onPaid={(paidRecord) => void invoices.markPaid(entry.meta.id, activeMonth, paidRecord)}
+          onClose={() => setPayOpen(false)}
         />
       ) : null}
     </article>

@@ -44,7 +44,7 @@ import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { InvestmentsScreen } from "./screens/InvestmentsScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import { CryptoPrompt } from "./components/CryptoCard";
-import { usePaidInvoices } from "./lib/paidInvoices";
+import { LEDGER_EVENT, usePaidInvoices } from "./lib/paidInvoices";
 import { CRYPTO_EVENT, CRYPTO_SETTING } from "./domain/crypto";
 import type {
   Account,
@@ -281,6 +281,12 @@ export function App() {
   // Crypto prices are opt-in: null means the user was never asked (first use, or an update from a version without it).
   const [cryptoChoice, setCryptoChoice] = useState<string | null | undefined>(undefined);
   const refreshDataRef = useRef<() => Promise<void>>(async () => {});
+  // A payment entry was created or removed outside the ledger screens.
+  useEffect(() => {
+    const reload = () => void refreshDataRef.current();
+    window.addEventListener(LEDGER_EVENT, reload);
+    return () => window.removeEventListener(LEDGER_EVENT, reload);
+  }, []);
   useEffect(() => {
     const read = () => {
       api
@@ -486,7 +492,9 @@ export function App() {
     [month, search, accountFilter, tagFilter, reload],
   );
 
-  refreshDataRef.current = () => refreshData();
+  useEffect(() => {
+    refreshDataRef.current = () => refreshData();
+  }, [refreshData]);
 
   const mutateAndRefresh = useCallback(
     async (
