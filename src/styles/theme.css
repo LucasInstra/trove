@@ -2218,3 +2218,18 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
   gap: 6px;
   font-size: 14px;
 }
+
+.accounts-bare .card-title {
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+}
+
+.accounts-bare .accounts-hint {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.accounts-bare .card-head .round-button {
+  flex: none;
+}
