@@ -14,10 +14,17 @@ export function DayPicker({
   today: number | null;
   onPick: (day: number) => void;
 }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
-  const length = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
+  const year = Number(month.slice(0, 4));
+  const monthIndex = Number(month.slice(5, 7)) - 1;
+  const length = new Date(year, monthIndex + 1, 0).getDate();
+  // Sunday first, like a wall calendar: the first day lands under its weekday.
+  const offset = new Date(year, monthIndex, 1).getDay();
+  const weekdays = Array.from({ length: 7 }, (_, index) =>
+    new Date(2023, 0, 1 + index).toLocaleDateString(lang === "pt" ? "pt-BR" : "en-GB", { weekday: "narrow" }),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -50,7 +57,15 @@ export function DayPicker({
       </button>
       {open ? (
         <div className="month-pop-panel" role="dialog" aria-label={t("topbar.pickDay")}>
+          <div className="day-pop-weekdays" aria-hidden="true">
+            {weekdays.map((name, index) => (
+              <span key={index}>{name}</span>
+            ))}
+          </div>
           <div className="month-pop-grid day-pop-grid">
+            {Array.from({ length: offset }, (_, index) => (
+              <span key={`gap-${index}`} />
+            ))}
             {Array.from({ length }, (_, index) => {
               const value = index + 1;
               return (
