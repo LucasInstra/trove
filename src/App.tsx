@@ -1064,7 +1064,6 @@ export function App() {
               }}
               onImport={() => setRoute("import")}
               onLaunch={() => setDialog({ kind: "manual", entry: null })}
-              canLaunch={accounts.length > 0}
               primaryLabel={t("ledger.import")}
               showLayout={route === "overview"}
               layoutEditing={layoutEditing}

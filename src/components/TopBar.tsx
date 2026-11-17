@@ -25,7 +25,6 @@ interface TopBarProps {
   onReadAll: () => void;
   onImport: () => void;
   onLaunch: () => void;
-  canLaunch: boolean;
   primaryLabel: string;
   showLayout: boolean;
   layoutEditing: boolean;
@@ -40,7 +39,6 @@ export function TopBar({
   onReadAll,
   onImport,
   onLaunch,
-  canLaunch,
   primaryLabel,
   showLayout,
   layoutEditing,
@@ -188,8 +186,6 @@ export function TopBar({
           type="button"
           className="primary topbar-primary"
           onClick={onLaunch}
-          disabled={!canLaunch}
-          title={canLaunch ? undefined : t("manual.needsAccount")}
         >
           <Icon name="plus" size={16} />
           {t("manual.launch")}
