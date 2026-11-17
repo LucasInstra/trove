@@ -1635,8 +1635,9 @@ export function App() {
 
       {dialog?.kind === "accounts" ? (
         <Dialog title={t("accounts.manage")} onClose={() => setDialog(null)}>
-          <p className="muted small">{t("accounts.manageHint")}</p>
           <AccountsManager
+            bare
+            hint={t("accounts.manageHint")}
             accounts={accounts}
             rows={accountRowsList}
             onOpening={(id, cents) => void saveOpening(id, cents)}

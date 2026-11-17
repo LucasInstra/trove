@@ -92,6 +92,8 @@ function OpeningDialog({ row, onClose, onSave }: { row: AccountRow; onClose: () 
 export function AccountsManager({
   accounts,
   rows = [],
+  hint,
+  bare = false,
   onOpening,
   onCreate,
   onRename,
@@ -99,6 +101,10 @@ export function AccountsManager({
 }: {
   accounts: Account[];
   rows?: AccountRow[];
+  /** A sentence under the title. */
+  hint?: string;
+  /** Inside a dialog: no card of its own, the dialog is the card. */
+  bare?: boolean;
   onOpening?: (id: number, cents: number) => void;
   onCreate: (name: string) => void;
   onRename: (id: number, name: string) => void;
@@ -113,7 +119,7 @@ export function AccountsManager({
   const rowOf = (id: number) => rows.find((row) => row.id === id);
 
   return (
-    <article className="card">
+    <article className={bare ? "accounts-bare" : "card"}>
       <header className="card-head">
         <div className="card-title">
           <h2>{t("accounts.title")}</h2>
@@ -122,6 +128,7 @@ export function AccountsManager({
           <Icon name="plus" size={16} />
         </button>
       </header>
+      {hint ? <p className="muted small accounts-hint">{hint}</p> : null}
       {manual.length === 0 ? (
         <p className="card-empty">{t("accounts.empty")}</p>
       ) : (
