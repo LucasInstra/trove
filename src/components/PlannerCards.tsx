@@ -17,6 +17,7 @@ import { IconBubble } from "./editorial";
 import { Icon3D } from "./Icon3D";
 import { Progress } from "./ui/progress";
 import { InvoiceDialog } from "./InvoiceDialog";
+import { usePaidInvoices } from "../lib/paidInvoices";
 import { UpcomingInvoices } from "./UpcomingInvoices";
 
 interface BillsProps {
@@ -241,6 +242,7 @@ export function CardsCard({
   const [activeCard, setActiveCard] = useState(0);
   const [monthIndex, setMonthIndex] = useState(0);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const invoices = usePaidInvoices();
   const trackRef = useRef<HTMLDivElement>(null);
 
   // One fetch per card account gives the dialog its lines and the tiles their
@@ -338,6 +340,7 @@ export function CardsCard({
   const usage = values[activeIndex];
   const window = invoiceWindow(entry.meta.closingDay, entry.meta.dueDay, activeMonth);
   const entryOpen = window.to >= today;
+  const paid = invoices.isPaid(entry.meta.id, activeMonth);
   const lines = list ? invoiceLines(list, window) : [];
   const canScroll = cards.length > 1;
   const split = !lean && span >= 3;
@@ -411,13 +414,17 @@ export function CardsCard({
             className="dot"
             style={{ background: entryOpen ? "var(--positive)" : "var(--line-strong)" }}
           />
-          {entryOpen ? t("planner.open") : t("planner.closed")}
+          {paid ? t("planner.paid") : entryOpen ? t("planner.open") : t("planner.closed")}
         </span>
       </div>
 
       <button type="button" className="outline-button" onClick={() => setInvoiceOpen(true)}>
         <Icon name="file-text" size={16} />
         {t("planner.viewInvoice")}
+      </button>
+      <button type="button" className="outline-button" aria-pressed={paid} onClick={() => invoices.setPaid(entry.meta.id, activeMonth, !paid)}>
+        <Icon name="check" size={16} />
+        {paid ? t("planner.unmarkPaid") : t("planner.markPaid")}
       </button>
 
       <div className={split ? "cards-body is-split" : "cards-body"}>
@@ -487,6 +494,8 @@ export function CardsCard({
           dueDate={dateInMonth(activeMonth, entry.meta.dueDay)}
           lines={lines}
           totalCents={usage}
+          paid={paid}
+          onTogglePaid={() => invoices.setPaid(entry.meta.id, activeMonth, !paid)}
           onClose={() => setInvoiceOpen(false)}
         />
       ) : null}

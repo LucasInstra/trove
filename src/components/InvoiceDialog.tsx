@@ -12,11 +12,13 @@ interface Props {
   dueDate: string;
   lines: TransactionRow[];
   totalCents: number;
+  paid: boolean;
+  onTogglePaid: () => void;
   onClose: () => void;
 }
 
 /** The invoice of one card and one month, straight from the statement window. */
-export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents, onClose }: Props) {
+export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents, paid, onTogglePaid, onClose }: Props) {
   const { lang, t } = useLanguage();
 
   return (
@@ -54,6 +56,10 @@ export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents,
       )}
 
       <div className="dialog-actions">
+        <button type="button" aria-pressed={paid} onClick={onTogglePaid}>
+          <Icon name="check" size={16} />
+          {paid ? t("planner.unmarkPaid") : t("planner.markPaid")}
+        </button>
         <button type="button" className="ghost" onClick={onClose}>
           <Icon name="x" size={16} />
           {t("common.close")}
