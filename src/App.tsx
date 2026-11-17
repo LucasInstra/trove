@@ -17,6 +17,7 @@ import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
 import { AccountsManager } from "./components/AccountsManager";
 import { MultiAccountsBanner } from "./components/MultiAccountsBanner";
+import { computeKpis } from "./domain/kpis";
 import { accountRows, parseOpening, serializeOpening } from "./domain/accounts";
 import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
@@ -643,6 +644,10 @@ export function App() {
     [planner.cards, usage, month, invoices],
   );
 
+  // What is left of the month for the household: income with the salary, minus spending and bills to pay.
+  const monthKpis = computeKpis(plan, incomeSeries, month ?? currentMonth());
+  const monthLeftCents = monthKpis.income.valueCents - monthKpis.expense.valueCents;
+
   const accountRowsList = useMemo(
     () =>
       accountRows(
@@ -1179,6 +1184,7 @@ export function App() {
               <OverviewScreen
                 plan={plan}
                 accountRows={accountRowsList}
+                monthLeftCents={monthLeftCents}
                 multiAccounts={multiAccounts}
                 accountFilter={accountFilter}
                 onAccountFilter={setAccountFilter}

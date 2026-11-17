@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { PlanNotification } from "../domain/notifications";
 import type { Account } from "../lib/api";
-import { monthName } from "../lib/format";
+import { currentMonth, monthName } from "../lib/format";
 import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
 import { MonthPicker } from "./MonthPicker";
@@ -99,6 +99,16 @@ export function TopBar({
           <Icon name="chevron-right" size={18} />
         </button>
         <MonthPicker month={month} onPick={onPickMonth} />
+        <button
+          type="button"
+          className="today-chip"
+          title={t("topbar.goToday")}
+          onClick={() => onPickMonth(currentMonth())}
+        >
+          {t("topbar.today", {
+            date: new Date().toLocaleDateString(lang === "pt" ? "pt-BR" : "en-GB", { day: "numeric", month: "long" }),
+          })}
+        </button>
         <div id="topbar-slot" className="topbar-slot" />
         </div>
       </div>

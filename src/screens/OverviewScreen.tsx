@@ -118,6 +118,7 @@ function spanForEdge(
 interface OverviewProps {
   plan: MonthPlan;
   accountRows: AccountRow[];
+  monthLeftCents: number;
   multiAccounts: boolean;
   accountFilter: number | null;
   onAccountFilter: (id: number | null) => void;
@@ -169,6 +170,7 @@ interface OverviewProps {
 export function OverviewScreen({
   plan,
   accountRows,
+  monthLeftCents,
   multiAccounts,
   accountFilter,
   onAccountFilter,
@@ -392,7 +394,7 @@ export function OverviewScreen({
     })[id];
 
   const cells: Record<CardId, ReactNode> = {
-    accounts: <AccountsCard rows={accountRows} activeId={accountFilter} onSelect={onAccountFilter} onManage={onManageAccounts} />,
+    accounts: <AccountsCard rows={accountRows} monthLeftCents={monthLeftCents} activeId={accountFilter} onSelect={onAccountFilter} onManage={onManageAccounts} />,
     kpis: <KpisCard plan={plan} series={series} month={month} span={spanOf("kpis")} />,
     installments: <InstallmentsCard plan={plan} month={month} />,
     debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} onEdit={onEditDebt} />,

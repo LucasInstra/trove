@@ -2252,3 +2252,32 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
   padding: 0 10px;
   font-size: 13px;
 }
+
+.today-chip {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+
+.today-chip:hover {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+
+.accounts-note {
+  margin: 4px 10px 0;
+}
+
+@media (max-width: 760px) {
+  .today-chip {
+    display: none;
+  }
+}

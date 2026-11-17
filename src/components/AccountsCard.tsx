@@ -1,5 +1,5 @@
 import type { AccountRow } from "../domain/accounts";
-import { totalBalanceKnown, totalHeldCents, totalMonthCents, totalOwedCents } from "../domain/accounts";
+import { totalBalanceKnown, totalHeldCents, totalOwedCents } from "../domain/accounts";
 import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
@@ -11,11 +11,14 @@ const signed = (cents: number) => (cents > 0 ? `+${formatCents(cents)}` : format
 /** Every account with what it holds, and the total of the money you hold. */
 export function AccountsCard({
   rows,
+  monthLeftCents,
   activeId,
   onSelect,
   onManage,
 }: {
   rows: AccountRow[];
+  /** Income (salary included) minus spending and the bills still to pay. */
+  monthLeftCents: number;
   activeId: number | null;
   onSelect: (id: number | null) => void;
   onManage: () => void;
@@ -61,9 +64,10 @@ export function AccountsCard({
             ))}
           </ul>
           <footer className="accounts-total">
-            <span>{t("accounts.monthResult")}</span>
-            <strong>{signed(totalMonthCents(rows))}</strong>
+            <span>{t("accounts.monthLeft")}</span>
+            <strong>{signed(monthLeftCents)}</strong>
           </footer>
+          <p className="muted small accounts-note">{t("accounts.movementNote")}</p>
           {totalBalanceKnown(rows) ? (
             <p className="accounts-balance-line">
               <span>{t("accounts.heldTotal")}</span>
