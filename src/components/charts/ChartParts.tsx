@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
+import { displayCurrency } from "../../lib/format";
 import { Donut } from "../Donut";
 import { BarList, ShowAll, foldRows, type BarListRow } from "./BarList";
 
 export function compactMoney(cents: number, lang: string): string {
   return new Intl.NumberFormat(lang === "pt" ? "pt-BR" : "en-US", {
     style: "currency",
-    currency: "BRL",
+    currency: displayCurrency(),
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(cents / 100);

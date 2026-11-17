@@ -2,7 +2,34 @@ import type { Lang } from "./i18n";
 
 import { MASK, isPrivate } from "./privacy";
 
-const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+/** The currencies the app can show amounts in. Only the symbol changes: nothing is converted. */
+export const CURRENCIES = ["BRL", "USD", "EUR", "GBP", "CAD", "AUD", "MXN", "ARS"] as const;
+export type DisplayCurrency = (typeof CURRENCIES)[number];
+
+let currency: DisplayCurrency = "BRL";
+let brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency });
+
+export function isDisplayCurrency(value: unknown): value is DisplayCurrency {
+  return typeof value === "string" && (CURRENCIES as readonly string[]).includes(value);
+}
+
+export function setDisplayCurrency(next: DisplayCurrency): void {
+  if (next === currency) return;
+  currency = next;
+  brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency });
+}
+
+/** "BRL · R$ Real brasileiro" in the app's language, for the picker. */
+export function currencyLabel(code: DisplayCurrency, lang: Lang): string {
+  const locale = lang === "pt" ? "pt-BR" : "en-GB";
+  const name = new Intl.DisplayNames([locale], { type: "currency" }).of(code) ?? code;
+  const symbol = new Intl.NumberFormat("pt-BR", { style: "currency", currency: code }).format(0).replace(/[\d.,\s\u00a0]/g, "");
+  return `${code} · ${symbol} ${name}`;
+}
+
+export function displayCurrency(): DisplayCurrency {
+  return currency;
+}
 
 /** "R$ 1,00" with the sign tucked in after the currency: "R$ -1,00". */
 function withSign(cents: number, plus: boolean): string {

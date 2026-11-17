@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
-import { fileName } from "../lib/format";
+import { CURRENCIES, currencyLabel, fileName, type DisplayCurrency } from "../lib/format";
 import { highlights } from "../lib/highlights";
 import { AccountsManager } from "../components/AccountsManager";
 import { Dialog } from "../components/Dialog";
@@ -42,6 +42,8 @@ function statusText(updater: UpdaterState, t: Translate): string {
 
 export function SettingsScreen({
   initialTab,
+  currency,
+  onCurrency,
   updater,
   accounts,
   onCreateAccount,
@@ -59,6 +61,8 @@ export function SettingsScreen({
   onTheme,
 }: {
   /** Opens on this tab, e.g. the updates one from the "new version" banner. */
+  currency: DisplayCurrency;
+  onCurrency: (currency: DisplayCurrency) => void;
   initialTab?: "profile" | "account" | "appearance" | "updates" | "about";
   updater: UpdaterState;
   accounts: Account[];
@@ -245,6 +249,20 @@ export function SettingsScreen({
             </button>
           ))}
         </div>
+      </article>
+
+      <article className="card" hidden={tab !== "appearance"}>
+        <header className="card-head">
+          <h2>{t("settings.currency")}</h2>
+        </header>
+        <p className="muted">{t("settings.currencyDesc")}</p>
+        <select value={currency} onChange={(event) => onCurrency(event.target.value as DisplayCurrency)}>
+          {CURRENCIES.map((code) => (
+            <option key={code} value={code}>
+              {currencyLabel(code, lang)}
+            </option>
+          ))}
+        </select>
       </article>
 
       <div hidden={tab !== "updates"}>

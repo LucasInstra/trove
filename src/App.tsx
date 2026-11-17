@@ -97,7 +97,7 @@ import { incomesInMonth } from "./domain/planner";
 import { planMonth } from "./domain/projection";
 import { buildNotifications } from "./domain/notifications";
 import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
-import { currentMonth, todayIso } from "./lib/format";
+import { currentMonth, isDisplayCurrency, setDisplayCurrency, todayIso, type DisplayCurrency } from "./lib/format";
 import {
   moveCardTo,
   moveCardNear,
@@ -281,6 +281,9 @@ export function App() {
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   // The day picked in the top bar. Until the user picks one, new entries start on today.
   const [pickedDay, setPickedDay] = useState<number | null>(null);
+  const [currency, setCurrencyState] = useState<DisplayCurrency>("BRL");
+  // The formatters read this while the screens render, so it is set before they do.
+  setDisplayCurrency(currency);
   const [multiSetting, setMultiSetting] = useState<string | null>(null);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
   const [monthResults, setMonthResults] = useState<AccountResult[]>([]);
@@ -291,6 +294,18 @@ export function App() {
   // and Settings can open it again. null while the setting is still being read.
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const [redoOnboarding, setRedoOnboarding] = useState(false);
+  useEffect(() => {
+    void api
+      .getSetting("display_currency")
+      .then((value) => {
+        if (isDisplayCurrency(value)) setCurrencyState(value);
+      })
+      .catch(() => {});
+  }, []);
+  const changeCurrency = (next: DisplayCurrency) => {
+    setCurrencyState(next);
+    void api.setSetting("display_currency", next).catch(() => {});
+  };
   useEffect(() => {
     let cancelled = false;
     void api
@@ -1163,7 +1178,7 @@ export function App() {
             <MultiAccountsBanner onUse={() => setMultiAccounts(true, true)} onLater={() => setMultiAccounts(false)} />
           ) : null}
 
-          <div className="route-view" key={route}>
+          <div className="route-view" key={`${route}-${currency}`}>
             {route === "overview" && !loading && showOnboarding ? (
               <Onboarding
                 busy={false}
@@ -1556,6 +1571,8 @@ export function App() {
             {route === "settings" ? (
               <SettingsScreen
                 initialTab={settingsTab}
+                currency={currency}
+                onCurrency={changeCurrency}
                 updater={updater}
                 accounts={accounts}
                 onSaveUserName={setUserName}
