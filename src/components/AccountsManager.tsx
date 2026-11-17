@@ -138,7 +138,14 @@ export function AccountsManager({
               <div className="installment-head">
                 <span className="installment-name">{account.name}</span>
                 {rowOf(account.id) ? (
-                  <span className="accounts-value">{formatCents(rowOf(account.id)?.balanceCents ?? 0)}</span>
+                  <span className="accounts-figures">
+                    <span className="accounts-value">{formatCents(rowOf(account.id)?.monthCents ?? 0)}</span>
+                    {rowOf(account.id)?.hasOpening ? (
+                      <small className="muted">
+                        {t("accounts.balanceOf", { amount: formatCents(rowOf(account.id)?.balanceCents ?? 0) })}
+                      </small>
+                    ) : null}
+                  </span>
                 ) : null}
                 <span className="tx-actions">
                   {onOpening && rowOf(account.id) ? (

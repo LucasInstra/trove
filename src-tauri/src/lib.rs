@@ -151,6 +151,12 @@ fn set_transfer_category(app: tauri::AppHandle, group: String, category_id: Opti
 }
 
 #[tauri::command]
+fn account_month_results(app: tauri::AppHandle, month: String) -> Result<Vec<db::AccountResult>, String> {
+    let connection = connection(&app)?;
+    db::account_month_results(&connection, &month)
+}
+
+#[tauri::command]
 fn account_balances(app: tauri::AppHandle) -> Result<Vec<db::AccountBalance>, String> {
     let connection = connection(&app)?;
     db::account_balances(&connection)
@@ -702,6 +708,7 @@ pub fn run() {
             save_transfer,
             delete_transfer,
             account_balances,
+            account_month_results,
             set_transfer_category,
             save_refund,
             save_rule,

@@ -1,4 +1,4 @@
-import type { Account, AccountBalance } from "../lib/api";
+import type { Account, AccountBalance, AccountResult } from "../lib/api";
 
 /** One account with what it holds: its opening balance plus every entry since. */
 export interface AccountRow {
@@ -6,6 +6,10 @@ export interface AccountRow {
   name: string;
   openingCents: number;
   balanceCents: number;
+  /** What came in minus what went out in the month on screen. */
+  monthCents: number;
+  /** The opening balance was given, so the balance is the person's own starting point plus the entries. */
+  hasOpening: boolean;
   /** A card's account holds the open invoice, so it reads as a debt rather than money. */
   isCard: boolean;
   /** Created by hand, so it can be renamed and archived. */
@@ -44,8 +48,10 @@ export function accountRows(
   balances: AccountBalance[],
   opening: Record<number, number>,
   cardAccountIds: ReadonlySet<number>,
+  results: AccountResult[] = [],
 ): AccountRow[] {
   const entries = new Map(balances.map((row) => [row.accountId, row.balanceCents]));
+  const months = new Map(results.map((row) => [row.accountId, row.resultCents]));
   return accounts.map((account) => {
     const openingCents = opening[account.id] ?? 0;
     return {
@@ -53,10 +59,23 @@ export function accountRows(
       name: account.name,
       openingCents,
       balanceCents: openingCents + (entries.get(account.id) ?? 0),
+      monthCents: months.get(account.id) ?? 0,
+      hasOpening: account.id in opening && opening[account.id] !== 0,
       isCard: cardAccountIds.has(account.id),
       manual: account.bankId === "" && account.acctId.startsWith("manual:"),
     };
   });
+}
+
+/** The month's result across the accounts that are not a card's. */
+export function totalMonthCents(rows: AccountRow[]): number {
+  return rows.filter((row) => !row.isCard).reduce((sum, row) => sum + row.monthCents, 0);
+}
+
+/** A total balance only means something when every account of money has an opening balance. */
+export function totalBalanceKnown(rows: AccountRow[]): boolean {
+  const held = rows.filter((row) => !row.isCard);
+  return held.length > 0 && held.every((row) => row.hasOpening);
 }
 
 /** Money you hold: the accounts that are not a card's. */

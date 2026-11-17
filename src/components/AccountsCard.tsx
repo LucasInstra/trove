@@ -1,10 +1,12 @@
 import type { AccountRow } from "../domain/accounts";
-import { totalHeldCents, totalOwedCents } from "../domain/accounts";
+import { totalBalanceKnown, totalHeldCents, totalMonthCents, totalOwedCents } from "../domain/accounts";
 import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 import { IconBubble } from "./editorial";
 import { Money } from "./Money";
+
+const signed = (cents: number) => (cents > 0 ? `+${formatCents(cents)}` : formatCents(cents));
 
 /** Every account with what it holds, and the total of the money you hold. */
 export function AccountsCard({
@@ -46,20 +48,30 @@ export function AccountsCard({
                   onClick={() => onSelect(activeId === row.id ? null : row.id)}
                 >
                   <span className="accounts-name">{row.name}</span>
-                  <span className={row.balanceCents < 0 ? "accounts-value neg" : "accounts-value"}>
-                    {formatCents(row.balanceCents)}
+                  <span className="accounts-figures">
+                    <span className={row.monthCents < 0 ? "accounts-value neg" : "accounts-value"}>
+                      {signed(row.monthCents)}
+                    </span>
+                    {row.hasOpening ? (
+                      <small className="muted">{t("accounts.balanceOf", { amount: formatCents(row.balanceCents) })}</small>
+                    ) : null}
                   </span>
                 </button>
               </li>
             ))}
           </ul>
           <footer className="accounts-total">
-            <span>{t("accounts.heldTotal")}</span>
-            <strong>
-              <Money cents={totalHeldCents(rows)} />
-            </strong>
+            <span>{t("accounts.monthResult")}</span>
+            <strong>{signed(totalMonthCents(rows))}</strong>
           </footer>
-          <p className="muted small">{t("accounts.estimateNote")}</p>
+          {totalBalanceKnown(rows) ? (
+            <p className="accounts-balance-line">
+              <span>{t("accounts.heldTotal")}</span>
+              <strong>
+                <Money cents={totalHeldCents(rows)} />
+              </strong>
+            </p>
+          ) : null}
           {owed > 0 ? (
             <p className="muted small">{t("accounts.owed", { amount: formatCents(owed) })}</p>
           ) : null}

@@ -236,6 +236,12 @@ export interface AccountBalance {
   balanceCents: number;
 }
 
+/** What an account took in minus what left it in one month, transfers aside. */
+export interface AccountResult {
+  accountId: number;
+  resultCents: number;
+}
+
 export interface ImportReport {  accountId: number;
   accountName: string;
   accountLabel: string;
@@ -578,6 +584,7 @@ export const api = {
   saveTransfer: (input: TransferInput) => invoke<string>("save_transfer", { input }),
   deleteTransfer: (id: number) => invoke<void>("delete_transfer", { id }),
   accountBalances: () => invoke<AccountBalance[]>("account_balances"),
+  accountMonthResults: (month: string) => invoke<AccountResult[]>("account_month_results", { month }),
   setTransferCategory: (group: string, categoryId: number | null) =>
     invoke<void>("set_transfer_category", { group, categoryId }),
   saveRefund: (input: RefundInput) => invoke<number>("save_refund", { input }),

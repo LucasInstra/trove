@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account } from "../lib/api";
-import { accountRows, parseOpening, serializeOpening, totalHeldCents, totalOwedCents } from "./accounts";
+import { accountRows, parseOpening, serializeOpening, totalBalanceKnown, totalHeldCents, totalMonthCents, totalOwedCents } from "./accounts";
 
 const account = (id: number, name: string): Account => ({
   id,
@@ -34,6 +34,21 @@ describe("account balances", () => {
   it("treats an account with no entries as its opening balance", () => {
     const rows = accountRows([account(9, "New")], [], { 9: 4_000 }, new Set());
     expect(rows[0].balanceCents).toBe(4_000);
+  });
+
+  it("reports the month result and knows when a balance is the person's own", () => {
+    const results = [
+      { accountId: 1, resultCents: 2_000 },
+      { accountId: 2, resultCents: -500 },
+      { accountId: 3, resultCents: -3_000 },
+    ];
+    const rows = accountRows(accounts, balances, { 1: 20_000 }, new Set([3]), results);
+    expect(rows.map((row) => row.monthCents)).toEqual([2_000, -500, -3_000]);
+    expect(totalMonthCents(rows)).toBe(1_500);
+    expect(rows.map((row) => row.hasOpening)).toEqual([true, false, false]);
+    expect(totalBalanceKnown(rows)).toBe(false);
+    const all = accountRows(accounts, balances, { 1: 1, 2: 1 }, new Set([3]), results);
+    expect(totalBalanceKnown(all)).toBe(true);
   });
 
   it("round-trips the setting and ignores junk", () => {

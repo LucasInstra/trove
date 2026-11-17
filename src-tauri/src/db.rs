@@ -3388,6 +3388,36 @@ pub struct AccountBalance {
     pub balance_cents: i64,
 }
 
+/// What one account took in minus what left it in one month. Transfers stay out, like in the
+/// month totals, so moving money between your own accounts is not a result.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountResult {
+    pub account_id: i64,
+    pub result_cents: i64,
+}
+
+pub fn account_month_results(connection: &Connection, month: &str) -> Result<Vec<AccountResult>, String> {
+    check_month(month)?;
+    let mut statement = connection
+        .prepare(
+            "select a.id, coalesce(sum(t.amount_cents), 0)
+             from accounts a
+             left join transactions t on t.account_id = a.id and t.deleted_at is null
+               and t.transfer_group is null and t.posted_on like ?1
+             where a.deleted_at is null
+             group by a.id
+             order by a.id",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map(params![format!("{month}%")], |row| {
+            Ok(AccountResult { account_id: row.get(0)?, result_cents: row.get(1)? })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|problem| problem.to_string())
+}
+
 pub fn account_balances(connection: &Connection) -> Result<Vec<AccountBalance>, String> {
     let mut statement = connection
         .prepare(
@@ -4181,6 +4211,13 @@ mod tests {
         assert_eq!(series[0].expense_cents, 1_000);
         let days = daily_expense_in(&connection, "2024-03", Some(second)).expect("days");
         assert_eq!(days.iter().map(|day| day.expense_cents).sum::<i64>(), 2_500);
+
+        let results = account_month_results(&connection, "2024-03").expect("results");
+        let result_of = |id: i64| results.iter().find(|row| row.account_id == id).map(|row| row.result_cents);
+        assert_eq!(result_of(first), Some(-1_000));
+        assert_eq!(result_of(second), Some(1_500));
+        let empty = account_month_results(&connection, "2024-04").expect("results");
+        assert!(empty.iter().all(|row| row.result_cents == 0));
 
         let balances = account_balances(&connection).expect("balances");
         let of = |id: i64| balances.iter().find(|row| row.account_id == id).map(|row| row.balance_cents);

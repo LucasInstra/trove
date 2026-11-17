@@ -52,6 +52,7 @@ import { CRYPTO_EVENT, CRYPTO_SETTING } from "./domain/crypto";
 import type {
   Account,
   AccountBalance,
+  AccountResult,
   Bill,
   BillInput,
   BudgetLimitInput,
@@ -278,6 +279,7 @@ export function App() {
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [multiSetting, setMultiSetting] = useState<string | null>(null);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
+  const [monthResults, setMonthResults] = useState<AccountResult[]>([]);
   const [opening, setOpening] = useState<Record<number, number>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -450,6 +452,7 @@ export function App() {
           nextBalances,
           storedOpening,
           storedMulti,
+          nextResults,
         ] = await Promise.all([
 
           api.transactions(term, at, accountId, 500, tagId),
@@ -476,7 +479,9 @@ export function App() {
           api.accountBalances().catch(() => []),
           api.getSetting("account_opening").catch(() => null),
           api.getSetting("multi_accounts").catch(() => null),
+          api.accountMonthResults(at).catch(() => []),
         ]);
+        setMonthResults(nextResults);
         setMultiSetting(storedMulti);
         setBalances(nextBalances);
         setOpening(parseOpening(storedOpening));
@@ -645,8 +650,9 @@ export function App() {
         balances,
         opening,
         new Set(planner.cards.map((meta) => meta.accountId)),
+        monthResults,
       ),
-    [accounts, balances, opening, planner.cards],
+    [accounts, balances, opening, planner.cards, monthResults],
   );
 
   // Several accounts is the user's choice. Without a choice yet, it is on for anyone who already

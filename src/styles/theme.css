@@ -2233,3 +2233,22 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
 .accounts-bare .card-head .round-button {
   flex: none;
 }
+
+.accounts-figures {
+  display: grid;
+  justify-items: end;
+  line-height: 1.25;
+}
+
+.accounts-figures small {
+  font-size: 11px;
+}
+
+.accounts-balance-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 4px 0 0;
+  padding: 0 10px;
+  font-size: 13px;
+}
