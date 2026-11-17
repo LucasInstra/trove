@@ -107,7 +107,7 @@ jobs:
           # The MSI is what the updater installs; its signature travels with it.
           $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
           if (-not $msi) { throw "no MSI produced" }
-          node scripts/updater-json.mjs --tag=$tag --installer="$($msi.FullName)" --signature="$($msi.FullName).sig" --notes="release-notes/${version}.md"
+          node scripts/updater-json.mjs --tag=$tag --installer="$($msi.FullName)" --signature="$($msi.FullName).sig" --notes="release-notes/${version}.md" --notes-pt="release-notes/pt/${version}.md"
           gh release upload $tag latest.json --clobber
 
       # A release created with GITHUB_TOKEN does not trigger the `release: published`

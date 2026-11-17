@@ -20,10 +20,20 @@ export interface UpdaterState {
   version: string;
   build: number;
   notes: string;
+  /** The same notes in Portuguese, when the release has them. */
+  notesPt: string;
   progress: number;
   error: string;
   checkNow: () => Promise<void>;
   install: () => Promise<void>;
+}
+
+function readNotesPt(rawJson: unknown): string {
+  if (rawJson && typeof rawJson === "object" && "notes_pt" in rawJson) {
+    const value = (rawJson as { notes_pt?: unknown }).notes_pt;
+    if (typeof value === "string") return value;
+  }
+  return "";
 }
 
 function describe(problem: unknown): string {
@@ -38,6 +48,7 @@ export function useUpdater(): UpdaterState {
   const [version, setVersion] = useState("");
   const [build, setBuild] = useState(0);
   const [notes, setNotes] = useState("");
+  const [notesPt, setNotesPt] = useState("");
   const [progress, setProgress] = useState(-1);
   const [error, setError] = useState("");
 
@@ -80,12 +91,14 @@ export function useUpdater(): UpdaterState {
         setVersion(offered.version.replace(/-b\d+$/, ""));
         setBuild(readBuild(offered.rawJson));
         setNotes(offered.body ?? "");
+        setNotesPt(readNotesPt(offered.rawJson));
         setProgress(-1);
         setStatus("available");
       } else {
         setVersion("");
         setBuild(0);
         setNotes("");
+        setNotesPt("");
         setProgress(-1);
         setStatus("current");
       }
@@ -168,6 +181,7 @@ export function useUpdater(): UpdaterState {
     version,
     build,
     notes,
+    notesPt,
     progress,
     error,
     checkNow,

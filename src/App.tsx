@@ -91,6 +91,7 @@ import { PENDING_TAGS } from "./components/BudgetSheet";
 import { useLanguage } from "./lib/language";
 import { localizeError } from "./lib/backendErrors";
 import { useUpdater } from "./lib/updater";
+import { WhatsNew } from "./components/WhatsNew";
 import { invoiceDifference, invoiceWindow } from "./domain/invoice";
 import { incomesInMonth } from "./domain/planner";
 import { planMonth } from "./domain/projection";
@@ -1155,6 +1156,7 @@ export function App() {
             />
           ) : null}
 
+          {onboarded !== null && !showOnboarding ? <WhatsNew version={updater.currentVersion} /> : null}
           {onboarded !== null && !showOnboarding ? <ScreenTip route={route} /> : null}
           {onboarded !== null && !showOnboarding && multiSetting === null && !multiAccounts &&
           (route === "overview" || route === "transactions") ? (

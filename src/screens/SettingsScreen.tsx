@@ -6,6 +6,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
 import { fileName } from "../lib/format";
+import { highlights } from "../lib/highlights";
 import { AccountsManager } from "../components/AccountsManager";
 import { Dialog } from "../components/Dialog";
 import { SectionPage } from "../components/SectionPage";
@@ -371,7 +372,11 @@ export function SettingsScreen({
         ) : null}
 
         {updater.notes && updater.status === "available" ? (
-          <pre className="notes">{updater.notes}</pre>
+          <ul className="whatsnew-list">
+            {highlights(lang === "pt" && updater.notesPt ? updater.notesPt : updater.notes).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         ) : null}
 
         <div className="row">

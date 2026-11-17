@@ -865,13 +865,13 @@ select option {
       overlay 140ms allow-discrete;
   }
 
-  select:not([multiple])::picker(select):popover-open {
+  select:not([multiple]):open::picker(select) {
     opacity: 1;
     transform: none;
   }
 
   @starting-style {
-    select:not([multiple])::picker(select):popover-open {
+    select:not([multiple]):open::picker(select) {
       opacity: 0;
       transform: translateY(-4px);
     }

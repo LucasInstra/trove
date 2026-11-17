@@ -21,6 +21,7 @@ const tag = arg("tag", `v${packageJson.version}`);
 const installer = arg("installer");
 const signaturePath = arg("signature");
 const notesPath = arg("notes");
+const notesPtPath = arg("notes-pt");
 const out = arg("out", "latest.json");
 const repo = arg("repo", process.env.GITHUB_REPOSITORY ?? "LucasInstra/trove");
 
@@ -47,6 +48,9 @@ const notes =
     ? readFileSync(notesFile, "utf8").trim()
     : "See the release assets.";
 
+const notesPtFile = notesPtPath ? join(root, notesPtPath) : null;
+const notesPt = notesPtFile && existsSync(notesPtFile) ? readFileSync(notesPtFile, "utf8").trim() : null;
+
 // Build 1 is the plain version. Later builds carry the number in a prerelease
 // segment, `0.1.2-b3`, because the plugin compares semver and the app reads that
 // suffix as the build. The plain `build` field stays for older readers.
@@ -56,6 +60,8 @@ const manifest = {
   version: announcedVersion,
   build,
   notes,
+  // The app shows this one when it runs in Portuguese; older readers ignore the field.
+  ...(notesPt ? { notes_pt: notesPt } : {}),
   pub_date: new Date().toISOString(),
   platforms: {
     "windows-x86_64": {
