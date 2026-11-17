@@ -437,7 +437,6 @@ export function HouseScreen({
         eyebrow={t("planner.section")}
         title={t("nav.house")}
         description={t("planner.houseDescription")}
-        polaroid={{ icon: "house", caption: t("polaroid.house"), tilt: 2 }}
       />
       <div className="house-overview-grid">
         <div className="house-column">
