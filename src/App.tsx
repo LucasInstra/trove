@@ -554,6 +554,19 @@ export function App() {
     };
   }, [planner.cards, month]);
 
+  // The chart and the summary count the salary as income, like the plan does: the
+  // recurring income of each month, and the statement only where none is set.
+  const incomeSeries = useMemo(
+    () =>
+      series.map((point) => {
+        const monthly = incomesInMonth(planner.incomes, point.month)
+          .filter((income) => income.active && income.frequency === "monthly")
+          .reduce((total, income) => total + income.amountCents, 0);
+        return monthly > 0 ? { ...point, incomeCents: monthly } : point;
+      }),
+    [series, planner.incomes],
+  );
+
   const monthIncomes = useMemo(() => incomesInMonth(planner.incomes, month ?? currentMonth()), [planner.incomes, month]);
 
   const plan = useMemo(
@@ -1049,7 +1062,7 @@ export function App() {
                 plan={plan}
                 cards={cards}
                 byCategory={byCategory}
-                series={series}
+                series={incomeSeries}
                 matrix={matrix}
                 rows={recentRows}
                 month={month ?? currentMonth()}
@@ -1176,7 +1189,7 @@ export function App() {
                       description={t("flow.trendsDescription")}
                     />
                     <FlowScreen
-                      series={series}
+                      series={incomeSeries}
                       daily={daily}
                       paceCents={budgetStatus?.global?.effectiveCents ?? null}
                       plan={plan}
@@ -1310,7 +1323,7 @@ export function App() {
                 ) : tabOf("patrimony", "wealth") === "wealth" ? (
                   <PatrimonyScreen
                     plan={plan}
-                    series={series}
+                    series={incomeSeries}
                     month={month ?? currentMonth()}
                     holdings={holdings}
                     onSaveHolding={(input) => void saveHolding(input)}
