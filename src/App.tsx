@@ -91,7 +91,7 @@ import { PENDING_TAGS } from "./components/BudgetSheet";
 import { useLanguage } from "./lib/language";
 import { localizeError } from "./lib/backendErrors";
 import { useUpdater } from "./lib/updater";
-import { invoiceWindow } from "./domain/invoice";
+import { invoiceDifference, invoiceWindow } from "./domain/invoice";
 import { incomesInMonth } from "./domain/planner";
 import { planMonth } from "./domain/projection";
 import { buildNotifications } from "./domain/notifications";
@@ -643,7 +643,7 @@ export function App() {
         meta,
         // A paid invoice owes nothing, unless it grew after it was paid.
         usageCents: invoices.isPaid(meta.id, month ?? currentMonth())
-          ? Math.max((usage[meta.id] ?? 0) - (invoices.paidInvoice(meta.id, month ?? currentMonth())?.amountCents || (usage[meta.id] ?? 0)), 0)
+          ? invoiceDifference(usage[meta.id] ?? 0, invoices.paidInvoice(meta.id, month ?? currentMonth()) ?? { amountCents: 0, paidOn: "" }, invoiceWindow(meta.closingDay, meta.dueDay, month ?? currentMonth()))
           : (usage[meta.id] ?? 0),
         window: invoiceWindow(meta.closingDay, meta.dueDay, month ?? currentMonth()),
       })),

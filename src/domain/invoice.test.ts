@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { invoiceLines, invoiceUsage, invoiceWindow, isInsideWindow } from "./invoice";
+import { invoiceDifference, invoiceLines, invoiceUsage, invoiceWindow, isInsideWindow } from "./invoice";
 
 describe("invoiceWindow", () => {
   it("closes in the same month when the due day comes after the closing day", () => {
@@ -62,5 +62,25 @@ describe("invoiceUsage", () => {
       "2026-12-01",
       "2026-12-04",
     ]);
+  });
+});
+
+describe("invoiceDifference", () => {
+  const cycle = { from: "2026-10-25", to: "2026-11-25" };
+
+  it("is what usage still shows when the payment is an entry inside the window", () => {
+    const record = { amountCents: 54_440, paidOn: "2026-11-17", transferGroup: "transfer:a" };
+    expect(invoiceDifference(0, record, cycle)).toBe(0);
+    expect(invoiceDifference(12_300, record, cycle)).toBe(12_300);
+  });
+
+  it("takes the recorded amount off when the payment is not in the window", () => {
+    const record = { amountCents: 50_000, paidOn: "2026-11-28", transferGroup: "transfer:a" };
+    expect(invoiceDifference(62_300, record, cycle)).toBe(12_300);
+    expect(invoiceDifference(40_000, record, cycle)).toBe(0);
+  });
+
+  it("takes the recorded amount off when no entry was created", () => {
+    expect(invoiceDifference(62_300, { amountCents: 50_000, paidOn: "2026-11-17" }, cycle)).toBe(12_300);
   });
 });

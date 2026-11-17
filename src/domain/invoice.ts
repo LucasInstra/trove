@@ -51,3 +51,18 @@ export function invoiceLines<T extends InvoiceEntry>(entries: T[], window: Invoi
     .filter((entry) => isInsideWindow(entry.postedOn, window))
     .sort((left, right) => left.postedOn.localeCompare(right.postedOn));
 }
+
+/**
+ * What is still to pay on an invoice already marked as paid. The invoice grows when a purchase
+ * is added or edited after the payment. When the payment is an entry inside the window, `usage`
+ * already has it taken off; otherwise the amount recorded at the time is taken off here.
+ */
+export function invoiceDifference(
+  usageCents: number,
+  record: { amountCents: number; paidOn: string; transferGroup?: string },
+  window: InvoiceWindow,
+): number {
+  const inLedger = Boolean(record.transferGroup) && record.paidOn !== "" && isInsideWindow(record.paidOn, window);
+  const left = inLedger || record.amountCents <= 0 ? usageCents : usageCents - record.amountCents;
+  return Math.max(left, 0);
+}

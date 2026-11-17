@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Bill, CardMeta, Goal, Income, Person, PersonInput, Share, TransactionRow } from "../lib/api";
 import type { InvoiceWindow } from "../domain/invoice";
-import { invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
+import { invoiceDifference, invoiceLines, invoiceUsage, invoiceWindow } from "../domain/invoice";
 import { dateInMonth, monthRange } from "../domain/month";
 import type { MonthPlan } from "../domain/projection";
 import { groupByDay } from "../domain/projection";
@@ -348,7 +348,7 @@ export function CardsCard({
   const record = invoices.paidInvoice(entry.meta.id, activeMonth);
   const paidCents = record && record.amountCents > 0 ? record.amountCents : usage;
   // The invoice grew after it was paid (a purchase was edited or added): what is left to pay.
-  const extraCents = paid && record && record.amountCents > 0 ? Math.max(usage - record.amountCents, 0) : 0;
+  const extraCents = paid && record ? invoiceDifference(usage, record, window) : 0;
   const togglePaid = () => {
     if (paid) void invoices.unmarkPaid(entry.meta.id, activeMonth);
     else setPayOpen(true);
