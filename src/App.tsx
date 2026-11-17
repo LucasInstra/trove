@@ -78,6 +78,7 @@ import type {
   TransactionRow,
   TransferInput,
 } from "./lib/api";
+import { PENDING_TAGS } from "./components/BudgetSheet";
 import { useLanguage } from "./lib/language";
 import { localizeError } from "./lib/backendErrors";
 import { useUpdater } from "./lib/updater";
@@ -678,6 +679,12 @@ export function App() {
 
   const bulkSetCategory = (ids: number[], categoryId: number | null) =>
     mutateAndRefresh(() => api.bulkSetCategory(ids, categoryId));
+
+  const toggleEntryPending = (id: number, pending: boolean) =>
+    mutateAndRefresh(async () => {
+      const tagId = tags.find((tag) => PENDING_TAGS.includes(tag.name))?.id ?? (await api.saveTag(t("budget.pendingTag")));
+      await api.bulkTag([id], tagId, pending);
+    });
 
   const bulkTag = (ids: number[], tagId: number, assign: boolean) =>
     mutateAndRefresh(() => api.bulkTag(ids, tagId, assign));
@@ -1286,10 +1293,10 @@ export function App() {
                 onDeleteHolding={(id) => void deleteHolding(id)}
                 rows={sheetRows}
                 onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
+                onTogglePending={(id, pending) => void toggleEntryPending(id, pending)}
                 incomes={monthIncomes}
                 bills={planner.bills}
                 payments={planner.payments}
-                incomeCents={plan.incomeCents}
                 shares={planner.shares}
                 partnerMode={partnerMode}
                 onPartnerMode={changePartnerMode}
@@ -1392,6 +1399,7 @@ export function App() {
       {dialog?.kind === "bill" ? (
         <BillDialog
           bill={dialog.bill}
+          defaultStartsOn={month && month !== currentMonth() ? `${month}-01` : undefined}
           categories={categories}
           people={planner.people}
           payerId={dialog.bill ? (planner.shares.find((entry) => entry.billId === dialog.bill?.id)?.personId ?? null) : null}

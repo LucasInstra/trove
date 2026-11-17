@@ -33,10 +33,10 @@ export function SheetsScreen({
   onDeleteHolding,
   rows,
   onEditEntry,
+  onTogglePending,
   incomes,
   bills,
   payments,
-  incomeCents,
   partnerMode,
   onPartnerMode,
   shares,
@@ -60,10 +60,10 @@ export function SheetsScreen({
   onDeleteHolding: (id: number) => void;
   rows: TransactionRow[];
   onEditEntry: (entry: TransactionRow) => void;
+  onTogglePending: (id: number, pending: boolean) => void;
   incomes: Income[];
   bills: Bill[];
   payments: BillPayment[];
-  incomeCents: number;
   partnerMode: boolean;
   onPartnerMode: (on: boolean) => void;
   shares: Share[];
@@ -158,9 +158,9 @@ export function SheetsScreen({
           incomes={incomes}
           entries={rows}
           onEditEntry={onEditEntry}
+          onTogglePending={onTogglePending}
           bills={bills}
           payments={payments}
-          incomeCents={incomeCents}
           people={people}
           shares={shares}
           partnerMode={partnerMode}

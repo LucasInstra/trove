@@ -81,14 +81,17 @@ export const plain = (cents: number) => (cents / 100).toFixed(2).replace(".", ",
  * whether it was paid, and the totals. It reads the same bills and payments as the
  * Overview, so ticking "paid" here ticks it there.
  */
+/** Name of the tag that marks a ledger expense as not paid yet. */
+export const PENDING_TAGS = ["Pendente", "Pending"];
+
 export function BudgetSheet({
   month,
   incomes,
   entries,
   onEditEntry,
+  onTogglePending,
   bills,
   payments,
-  incomeCents,
   people,
   shares,
   partnerMode,
@@ -106,10 +109,11 @@ export function BudgetSheet({
   /** The month's ledger entries: what was really earned and spent, shown next to the planned rows. */
   entries: TransactionRow[];
   onEditEntry: (entry: TransactionRow) => void;
+  /** Marks a ledger expense as still to pay (true) or paid (false). */
+  onTogglePending: (id: number, pending: boolean) => void;
   bills: Bill[];
   payments: BillPayment[];
   /** Total income the plan uses for the month (falls back to the statement when no income is set). */
-  incomeCents: number;
   people: Person[];
   shares: Share[];
   /** When on, every income and expense says whose it is. */
@@ -232,13 +236,17 @@ export function BudgetSheet({
       active: true,
     });
   const sources = applyOrder(incomes.filter((income) => income.active), order.incomes);
+  const recurringCents = incomes.filter((income) => income.active && income.frequency === "monthly").reduce((sum, income) => sum + income.amountCents, 0);
   const realEntries = entries.filter((entry) => entry.transferGroup == null);
   const entryIncome = realEntries.filter((entry) => entry.amountCents > 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
   const entryExpense = realEntries.filter((entry) => entry.amountCents < 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
   const entryIncomeCents = entryIncome.reduce((sum, entry) => sum + entry.amountCents, 0);
+  const isPending = (entry: TransactionRow) => entry.tags.some((tag) => PENDING_TAGS.includes(tag.name));
   const entryExpenseCents = entryExpense.reduce((sum, entry) => sum - entry.amountCents, 0);
+  const entryPaidCents = entryExpense.filter((entry) => !isPending(entry)).reduce((sum, entry) => sum - entry.amountCents, 0);
+  const totalIncomeCents = recurringCents + entryIncomeCents;
   const expenses = due.reduce((sum, bill) => sum + bill.amountCents, 0) + entryExpenseCents;
-  const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryExpenseCents;
+  const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryPaidCents;
   const paidCount = due.filter((bill) => paidOf.has(bill.id)).length;
   const paidPct = expenses > 0 ? Math.min(100, Math.round((paid / expenses) * 100)) : 0;
   const unpaid = dueByDay.filter((bill) => !paidOf.has(bill.id));
@@ -254,7 +262,7 @@ export function BudgetSheet({
     const title = entry.merchant || entry.description;
     const [, month, day] = entry.postedOn.split("-");
     return (
-      <tr key={`entry-${entry.id}`} className={expense ? "is-paid is-entry" : "is-entry"}>
+      <tr key={`entry-${entry.id}`} className={expense ? (isPending(entry) ? "is-entry" : "is-paid is-entry") : "is-entry"}>
         <td className="budget-grip" />
         <td title={entry.postedOn}>
           {title} <small className="muted">{day}/{month}</small>
@@ -264,8 +272,13 @@ export function BudgetSheet({
         {expense ? (
           <td className="num">
             <label className="budget-paid">
-              <input type="checkbox" checked readOnly disabled aria-label={`${t("budget.paid")}: ${title}`} />
-              <span>{formatCents(-entry.amountCents)}</span>
+              <input
+                type="checkbox"
+                checked={!isPending(entry)}
+                aria-label={`${t("budget.paid")}: ${title}`}
+                onChange={(event) => onTogglePending(entry.id, !event.target.checked)}
+              />
+              <span>{isPending(entry) ? "—" : formatCents(-entry.amountCents)}</span>
             </label>
           </td>
         ) : null}
@@ -282,11 +295,11 @@ export function BudgetSheet({
     <div className="budget">
       <StatTiles
         items={[
-          { label: t("budget.totalIncome"), value: formatCents(incomeCents + entryIncomeCents) },
+          { label: t("budget.totalIncome"), value: formatCents(totalIncomeCents) },
           { label: t("budget.totalExpenses"), value: formatCents(expenses) },
           { label: t("budget.paidExpenses"), value: formatCents(paid) },
-          { label: t("budget.balance"), value: formatCents(incomeCents + entryIncomeCents - paid) },
-          { label: t("budget.expected"), value: formatCents(incomeCents + entryIncomeCents - expenses) },
+          { label: t("budget.balance"), value: formatCents(totalIncomeCents - paid) },
+          { label: t("budget.expected"), value: formatCents(totalIncomeCents - expenses) },
         ]}
       />
       <div className={partnerMode ? "budget-tables partner" : "budget-tables"}>
@@ -386,7 +399,7 @@ export function BudgetSheet({
             </div>
             <div>
               <dt>{t("budget.committed")}</dt>
-              <dd>{incomeCents > 0 ? `${Math.round((expenses / incomeCents) * 100)}%` : "—"}</dd>
+              <dd>{totalIncomeCents > 0 ? `${Math.round((expenses / totalIncomeCents) * 100)}%` : "—"}</dd>
             </div>
             {biggest ? (
               <div>
@@ -504,7 +517,7 @@ export function BudgetSheet({
                     </tr>
                   );
                 })}
-                {entryExpense.map((entry) => entryRow(entry, true))}
+                {entryExpense.filter((entry) => filter === "all" || (filter === "paid") === !isPending(entry)).map((entry) => entryRow(entry, true))}
                 {due.length === 0 && entryExpense.length === 0 ? (
                   <tr>
                     <td colSpan={partnerMode ? 6 : 5} className="muted">

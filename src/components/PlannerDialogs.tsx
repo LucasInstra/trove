@@ -101,11 +101,14 @@ export function BillDialog({
   people = [],
   payerId = null,
   defaultCategoryId = null,
+  defaultStartsOn,
   onClose,
   onSave,
   onDelete,
 }: {
   bill: Bill | null;
+  /** First day of a new bill; today when omitted. */
+  defaultStartsOn?: string;
   categories: Category[];
   people?: Person[];
   /** Who pays this bill today; the user when nobody was picked. */
@@ -142,7 +145,7 @@ export function BillDialog({
             categoryId,
             accountId: null,
             goalId: bill?.goalId ?? null,
-            startsOn: bill?.startsOn ?? todayIso(),
+            startsOn: bill?.startsOn ?? defaultStartsOn ?? todayIso(),
             endsOn: bill?.endsOn ?? null,
             installmentsTotal: parseInstallments(installments),
             active: true,
