@@ -82,6 +82,7 @@ import { useLanguage } from "./lib/language";
 import { localizeError } from "./lib/backendErrors";
 import { useUpdater } from "./lib/updater";
 import { invoiceWindow } from "./domain/invoice";
+import { incomesInMonth } from "./domain/planner";
 import { planMonth } from "./domain/projection";
 import { buildNotifications } from "./domain/notifications";
 import { applyTheme, loadTheme, saveTheme, type Theme } from "./lib/theme";
@@ -509,11 +510,13 @@ export function App() {
     };
   }, [planner.cards, month]);
 
+  const monthIncomes = useMemo(() => incomesInMonth(planner.incomes, month ?? currentMonth()), [planner.incomes, month]);
+
   const plan = useMemo(
     () =>
       planMonth({
         month: month ?? currentMonth(),
-        incomes: planner.incomes,
+        incomes: monthIncomes,
         bills: planner.bills,
         payments: planner.payments,
         goals: planner.goals,
@@ -523,7 +526,7 @@ export function App() {
         ceilingPct,
         debts: planner.debts,
       }),
-    [month, planner, totals, housingCategoryId, ceilingPct],
+    [month, planner, monthIncomes, totals, housingCategoryId, ceilingPct],
   );
 
   const cards = useMemo(
@@ -543,9 +546,9 @@ export function App() {
         cards,
         today: todayIso(),
         reads: planner.reads,
-        hasIncome: planner.incomes.some((income) => income.active),
+        hasIncome: monthIncomes.some((income) => income.active),
       }),
-    [plan, cards, planner.reads, planner.incomes],
+    [plan, cards, planner.reads, monthIncomes],
   );
 
   const groups = useMemo(() => {
@@ -580,8 +583,10 @@ export function App() {
     await mutateAndRefresh(() => api.clearMonth(month));
   };
 
+  const withMonth = (input: IncomeInput): IncomeInput => (input.id ? { ...input, fromMonth: month ?? currentMonth() } : input);
+
   const saveIncome = (input: IncomeInput) =>
-    mutateAndRefresh(() => api.saveIncome(input), { closeDialog: true });
+    mutateAndRefresh(() => api.saveIncome(withMonth(input)), { closeDialog: true });
 
   const removeIncome = (id: number) =>
     mutateAndRefresh(() => api.deleteIncome(id), { closeDialog: true });
@@ -1097,7 +1102,7 @@ export function App() {
               >
                 {tabOf("flow", "summary") === "summary" ? (
                   <FlowsScreen
-                    incomes={planner.incomes}
+                    incomes={monthIncomes}
                     people={planner.people}
                     totals={totals}
                     byCategory={byCategory}
@@ -1191,7 +1196,7 @@ export function App() {
                 <HouseScreen
                                     plan={plan}
                                     categories={categories}
-                                    incomes={planner.incomes}
+                                    incomes={monthIncomes}
                                     housingCategoryId={housingCategoryId}
                                     housingScope={housingScope}
                                     people={planner.people}
@@ -1281,7 +1286,7 @@ export function App() {
                 onDeleteHolding={(id) => void deleteHolding(id)}
                 rows={sheetRows}
                 onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
-                incomes={planner.incomes}
+                incomes={monthIncomes}
                 bills={planner.bills}
                 payments={planner.payments}
                 incomeCents={plan.incomeCents}
@@ -1296,7 +1301,7 @@ export function App() {
                 order={budgetOrder}
                 onOrder={saveBudgetOrder}
                 onTogglePaid={(id, paid) => void toggleBill(id, paid)}
-                onSaveIncome={(input) => void mutateAndRefresh(() => api.saveIncome(input))}
+                onSaveIncome={(input) => void mutateAndRefresh(() => api.saveIncome(withMonth(input)))}
                 onEditIncome={(income) => setDialog({ kind: "income", income })}
                 onSaveBill={(input) => void mutateAndRefresh(() => api.saveBill(input))}
                 onEditBill={(bill) => setDialog({ kind: "bill", bill })}

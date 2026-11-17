@@ -233,6 +233,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
             account_id: Some(checking),
             active: true,
             person_id: self_id,
+            from_month: None,
         },
     )?;
     planner::save_income(
@@ -246,6 +247,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
             account_id: Some(checking),
             active: true,
             person_id: partner_id,
+            from_month: None,
         },
     )?;
 

@@ -308,6 +308,9 @@ export interface Income {
   accountId: number | null;
   active: boolean;
   personId: number | null;
+  /** First and last month (YYYY-MM) it applies to; empty or missing means no limit. */
+  startsOn?: string;
+  endsOn?: string;
 }
 
 export interface Bill {
@@ -441,6 +444,8 @@ export interface IncomeInput {
   accountId: number | null;
   active: boolean;
   personId?: number | null;
+  /** Editing an existing income: apply the change from this month (YYYY-MM) on. */
+  fromMonth?: string;
 }
 
 export interface BillInput {

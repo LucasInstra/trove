@@ -34,3 +34,8 @@ export function summarizeGoals(goals: GoalProgress[]) {
 export function activeIncomeCount(incomes: Income[]) {
   return incomes.filter((income) => income.active).length;
 }
+
+/** The incomes that apply in a month (YYYY-MM): a raise starts one, the old value ends the month before. */
+export function incomesInMonth(incomes: Income[], month: string) {
+  return incomes.filter((income) => (!income.startsOn || income.startsOn <= month) && (!income.endsOn || income.endsOn >= month));
+}

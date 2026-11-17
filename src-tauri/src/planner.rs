@@ -17,6 +17,9 @@ pub struct Income {
     pub account_id: Option<i64>,
     pub active: bool,
     pub person_id: Option<i64>,
+    /// First and last month (YYYY-MM) the income applies to; empty means no limit.
+    pub starts_on: String,
+    pub ends_on: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -184,6 +187,10 @@ pub struct IncomeInput {
     pub active: bool,
     #[serde(default)]
     pub person_id: Option<i64>,
+    /// When editing an existing income: the change applies from this month (YYYY-MM) on,
+    /// and earlier months keep the old values.
+    #[serde(default)]
+    pub from_month: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -244,7 +251,7 @@ fn now() -> String {
 pub fn list_incomes(connection: &Connection) -> Result<Vec<Income>, String> {
     let mut statement = connection
         .prepare(
-            "select id, name, amount_cents, frequency, pay_day, account_id, active, person_id
+            "select id, name, amount_cents, frequency, pay_day, account_id, active, person_id, starts_on, ends_on
              from incomes
              where deleted_at is null
              order by amount_cents desc, id",
@@ -261,6 +268,8 @@ pub fn list_incomes(connection: &Connection) -> Result<Vec<Income>, String> {
                 account_id: row.get(5)?,
                 active: row.get::<_, i64>(6)? == 1,
                 person_id: row.get(7)?,
+                starts_on: row.get(8)?,
+                ends_on: row.get(9)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -268,10 +277,62 @@ pub fn list_incomes(connection: &Connection) -> Result<Vec<Income>, String> {
         .map_err(|problem| problem.to_string())
 }
 
+/// The month before `month` (YYYY-MM).
+fn previous_month(month: &str) -> Option<String> {
+    let (year, number) = month.split_once('-')?;
+    let (year, number): (i32, u32) = (year.parse().ok()?, number.parse().ok()?);
+    Some(if number <= 1 {
+        format!("{:04}-12", year - 1)
+    } else {
+        format!("{:04}-{:02}", year, number - 1)
+    })
+}
+
 pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, String> {
     let stamp = now();
     match input.id {
         Some(id) => {
+            if let Some(from) = input.from_month.as_deref().filter(|month| !month.is_empty()) {
+                let (starts, ends): (String, String) = connection
+                    .query_row(
+                        "select starts_on, ends_on from incomes where id = ?1",
+                        params![id],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .map_err(|problem| problem.to_string())?;
+                if starts.as_str() < from {
+                    if let Some(before) = previous_month(from) {
+                        connection
+                            .execute(
+                                "update incomes set ends_on = ?1, updated_at = ?2 where id = ?3",
+                                params![before, stamp, id],
+                            )
+                            .map_err(|problem| problem.to_string())?;
+                        connection
+                            .execute(
+                                "insert into incomes
+                                 (uid, name, amount_cents, frequency, pay_day, account_id, active,
+                                  person_id, visibility, created_at, updated_at, starts_on, ends_on)
+                                 values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'shared', ?8, ?8, ?9, ?10)",
+                                params![
+                                    input.name,
+                                    input.amount_cents,
+                                    input.frequency,
+                                    input.pay_day,
+                                    input.account_id,
+                                    input.active as i64,
+                                    input.person_id,
+                                    stamp,
+                                    from,
+                                    ends
+                                ],
+                            )
+                            .map_err(|problem| problem.to_string())?;
+                        rebalance_weights(connection, false)?;
+                        return Ok(connection.last_insert_rowid());
+                    }
+                }
+            }
             connection
                 .execute(
                     "update incomes
@@ -940,7 +1001,7 @@ pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
         .prepare(
             "select id, name, color, is_self, weight_pct,
                     coalesce((select sum(amount_cents) from incomes
-                              where person_id = people.id and active = 1 and deleted_at is null),
+                              where person_id = people.id and active = 1 and deleted_at is null and ends_on = ''),
                              income_cents)
              from people
              where deleted_at is null
@@ -1507,6 +1568,35 @@ mod tests {
     }
 
     #[test]
+    fn editing_an_income_from_a_month_leaves_earlier_months_alone() {
+        let path = temporary_database("income-from-month");
+        let connection = db::open(&path).expect("should open");
+        let input = |id: Option<i64>, cents: i64, from: Option<&str>| IncomeInput {
+            id,
+            name: "Salário".into(),
+            amount_cents: cents,
+            frequency: "monthly".into(),
+            pay_day: 5,
+            account_id: None,
+            active: true,
+            person_id: None,
+            from_month: from.map(String::from),
+        };
+        let id = save_income(&connection, &input(None, 1_000_00, None)).expect("save");
+        let raise = save_income(&connection, &input(Some(id), 1_500_00, Some("2026-11"))).expect("raise");
+        assert_ne!(raise, id);
+        let rows = list_incomes(&connection).expect("list");
+        let old = rows.iter().find(|row| row.id == id).expect("old");
+        let new = rows.iter().find(|row| row.id == raise).expect("new");
+        assert_eq!((old.amount_cents, old.starts_on.as_str(), old.ends_on.as_str()), (1_000_00, "", "2026-10"));
+        assert_eq!((new.amount_cents, new.starts_on.as_str(), new.ends_on.as_str()), (1_500_00, "2026-11", ""));
+        let same = save_income(&connection, &input(Some(raise), 1_600_00, Some("2026-11"))).expect("again");
+        assert_eq!(same, raise);
+        assert_eq!(list_incomes(&connection).expect("list").len(), 2);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
     fn income_round_trips_and_feeds_the_goal_progress() {
         let path = temporary_database("income");
         let connection = db::open(&path).expect("should open");
@@ -1522,6 +1612,7 @@ mod tests {
                 account_id: None,
                 active: true,
             person_id: None,
+            from_month: None,
             },
         )
         .expect("should save");
@@ -1538,6 +1629,7 @@ mod tests {
                 account_id: None,
                 active: true,
             person_id: None,
+            from_month: None,
             },
         )
         .expect("should update");
@@ -1790,6 +1882,7 @@ mod tests {
                 account_id: None,
                 active: true,
                 person_id: Some(third),
+            from_month: None,
             },
         )
         .expect("should save");

@@ -9,6 +9,11 @@ use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    // Dev/preview runs can point at a separate folder so they never touch the real data.
+    if let Ok(directory) = std::env::var("TROVE_DATA_DIR") {
+        std::fs::create_dir_all(&directory).map_err(|problem| problem.to_string())?;
+        return Ok(PathBuf::from(directory).join("trove.db"));
+    }
     let directory = app
         .path()
         .app_data_dir()

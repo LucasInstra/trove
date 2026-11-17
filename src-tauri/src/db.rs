@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 21;
+pub const SCHEMA_VERSION: i64 = 22;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -428,8 +428,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v20(&connection)?;
         write_version(&connection, 20)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 21 {
         migrate_to_v21(&connection)?;
+        write_version(&connection, 21)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v22(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -629,6 +633,13 @@ fn migrate_to_v19(connection: &Connection) -> Result<(), String> {
 /// v20 to v21: who owes a debt is free text, since the debtor is not always a household member.
 fn migrate_to_v21(connection: &Connection) -> Result<(), String> {
     add_column(connection, "debts", "debtor", "text not null default ''")
+}
+
+/// v21 to v22: an income can start and end in a given month (YYYY-MM, empty = open),
+/// so a raise applies from its month on instead of rewriting every month.
+fn migrate_to_v22(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "incomes", "starts_on", "text not null default ''")?;
+    add_column(connection, "incomes", "ends_on", "text not null default ''")
 }
 
 /// v19 to v20: the spreadsheet view of investments (owner, institution,
