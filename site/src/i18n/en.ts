@@ -59,7 +59,7 @@ export const en: Strings = {
         text: "Accounts, cards, investments and debts side by side, with their evolution over time.",
       },
     ],
-    small: ["Spreadsheet mode for spending and investments", "Backup and restore with verification", "English and Portuguese", "Automatic updates"],
+    small: ["Spreadsheet mode for spending and investments", "Backup and restore with verification", "English and Portuguese", "Automatic updates", "Optional crypto prices (off by default)"],
   },
   data: {
     eyebrow: "Where the data lives",
@@ -75,11 +75,11 @@ export const en: Strings = {
         text: "Backup with VACUUM INTO, and a restore that checks the file's integrity before it replaces the live one.",
       },
       {
-        title: "The only connection",
-        text: "The app talks to GitHub to check for updates. Nothing else.",
+        title: "The connections",
+        text: "The app talks to GitHub to check for updates. If you turn on the optional crypto tracking (off by default), it also asks CoinGecko for coin prices, sending only coin names. Nothing else.",
       },
     ],
-    diagram: { bank: "Your bank", file: "statement.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "updates only" },
+    diagram: { bank: "Your bank", file: "statement.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "updates, optional crypto prices" },
     close: "Your data never leaves your computer: no account, no cloud, no server in the way.",
   },
   proof: {

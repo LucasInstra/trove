@@ -62,6 +62,7 @@ export const pt = {
       "Backup e restauração com verificação",
       "Inglês e português",
       "Atualização automática",
+      "Cotação de criptomoedas opcional (desligada por padrão)",
     ],
   },
   data: {
@@ -78,11 +79,11 @@ export const pt = {
         text: "Backup com VACUUM INTO e restauração com verificação de integridade antes de substituir o arquivo ativo.",
       },
       {
-        title: "A única conexão",
-        text: "O app fala com o GitHub para checar atualização. Nada mais.",
+        title: "As conexões",
+        text: "O app fala com o GitHub para checar atualização. Se você ativar o acompanhamento opcional de criptomoedas (desligado por padrão), ele também consulta a CoinGecko pelas cotações, enviando só o nome das moedas. Nada mais.",
       },
     ],
-    diagram: { bank: "Seu banco", file: "extrato.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "só atualização" },
+    diagram: { bank: "Seu banco", file: "extrato.ofx", app: "Trove", db: "trove.db", github: "GitHub", only: "atualização, cotação cripto opcional" },
     close: "Seus dados nunca saem do seu computador: sem conta, sem nuvem e sem servidor no caminho.",
   },
   proof: {
