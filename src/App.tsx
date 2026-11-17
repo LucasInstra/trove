@@ -1194,6 +1194,7 @@ export function App() {
                 onSearch={setSearch}
                 onCategory={(id, categoryId) => void onCategory(id, categoryId)}
                 onImport={() => setRoute("import")}
+                onLaunch={() => setDialog({ kind: "manual", entry: null })}
                 onClearMonth={() => void clearMonth()}
                 onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
                 onDeleteEntry={(id) => void deleteManual(id)}

@@ -20,6 +20,7 @@ interface Props {
   onSearch: (value: string) => void;
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
+  onLaunch: () => void;
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;
@@ -72,6 +73,7 @@ export function TransactionsPanel({
   onSearch,
   onCategory,
   onImport,
+  onLaunch,
   onClearMonth,
   onEditEntry,
   onDeleteEntry,
@@ -390,9 +392,15 @@ export function TransactionsPanel({
         <div className="empty">
           <h2>{t("ledger.emptyTitle")}</h2>
           <p className="muted">{t("ledger.emptyDesc")}</p>
-          <button type="button" className="primary" onClick={onImport}>
-            {t("ledger.chooseFile")}
-          </button>
+          <div className="empty-actions">
+            <button type="button" className="primary" onClick={onImport}>
+              {t("ledger.chooseFile")}
+            </button>
+            <button type="button" className="outline-button" onClick={onLaunch}>
+              <Icon name="plus" size={15} />
+              {t("ledger.launchManual")}
+            </button>
+          </div>
         </div>
       ) : null}
 

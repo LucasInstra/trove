@@ -10,6 +10,7 @@ interface TransactionsScreenProps {
   onSearch: (value: string) => void;
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
+  onLaunch: () => void;
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;
