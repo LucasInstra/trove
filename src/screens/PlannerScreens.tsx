@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CRYPTO_NAMES, CRYPTO_SETTING, CRYPTO_SYMBOLS } from "../domain/crypto";
+import { CRYPTO_NAMES, CRYPTO_SETTING, CRYPTO_SYMBOLS, cryptoResult } from "../domain/crypto";
 import { api } from "../lib/api";
 import { DateCell } from "../components/DateField";
 import { PRODUCTS, reconcileTerm } from "../domain/investmentSheet";
@@ -56,6 +56,25 @@ import {
 } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
+
+/** Paid against worth now for crypto holdings, as a gain or a loss. */
+function CryptoGain({ holdings, total = false }: { holdings: Holding[]; total?: boolean }) {
+  const { lang, t } = useLanguage();
+  const result = cryptoResult(holdings);
+  const up = result.gainCents >= 0;
+  return (
+    <span className={total ? "crypto-gain total" : "crypto-gain"}>
+      <span className="muted small">
+        {t(total ? "crypto.resultTotal" : "crypto.result", { paid: formatCents(result.costCents), now: formatCents(result.valueCents) })}
+      </span>
+      <strong className={up ? "gain" : "loss"}>
+        {up ? "+" : ""}
+        {formatCents(result.gainCents)}
+        {result.pct != null ? ` (${up ? "+" : ""}${result.pct.toString().replace(".", lang === "pt" ? "," : ".")}%)` : ""}
+      </strong>
+    </span>
+  );
+}
 
 export function PageHeader({
   eyebrow,
@@ -652,6 +671,9 @@ export function PatrimonyScreen({
           <span className="muted">{t("holdings.total", { amount: formatCents(total) })}</span>
         </header>
         <p className="muted small">{t("holdings.desc")}</p>
+        {holdings.some((holding) => holding.symbol && holding.costCents > 0) ? (
+          <CryptoGain holdings={holdings.filter((holding) => holding.symbol && holding.costCents > 0)} total />
+        ) : null}
         {holdings.length > 0 ? (
           <ul className="installment-list list-rows holdings-rows">
             {holdings.map((holding) => (
@@ -685,6 +707,7 @@ export function PatrimonyScreen({
                 <span className="muted small">
                   {t("holdings.updatedOn", { date: formatDate(holding.updatedOn) })}
                 </span>
+                {holding.symbol && holding.costCents > 0 ? <CryptoGain holdings={[holding]} /> : null}
               </li>
             ))}
           </ul>

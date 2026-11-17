@@ -20,3 +20,27 @@ export const CRYPTO_NAMES: Record<string, string> = {
   USDT: "Tether",
   USDC: "USD Coin",
 };
+
+export interface CryptoResult {
+  /** What was paid. */
+  costCents: number;
+  /** What it is worth now. */
+  valueCents: number;
+  /** Value minus cost: positive is a gain. */
+  gainCents: number;
+  /** Gain over cost, in percent with one decimal; null when nothing was paid in. */
+  pct: number | null;
+}
+
+/** Gain or loss of one crypto holding, or of several together, against what was paid. */
+export function cryptoResult(holdings: { costCents: number; amountCents: number }[]): CryptoResult {
+  const costCents = holdings.reduce((sum, holding) => sum + holding.costCents, 0);
+  const valueCents = holdings.reduce((sum, holding) => sum + holding.amountCents, 0);
+  const gainCents = valueCents - costCents;
+  return {
+    costCents,
+    valueCents,
+    gainCents,
+    pct: costCents > 0 ? Math.round((gainCents / costCents) * 1000) / 10 : null,
+  };
+}
