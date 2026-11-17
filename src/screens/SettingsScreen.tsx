@@ -7,6 +7,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
 import { CURRENCIES, currencyLabel, fileName, type DisplayCurrency } from "../lib/format";
 import { SalaryAccount } from "../components/SalaryAccount";
+import { notesFor } from "../lib/bundledNotes";
 import { highlights } from "../lib/highlights";
 import { AccountsManager } from "../components/AccountsManager";
 import { Dialog } from "../components/Dialog";
@@ -88,6 +89,8 @@ export function SettingsScreen({
   onTheme: (theme: Theme) => void;
 }) {
   const { lang, setLang, t } = useLanguage();
+  // The highlights of the version that is installed, shown in the updates tab.
+  const installedNotes = updater.currentVersion ? notesFor(updater.currentVersion, lang) : null;
   const [databasePath, setDatabasePath] = useState("");
   const [userName, setUserName] = useState("");
   const [savedName, setSavedName] = useState("");
@@ -402,6 +405,18 @@ export function SettingsScreen({
               <li key={item}>{item}</li>
             ))}
           </ul>
+        ) : null}
+
+        {installedNotes && updater.status !== "available" ? (
+          <>
+            <h3 className="whatsnew-title">{t("whatsnew.title", { version: updater.currentVersion })}</h3>
+            {installedNotes.summary ? <p className="muted small">{installedNotes.summary}</p> : null}
+            <ul className="whatsnew-list">
+              {installedNotes.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
         ) : null}
 
         <div className="row">
