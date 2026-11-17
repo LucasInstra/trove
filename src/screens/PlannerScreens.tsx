@@ -267,11 +267,14 @@ export function ReserveScreen({
   onAdd,
   onEdit,
   onDeposit,
+  accountNames,
 }: {
   plan: MonthPlan;
   onAdd: () => void;
   onEdit: (goal: Goal) => void;
   onDeposit: (goal: Goal) => void;
+  /** Names of the accounts by id, when several accounts are on: a goal tied to one shows it. */
+  accountNames?: Map<number, string>;
 }) {
   const { t } = useLanguage();
   const summary = summarizeGoals(plan.goals);
@@ -325,6 +328,9 @@ export function ReserveScreen({
                     <h2>{goal.name}</h2>
                     <span className="muted small">
                       {t("planner.goalProgress", { percent: Math.round(sharePct) })}
+                      {goal.accountId !== null && accountNames?.has(goal.accountId)
+                        ? ` · ${accountNames.get(goal.accountId)}`
+                        : ""}
                     </span>
                   </div>
                   <button

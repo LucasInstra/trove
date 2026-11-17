@@ -1435,6 +1435,7 @@ export function App() {
                 {tabOf("goals", "goals") === "goals" ? (
                   <ReserveScreen
                     plan={plan}
+                    accountNames={multiAccounts ? new Map(salaryChoices.map((account) => [account.id, account.name])) : undefined}
                     onAdd={() => setDialog({ kind: "goal", goal: null })}
                     onEdit={(goal) => setDialog({ kind: "goal", goal })}
                     onDeposit={(goal) => setDialog({ kind: "deposit", goal })}
