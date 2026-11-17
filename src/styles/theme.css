@@ -2272,13 +2272,14 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
   cursor: pointer;
 }
 
-.title-button:hover {
+.title-button:hover:not(:disabled) {
+  background: transparent;
+  border: 0;
   color: var(--primary);
 }
 
 .title-day {
   margin-right: 8px;
-  color: var(--muted);
 }
 
 .day-pop-grid {
