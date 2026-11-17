@@ -45,6 +45,7 @@ export function ManualDialog({
   const [amount, setAmount] = useState(entry ? (Math.abs(entry.amountCents) / 100).toFixed(2) : "");
   const [date, setDate] = useState(entry?.postedOn.slice(0, 10) ?? defaultDate ?? todayIso());
   const [accountId, setAccountId] = useState(entry?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? 0);
+  const [emptyAmount, setEmptyAmount] = useState(false);
   const [categoryId, setCategoryId] = useState<number | null>(entry?.categoryId ?? null);
   const [notes, setNotes] = useState(entry?.notes ?? "");
 
@@ -55,7 +56,10 @@ export function ManualDialog({
         onSubmit={(event) => {
           event.preventDefault();
           const cents = parseCents(amount);
-          if (cents === 0) return;
+          if (cents === 0) {
+            setEmptyAmount(true);
+            return;
+          }
           const base = {
             accountId,
             postedOn: date,
@@ -89,10 +93,19 @@ export function ManualDialog({
           <span>{t("planner.amount")}</span>
           <input
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(event) => {
+              setAmount(event.target.value);
+              setEmptyAmount(false);
+            }}
             inputMode="decimal"
+            aria-invalid={emptyAmount}
             required
           />
+          {emptyAmount ? (
+            <small className="error" role="alert">
+              {t("manual.amountZero")}
+            </small>
+          ) : null}
         </label>
         <label className="field">
           <span>{t("manual.date")}</span>

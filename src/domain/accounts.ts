@@ -43,6 +43,16 @@ export function serializeOpening(opening: Record<number, number>): string {
   return JSON.stringify(clean);
 }
 
+/** The account that receives the salary: the one chosen, if it still is an account of money, else the first. */
+export function salaryAccountId(
+  accounts: Account[],
+  cardAccountIds: ReadonlySet<number>,
+  chosen: number | null,
+): number | undefined {
+  const money = accounts.filter((account) => !cardAccountIds.has(account.id));
+  return money.find((account) => account.id === chosen)?.id ?? money[0]?.id;
+}
+
 export function accountRows(
   accounts: Account[],
   balances: AccountBalance[],

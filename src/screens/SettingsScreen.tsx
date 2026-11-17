@@ -6,6 +6,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { api, type Account } from "../lib/api";
 import { CURRENCIES, currencyLabel, fileName, type DisplayCurrency } from "../lib/format";
+import { SalaryAccount } from "../components/SalaryAccount";
 import { highlights } from "../lib/highlights";
 import { AccountsManager } from "../components/AccountsManager";
 import { Dialog } from "../components/Dialog";
@@ -42,6 +43,9 @@ function statusText(updater: UpdaterState, t: Translate): string {
 
 export function SettingsScreen({
   initialTab,
+  salaryAccountId,
+  salaryChoices,
+  onSalaryAccount,
   currency,
   onCurrency,
   updater,
@@ -61,6 +65,9 @@ export function SettingsScreen({
   onTheme,
 }: {
   /** Opens on this tab, e.g. the updates one from the "new version" banner. */
+  salaryAccountId: number | undefined;
+  salaryChoices: Account[];
+  onSalaryAccount: (id: number) => void;
   currency: DisplayCurrency;
   onCurrency: (currency: DisplayCurrency) => void;
   initialTab?: "profile" | "account" | "appearance" | "updates" | "about";
@@ -421,6 +428,7 @@ export function SettingsScreen({
       </article>
 
       <div hidden={tab !== "account" || !multiAccounts}>
+        <SalaryAccount accounts={salaryChoices} value={salaryAccountId} onChange={onSalaryAccount} />
         <AccountsManager
           accounts={accounts}
           onCreate={onCreateAccount}

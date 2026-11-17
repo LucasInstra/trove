@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account } from "../lib/api";
-import { accountRows, parseOpening, serializeOpening, totalBalanceKnown, totalHeldCents, totalMonthCents, totalOwedCents } from "./accounts";
+import { accountRows, salaryAccountId, parseOpening, serializeOpening, totalBalanceKnown, totalHeldCents, totalMonthCents, totalOwedCents } from "./accounts";
 
 const account = (id: number, name: string): Account => ({
   id,
@@ -58,6 +58,15 @@ describe("account balances", () => {
     ];
     const rows = accountRows(accounts, balances, {}, new Set([3]), results, { accountId: 1, cents: 300_000 });
     expect(rows.map((row) => row.monthCents)).toEqual([293_855, 0, 0]);
+  });
+
+  it("sends the salary to the chosen account, else to the first account of money", () => {
+    const cards = new Set([3]);
+    expect(salaryAccountId(accounts, cards, 2)).toBe(2);
+    expect(salaryAccountId(accounts, cards, null)).toBe(1);
+    expect(salaryAccountId(accounts, cards, 3)).toBe(1);
+    expect(salaryAccountId(accounts, new Set(), 3)).toBe(3);
+    expect(salaryAccountId([], cards, 3)).toBeUndefined();
   });
 
   it("round-trips the setting and ignores junk", () => {

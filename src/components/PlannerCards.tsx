@@ -421,7 +421,12 @@ export function CardsCard({
           {entry.meta.brand || t("planner.card")} •••• {entry.meta.last4 || "0000"} ·{" "}
           {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
         </span>
-        {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(paidCents) })}</span> : null}
+        {paid ? (
+          <span className="muted small">
+            {t("planner.paidAmount", { amount: formatCents(paidCents) })}
+            {record?.paidOn ? ` · ${t("planner.paidOnDate", { date: formatDate(record.paidOn) })}` : ""}
+          </span>
+        ) : null}
         {extraCents > 0 ? <span className="muted small">{t("planner.grewAfterPaid")}</span> : null}
         <span className="card-status">
           <span

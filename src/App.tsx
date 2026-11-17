@@ -18,7 +18,8 @@ import { Dialog } from "./components/Dialog";
 import { AccountsManager } from "./components/AccountsManager";
 import { MultiAccountsBanner } from "./components/MultiAccountsBanner";
 import { computeKpis } from "./domain/kpis";
-import { accountRows, parseOpening, serializeOpening } from "./domain/accounts";
+import { accountRows, parseOpening, salaryAccountId, serializeOpening } from "./domain/accounts";
+import { SalaryAccount } from "./components/SalaryAccount";
 import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
 import {
@@ -281,6 +282,8 @@ export function App() {
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   // The day picked in the top bar. Until the user picks one, new entries start on today.
   const [pickedDay, setPickedDay] = useState<number | null>(null);
+  // The account the salary counts on, `salary_account` in the settings.
+  const [salaryChoice, setSalaryChoice] = useState<number | null>(null);
   const [currency, setCurrencyState] = useState<DisplayCurrency>("BRL");
   // The formatters read this while the screens render, so it is set before they do.
   setDisplayCurrency(currency);
@@ -296,12 +299,20 @@ export function App() {
   const [redoOnboarding, setRedoOnboarding] = useState(false);
   useEffect(() => {
     void api
+      .getSetting("salary_account")
+      .then((value) => setSalaryChoice(value && Number.isInteger(Number(value)) ? Number(value) : null))
+      .catch(() => {});
+    void api
       .getSetting("display_currency")
       .then((value) => {
         if (isDisplayCurrency(value)) setCurrencyState(value);
       })
       .catch(() => {});
   }, []);
+  const changeSalaryAccount = (id: number) => {
+    setSalaryChoice(id);
+    void api.setSetting("salary_account", String(id)).catch(() => {});
+  };
   const changeCurrency = (next: DisplayCurrency) => {
     setCurrencyState(next);
     void api.setSetting("display_currency", next).catch(() => {});
@@ -676,6 +687,10 @@ export function App() {
   const entryDate =
     pickedDay === null ? undefined : `${month ?? currentMonth()}-${String(shownDay).padStart(2, "0")}`;
 
+  const cardAccountSet = useMemo(() => new Set(planner.cards.map((meta) => meta.accountId)), [planner.cards]);
+  const salaryChoices = accounts.filter((account) => !cardAccountSet.has(account.id));
+  const salaryAccountIdNow = salaryAccountId(accounts, cardAccountSet, salaryChoice);
+
   const accountRowsList = useMemo(
     () =>
       accountRows(
@@ -685,11 +700,15 @@ export function App() {
         new Set(planner.cards.map((meta) => meta.accountId)),
         monthResults,
         {
-          accountId: accounts.find((account) => !planner.cards.some((meta) => meta.accountId === account.id))?.id,
+          accountId: salaryAccountId(
+            accounts,
+            new Set(planner.cards.map((meta) => meta.accountId)),
+            salaryChoice,
+          ),
           cents: monthlySalaryCents,
         },
       ),
-    [accounts, balances, opening, planner.cards, monthResults, monthlySalaryCents],
+    [accounts, balances, opening, planner.cards, monthResults, monthlySalaryCents, salaryChoice],
   );
 
   // Several accounts is the user's choice. Without a choice yet, it is on for anyone who already
@@ -1571,6 +1590,9 @@ export function App() {
             {route === "settings" ? (
               <SettingsScreen
                 initialTab={settingsTab}
+                salaryAccountId={salaryAccountIdNow}
+                salaryChoices={salaryChoices}
+                onSalaryAccount={changeSalaryAccount}
                 currency={currency}
                 onCurrency={changeCurrency}
                 updater={updater}
@@ -1725,6 +1747,7 @@ export function App() {
             onRename={(id, name) => void renameManualAccount(id, name)}
             onArchive={(id) => void archiveAccount(id)}
           />
+          <SalaryAccount accounts={salaryChoices} value={salaryAccountIdNow} onChange={changeSalaryAccount} />
           <p className="muted small">{t("accounts.movementNote")}</p>
           <div className="dialog-actions">
             <button
