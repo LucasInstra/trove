@@ -31,7 +31,7 @@ export function CryptoPrompt() {
     void chooseCrypto(on).catch(() => {});
   };
   return (
-    <Dialog title={t("crypto.promptTitle")} onClose={() => answer(false)}>
+    <Dialog title={t("crypto.promptTitle")} onClose={() => answer(false)} required>
       <Explanation />
       <div className="dialog-actions">
         <button type="button" onClick={() => answer(false)}>

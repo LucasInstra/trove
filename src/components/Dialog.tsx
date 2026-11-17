@@ -7,6 +7,8 @@ const EXIT_MS = 140;
 interface DialogProps {
   title: string;
   onClose: () => void;
+  /** The dialog only closes through its own buttons: no Escape, no click outside, no X. */
+  required?: boolean;
   children: ReactNode;
 }
 
@@ -14,11 +16,13 @@ interface DialogProps {
  * Small modal dialog: focus moves in, Tab is trapped, Escape closes and
  * focus goes back where it came from.
  */
-export function Dialog({ title, onClose, children }: DialogProps) {
+export function Dialog({ title, onClose, required = false, children }: DialogProps) {
   const { t } = useLanguage();
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const requiredRef = useRef(required);
+  requiredRef.current = required;
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
 
@@ -45,7 +49,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        requestClose();
+        if (!requiredRef.current) requestClose();
         return;
       }
       if (event.key !== "Tab" || !sheet) return;
@@ -85,7 +89,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       onClick={(event) => {
         // Closes only when the press also began on the backdrop: selecting text inside the
         // dialog and letting go outside it must not count as a click on the backdrop.
-        if (pressedBackdrop.current && event.target === event.currentTarget) requestClose();
+        if (pressedBackdrop.current && event.target === event.currentTarget && !required) requestClose();
         pressedBackdrop.current = false;
       }}
       role="presentation"
@@ -101,11 +105,11 @@ export function Dialog({ title, onClose, children }: DialogProps) {
       >
         <header className="dialog-head">
           <h2>{title}</h2>
-          <button type="button" className="icon-button" onClick={requestClose} aria-label={t("common.close")}>
+          {required ? null : <button type="button" className="icon-button" onClick={requestClose} aria-label={t("common.close")}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="m6 6 12 12M18 6 6 18" />
             </svg>
-          </button>
+          </button>}
         </header>
         {children}
       </div>
