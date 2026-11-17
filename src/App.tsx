@@ -1634,7 +1634,7 @@ export function App() {
       ) : null}
 
       {dialog?.kind === "accounts" ? (
-        <Dialog title={t("accounts.manage")} onClose={() => setDialog(null)}>
+        <Dialog title={t("accounts.title")} onClose={() => setDialog(null)}>
           <AccountsManager
             bare
             hint={t("accounts.manageHint")}
