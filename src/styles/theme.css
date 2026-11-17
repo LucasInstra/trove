@@ -1903,7 +1903,33 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
 .budget-tables .sheet-table td { padding: 8px 10px; }
 .budget-tables .sheet-table td:first-child { text-align: left; }
 .budget-actions { width: 1%; white-space: nowrap; text-align: right; }
-.budget-paid { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; cursor: pointer; }
+/* Paid column: the tick always sits in the same place, the amount is right-aligned beside it,
+   green once paid and a quiet dash while it is still to pay. */
+.budget-paid {
+  display: flex;
+  align-items: center;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 112px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.budget-paid span {
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+.budget-paid:has(input:checked) span {
+  color: var(--positive);
+  font-weight: 600;
+}
+.budget-paid:hover input:not(:checked) {
+  border-color: var(--positive);
+}
+.budget-paid input:checked {
+  background: var(--positive);
+  border-color: var(--positive);
+}
 .budget .is-paid td:first-child { text-decoration: line-through; color: var(--muted); }
 @media (max-width: 900px) { .budget-tables { grid-template-columns: minmax(0, 1fr); } }
 .color-swatch { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; padding: 0; border: 2px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--line-strong); cursor: pointer; flex: none; background: none; }
