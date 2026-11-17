@@ -46,7 +46,7 @@ export function ManualDialog({
         onSubmit={(event) => {
           event.preventDefault();
           const cents = parseCents(amount);
-          if (cents === 0 || accountId === 0) return;
+          if (cents === 0) return;
           const base = {
             accountId,
             postedOn: date,
@@ -89,6 +89,7 @@ export function ManualDialog({
           <span>{t("manual.date")}</span>
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
         </label>
+        {accounts.length > 0 ? (
         <label className="field">
           <span>{t("planner.account")}</span>
           <select value={accountId} onChange={(event) => setAccountId(Number(event.target.value))}>
@@ -99,6 +100,9 @@ export function ManualDialog({
             ))}
           </select>
         </label>
+        ) : (
+          <p className="muted small">{t("accounts.createsMain")}</p>
+        )}
         <label className="field">
           <span>{t("planner.category")}</span>
           <select

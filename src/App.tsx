@@ -702,8 +702,16 @@ export function App() {
     await refreshData();
   };
 
+  // With no account yet, the first entry creates a main one, so launching never dead-ends.
   const saveManual = (input: ManualInput) =>
-    mutateAndRefresh(() => api.saveManual(input), { closeDialog: true });
+    mutateAndRefresh(
+      async () => {
+        const accountId =
+          input.accountId > 0 ? input.accountId : await api.createManualAccount(t("accounts.main"));
+        return api.saveManual({ ...input, accountId });
+      },
+      { closeDialog: true },
+    );
 
   const updateManual = (input: ManualEdit) =>
     mutateAndRefresh(() => api.updateManual(input), { closeDialog: true });
