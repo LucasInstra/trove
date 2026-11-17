@@ -1702,6 +1702,7 @@ export function App() {
             onRename={(id, name) => void renameManualAccount(id, name)}
             onArchive={(id) => void archiveAccount(id)}
           />
+          <p className="muted small">{t("accounts.movementNote")}</p>
           <div className="dialog-actions">
             <button
               type="button"

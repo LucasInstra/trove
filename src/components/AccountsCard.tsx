@@ -1,5 +1,5 @@
 import type { AccountRow } from "../domain/accounts";
-import { totalBalanceKnown, totalHeldCents, totalOwedCents } from "../domain/accounts";
+import { totalBalanceKnown, totalHeldCents } from "../domain/accounts";
 import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
@@ -24,7 +24,6 @@ export function AccountsCard({
   onManage: () => void;
 }) {
   const { t } = useLanguage();
-  const owed = totalOwedCents(rows);
   return (
     <article className="card accounts-card">
       <header className="card-head">
@@ -67,7 +66,6 @@ export function AccountsCard({
             <span>{t("accounts.monthLeft")}</span>
             <strong>{signed(monthLeftCents)}</strong>
           </footer>
-          <p className="muted small accounts-note">{t("accounts.movementNote")}</p>
           {totalBalanceKnown(rows) ? (
             <p className="accounts-balance-line">
               <span>{t("accounts.heldTotal")}</span>
@@ -75,9 +73,6 @@ export function AccountsCard({
                 <Money cents={totalHeldCents(rows)} />
               </strong>
             </p>
-          ) : null}
-          {owed > 0 ? (
-            <p className="muted small">{t("accounts.owed", { amount: formatCents(owed) })}</p>
           ) : null}
         </>
       )}
