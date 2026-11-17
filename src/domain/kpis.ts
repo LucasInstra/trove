@@ -40,7 +40,9 @@ export function computeKpis(plan: MonthPlan, series: MonthPoint[], month: string
   const prev = index > 0 ? series[index - 1] : null;
 
   const incomeCents = plan.incomeCents;
-  const expenseCents = plan.hasPlan ? plan.plannedCents : plan.realizedCents;
+  // What was spent in the ledger, plus the planned bills still to pay. The balance tile
+  // keeps its own forecast.
+  const expenseCents = plan.hasPlan ? plan.realizedCents + Math.max(plan.plannedCents - plan.paidCents, 0) : plan.realizedCents;
   const freedCents = plan.dueBills.reduce((sum, bill) => {
     const remaining = remainingInstallments(bill, month);
     return remaining && remaining.left === 0 ? sum + bill.amountCents : sum;
