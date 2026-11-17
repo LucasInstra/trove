@@ -123,7 +123,7 @@ export const en: Strings = {
       },
       {
         q: "Do I need internet to use it?",
-        a: "No. Everything works offline. The app's only connection is to check for and download updates from GitHub.",
+        a: "No. Everything works offline. The app's only connections are to check for and download updates from GitHub and, only if you turn on the optional crypto tracking, to fetch coin prices.",
       },
       {
         q: "Where is my data?",
@@ -239,7 +239,7 @@ export const en: Strings = {
     blocks: [
       {
         h: "The app",
-        p: "No financial data leaves your computer. There is no login, no telemetry and no server of ours. The app only connects to GitHub to check for and download updates.",
+        p: "No financial data leaves your computer. There is no login, no telemetry and no server of ours. The app only connects to GitHub to check for and download updates. Crypto price tracking is optional and off until you turn it on in Settings: when on, the app asks CoinGecko for the current price of the coins you hold, sending only the coin names (for example bitcoin), never your amounts, accounts or any personal data. Turn it off at any time and no price request is made.",
       },
       {
         h: "Where the data is",

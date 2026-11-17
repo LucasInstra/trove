@@ -126,7 +126,7 @@ export const pt = {
       },
       {
         q: "Preciso de internet para usar?",
-        a: "Não. Tudo funciona offline. A única conexão do app é para checar e baixar atualizações no GitHub.",
+        a: "Não. Tudo funciona offline. As únicas conexões do app são para checar e baixar atualizações no GitHub e, só se você ativar o acompanhamento opcional de criptomoedas, para buscar cotações.",
       },
       {
         q: "Onde ficam meus dados?",
@@ -242,7 +242,7 @@ export const pt = {
     blocks: [
       {
         h: "O app",
-        p: "Nenhum dado financeiro sai do seu computador. Não há login, telemetria nem servidor nosso. O app só se conecta ao GitHub para checar e baixar atualizações.",
+        p: "Nenhum dado financeiro sai do seu computador. Não há login, telemetria nem servidor nosso. O app só se conecta ao GitHub para checar e baixar atualizações. O acompanhamento de criptomoedas é opcional e fica desligado até você ativar em Configurações: quando ligado, o app consulta a CoinGecko pelo preço atual das moedas que você tem, enviando só o nome das moedas (por exemplo, bitcoin), nunca valores, contas ou dados pessoais. Desligue quando quiser e nenhuma consulta de preço é feita.",
       },
       {
         h: "Onde ficam os dados",
