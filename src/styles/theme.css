@@ -1666,7 +1666,11 @@ button:active:not(:disabled) {
 
 .people-actions {
   display: flex;
-  justify-content: flex-end;
+}
+
+.people-actions .primary {
+  flex: 1;
+  min-height: 38px;
 }
 
 .people-settle {
