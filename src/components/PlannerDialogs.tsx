@@ -371,13 +371,14 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
 
 const GOAL_COLORS = ["#16a34a", "#0ea5e9", "#2563eb", "#7c3aed", "#ec4899", "#ef4444", "#f59e0b", "#8a6a2f"];
 
-export function GoalDialog({ goal, onClose, onSave, onDelete }: { goal: Goal | null; onClose: () => void; onSave: (input: GoalInput) => void; onDelete?: (id: number) => void }) {
+export function GoalDialog({ goal, accounts = [], onClose, onSave, onDelete }: { goal: Goal | null; /** Accounts a goal can be tied to; none means the choice is not offered. */ accounts?: { id: number; name: string }[]; onClose: () => void; onSave: (input: GoalInput) => void; onDelete?: (id: number) => void }) {
   const { t } = useLanguage();
   const [name, setName] = useState(goal?.name ?? "");
   const [target, setTarget] = useState(goal ? (goal.targetCents / 100).toFixed(2) : "");
   const [monthly, setMonthly] = useState(goal ? (goal.monthlyCents / 100).toFixed(2) : "");
   const [color, setColor] = useState(goal?.color ?? "#8a6a2f");
   const [icon, setIcon] = useState(goal?.icon ?? "target");
+  const [accountId, setAccountId] = useState<number | null>(goal?.accountId ?? null);
 
   return (
     <Dialog title={t("planner.goalTitle")} onClose={onClose}>
@@ -392,7 +393,7 @@ export function GoalDialog({ goal, onClose, onSave, onDelete }: { goal: Goal | n
             targetCents: parseCents(target),
             monthlyCents: parseCents(monthly),
             startsOn: goal?.startsOn ?? todayIso(),
-            accountId: null,
+            accountId,
             color,
             icon,
           });
@@ -409,6 +410,18 @@ export function GoalDialog({ goal, onClose, onSave, onDelete }: { goal: Goal | n
             <input value={monthly} onChange={(event) => setMonthly(event.target.value)} inputMode="decimal" />
           </Field>
         </div>
+        {accounts.length > 1 ? (
+          <Field label={t("goal.account")}>
+            <select value={accountId ?? ""} onChange={(event) => setAccountId(event.target.value ? Number(event.target.value) : null)}>
+              <option value="">{t("goal.noAccount")}</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <div className="field">
           <span>{t("goal.icon")}</span>
           <GoalIconPicker

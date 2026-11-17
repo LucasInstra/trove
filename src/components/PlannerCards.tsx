@@ -668,7 +668,10 @@ export function GoalsCard({
   onAdd,
   compact = false,
   wide = false,
+  accountNames,
 }: {
+  /** Names of the accounts by id: when given, a goal tied to an account shows which one. */
+  accountNames?: Map<number, string>;
   plan: MonthPlan;
   onAdd: () => void;
   compact?: boolean;
@@ -719,6 +722,9 @@ export function GoalsCard({
               <div className="goal-head">
                 <span className="goal-name">
                   {goal.name}
+                  {goal.accountId !== null && accountNames?.has(goal.accountId) ? (
+                    <em className="pill-soft">{accountNames.get(goal.accountId)}</em>
+                  ) : null}
                   {goal.kind !== "reserve" ? (
                     <em className="pill-soft">{t("planner.estimated")}</em>
                   ) : null}

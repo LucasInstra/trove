@@ -465,7 +465,12 @@ export function OverviewScreen({
         wide={isWide("housing")}
       />
     ),
-    goals: <GoalsCard plan={plan} onAdd={onAddGoal} wide={isWide("goals")} />,
+    goals: <GoalsCard
+      plan={plan}
+      onAdd={onAddGoal}
+      wide={isWide("goals")}
+      accountNames={multiAccounts ? new Map(accountRows.filter((row) => !row.isCard).map((row) => [row.id, row.name])) : undefined}
+    />,
     split: (
       <SplitCard
         people={people}

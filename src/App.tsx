@@ -1686,6 +1686,7 @@ export function App() {
       {dialog?.kind === "goal" ? (
         <GoalDialog
           goal={dialog.goal}
+          accounts={multiAccounts ? salaryChoices : []}
           onClose={() => setDialog(null)}
           onSave={(input) => void saveGoal(input)}
           onDelete={(id) => void removeGoal(id)}
