@@ -273,11 +273,16 @@ select.payer-select:hover {
   opacity: 0.5;
 }
 
-/* Cards with a height of their own: the card fills the cell and scrolls inside it. */
+/* Cards with a height of their own: that height is the least the cell takes, so a card whose
+   content grows (an invoice with a difference, a new line) grows with it instead of scrolling. */
+.grid-cell.has-height {
+  display: flex;
+  flex-direction: column;
+}
 .grid-cell.has-height > :is(article, .card, .account-card) {
-  height: 100%;
+  flex: 1 1 auto;
+  height: auto;
   min-height: 0;
-  overflow: auto;
 }
 
 .cell-resize-handle.is-bottom {

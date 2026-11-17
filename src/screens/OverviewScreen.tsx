@@ -1262,7 +1262,7 @@ export function OverviewScreen({
               {
                 "--col": cols.get(item.id),
                 "--span": item.span,
-                ...(item.height ? { height: item.height } : {}),
+                ...(item.height ? { minHeight: item.height } : {}),
               } as CSSProperties
             }
             data-card={item.id}
