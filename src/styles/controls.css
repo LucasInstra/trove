@@ -764,8 +764,7 @@ html.vt-privacy::view-transition-new(root) {
     input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="button"], [type="submit"], [type="date"], [type="month"]),
     textarea
   ) {
-  min-height: 38px;
-  padding: 0 12px;
+  padding: 9px 12px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   background-color: var(--surface);
@@ -906,4 +905,18 @@ select option {
     width: 5px;
     height: 5px;
   }
+}
+
+/* An input inside a wrapper that draws the box (amount with R$, search, month picker) is just the
+   text: no ring, border or radius of its own. */
+.input-affix input,
+.input-affix input:is(:hover, :focus-visible),
+.search input,
+.search input:is(:hover, :focus-visible) {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
