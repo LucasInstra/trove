@@ -1089,10 +1089,6 @@ export function App() {
                     );
                   })
                 }
-                onManual={() => {
-                  finishOnboarding();
-                  setRoute("sheets");
-                }}
                 onImport={() => {
                   finishOnboarding();
                   setRoute("import");

@@ -21,7 +21,6 @@ export function Onboarding({
   onSaveName,
   onSaveIncome,
   onImport,
-  onManual,
   onDemo,
   onDismiss,
 }: {
@@ -29,7 +28,6 @@ export function Onboarding({
   onSaveName: (name: string) => void;
   onSaveIncome: (amountCents: number, payDay: number) => Promise<void>;
   onImport: () => void;
-  onManual: () => void;
   onDemo: () => void;
   onDismiss: () => void;
 }) {
@@ -180,8 +178,8 @@ export function Onboarding({
             <h1 id="onboarding-title">{t("onboard.readyTitle")}</h1>
             <p>{t("onboard.readyDesc")}</p>
             <div className="onboarding-actions">
-              <button type="button" className="primary" onClick={onManual}>
-                {t("onboard.manual")}
+              <button type="button" className="primary" onClick={onDismiss}>
+                {t("onboard.finish")}
               </button>
               <button type="button" className="ghost" onClick={onImport}>
                 {t("onboard.import")}
@@ -189,9 +187,6 @@ export function Onboarding({
             </div>
             <button type="button" className="onboarding-demo" onClick={onDemo} disabled={busy}>
               {t("onboard.demo")}
-            </button>
-            <button type="button" className="onboarding-demo" onClick={onDismiss}>
-              {t("onboard.finish")}
             </button>
           </>
         ) : null}
