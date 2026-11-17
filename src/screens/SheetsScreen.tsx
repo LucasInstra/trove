@@ -15,7 +15,7 @@ export type SheetTab = "investments" | "spending" | "charts";
  */
 const CHARTS_INLINE = true;
 
-const TABS: SheetTab[] = CHARTS_INLINE ? ["investments", "spending"] : ["investments", "spending", "charts"];
+const TABS: SheetTab[] = CHARTS_INLINE ? ["spending", "investments"] : ["spending", "investments", "charts"];
 
 /**
  * The spreadsheet mode in one place: the investments grid, the month's

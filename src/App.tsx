@@ -1272,7 +1272,7 @@ export function App() {
             {route === "sheets" ? (
               <SheetsScreen
                 month={month ?? currentMonth()}
-                tab={tabOf<"investments" | "spending" | "charts">("sheets", "investments")}
+                tab={tabOf<"investments" | "spending" | "charts">("sheets", "spending")}
                 onTab={(id) => setTab("sheets", id)}
                 people={planner.people}
                 onAddPerson={(name) => void addPerson(name)}
