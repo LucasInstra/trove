@@ -482,7 +482,7 @@ export function BudgetSheet({
                         <td>
                           <select
                             className="sheet-input person-select"
-                            style={(() => { const color = people.find((person) => person.id === shares.find((entry) => entry.billId === bill.id)?.personId)?.color; return color ? { borderLeft: `4px solid ${color}`, color } : undefined; })()}
+                            style={(() => { const color = people.find((person) => person.id === (shares.find((entry) => entry.billId === bill.id)?.personId ?? selfId))?.color; return color ? { borderLeft: `4px solid ${color}`, color } : undefined; })()}
                             aria-label={`${t("budget.person")}: ${bill.name}`}
                             value={shares.find((entry) => entry.billId === bill.id)?.personId ?? selfId ?? ""}
                             onChange={(event) => event.target.value && onAssignBill(bill.id, Number(event.target.value))}
