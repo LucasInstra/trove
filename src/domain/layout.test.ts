@@ -152,6 +152,11 @@ describe("isCardAvailable", () => {
     expect(isCardAvailable("housing", { people: 1, housingCents: 185_000 })).toBe(true);
   });
 
+  it("offers the accounts card only while several accounts is on", () => {
+    expect(isCardAvailable("accounts", { people: 1, housingCents: 0, multiAccounts: false })).toBe(false);
+    expect(isCardAvailable("accounts", { people: 1, housingCents: 0, multiAccounts: true })).toBe(true);
+  });
+
   it("always offers the cards that do not depend on the household", () => {
     const idle = { people: 1, housingCents: 0 };
     for (const id of ["forecast", "bills", "cards", "goals", "donut", "series"] as const) {

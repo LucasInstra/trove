@@ -118,6 +118,7 @@ function spanForEdge(
 interface OverviewProps {
   plan: MonthPlan;
   accountRows: AccountRow[];
+  multiAccounts: boolean;
   accountFilter: number | null;
   onAccountFilter: (id: number | null) => void;
   onManageAccounts: () => void;
@@ -168,6 +169,7 @@ interface OverviewProps {
 export function OverviewScreen({
   plan,
   accountRows,
+  multiAccounts,
   accountFilter,
   onAccountFilter,
   onManageAccounts,
@@ -286,7 +288,7 @@ export function OverviewScreen({
 
   // Cards that the plan does not support stay out of the grid, and a card the
   // user took off the dashboard waits in the shelf until it is added back.
-  const cardContext = { people: people.length, housingCents: plan.housingCents };
+  const cardContext = { people: people.length, housingCents: plan.housingCents, multiAccounts };
   const visible = shown.filter(
     (item) => item.mode !== "hidden" && isCardAvailable(item.id, cardContext),
   );

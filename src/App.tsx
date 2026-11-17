@@ -274,6 +274,7 @@ export function App() {
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
+  const [multiSetting, setMultiSetting] = useState<string | null>(null);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
   const [opening, setOpening] = useState<Record<number, number>>({});
   const [error, setError] = useState("");
@@ -446,6 +447,7 @@ export function App() {
           nextRecent,
           nextBalances,
           storedOpening,
+          storedMulti,
         ] = await Promise.all([
 
           api.transactions(term, at, accountId, 500, tagId),
@@ -471,7 +473,9 @@ export function App() {
           api.transactions("", at, null, 10, null).catch(() => []),
           api.accountBalances().catch(() => []),
           api.getSetting("account_opening").catch(() => null),
+          api.getSetting("multi_accounts").catch(() => null),
         ]);
+        setMultiSetting(storedMulti);
         setBalances(nextBalances);
         setOpening(parseOpening(storedOpening));
         const ramp = rampOf(nextCategories.map((category) => category.color));
@@ -642,6 +646,17 @@ export function App() {
       ),
     [accounts, balances, opening, planner.cards],
   );
+
+  // Several accounts is the user's choice. Without a choice yet, it is on for anyone who already
+  // keeps more than one account besides cards, so nothing disappears from under them.
+  const multiAccounts =
+    multiSetting === "on" || (multiSetting === null && accountRowsList.filter((row) => !row.isCard).length > 1);
+
+  const setMultiAccounts = (on: boolean) => {
+    setMultiSetting(on ? "on" : "off");
+    if (!on) setAccountFilter(null);
+    void api.setSetting("multi_accounts", on ? "on" : "off").catch(() => {});
+  };
 
   const saveOpening = async (accountId: number, cents: number) => {
     const next = { ...opening, [accountId]: cents };
@@ -1097,7 +1112,7 @@ export function App() {
               }}
               onImport={() => setRoute("import")}
               onLaunch={() => setDialog({ kind: "manual", entry: null })}
-              accounts={accounts}
+              accounts={multiAccounts ? accounts : []}
               accountFilter={accountFilter}
               onAccountFilter={setAccountFilter}
               primaryLabel={t("ledger.import")}
@@ -1151,6 +1166,7 @@ export function App() {
               <OverviewScreen
                 plan={plan}
                 accountRows={accountRowsList}
+                multiAccounts={multiAccounts}
                 accountFilter={accountFilter}
                 onAccountFilter={setAccountFilter}
                 onManageAccounts={() => setDialog({ kind: "accounts" })}
@@ -1236,6 +1252,8 @@ export function App() {
                 onImport={() => setRoute("import")}
                 onLaunch={() => setDialog({ kind: "manual", entry: null })}
                 onManageAccounts={() => setDialog({ kind: "accounts" })}
+                multiAccounts={multiAccounts}
+                onMultiAccounts={setMultiAccounts}
                 onClearMonth={() => void clearMonth()}
                 onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
                 onDeleteEntry={(id) => void deleteManual(id)}
@@ -1515,6 +1533,8 @@ export function App() {
                   saveTheme(next);
                 }}
                 onCreateAccount={(name) => void createManualAccount(name)}
+                multiAccounts={multiAccounts}
+                onMultiAccounts={setMultiAccounts}
                 onRenameAccount={(id, name) => void renameManualAccount(id, name)}
                 onArchiveAccount={(id) => void archiveAccount(id)}
               />
@@ -1624,6 +1644,8 @@ export function App() {
       {dialog?.kind === "manual" ? (
         <ManualDialog
           accounts={accounts}
+          askAccount={multiAccounts || dialog.entry !== null}
+          defaultAccountId={accountRowsList.find((row) => !row.isCard)?.id}
           categories={categories}
           entry={dialog.entry}
           onClose={() => setDialog(null)}

@@ -15,6 +15,8 @@ import { useLanguage } from "../lib/language";
  */
 export function ManualDialog({
   accounts,
+  askAccount = true,
+  defaultAccountId,
   categories,
   entry,
   onClose,
@@ -23,6 +25,10 @@ export function ManualDialog({
   onDelete,
 }: {
   accounts: Account[];
+  /** With several accounts off, the entry goes to the first account without asking. */
+  askAccount?: boolean;
+  /** The account a new entry starts on: the first one that is not a card's. */
+  defaultAccountId?: number;
   categories: Category[];
   entry?: TransactionRow | null;
   onClose: () => void;
@@ -35,7 +41,7 @@ export function ManualDialog({
   const [description, setDescription] = useState(entry?.description ?? "");
   const [amount, setAmount] = useState(entry ? (Math.abs(entry.amountCents) / 100).toFixed(2) : "");
   const [date, setDate] = useState(entry?.postedOn.slice(0, 10) ?? todayIso());
-  const [accountId, setAccountId] = useState(entry?.accountId ?? accounts[0]?.id ?? 0);
+  const [accountId, setAccountId] = useState(entry?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? 0);
   const [categoryId, setCategoryId] = useState<number | null>(entry?.categoryId ?? null);
   const [notes, setNotes] = useState(entry?.notes ?? "");
 
@@ -89,7 +95,7 @@ export function ManualDialog({
           <span>{t("manual.date")}</span>
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
         </label>
-        {accounts.length > 0 ? (
+        {accounts.length > 0 && askAccount ? (
         <label className="field">
           <span>{t("planner.account")}</span>
           <select value={accountId} onChange={(event) => setAccountId(Number(event.target.value))}>
@@ -101,7 +107,7 @@ export function ManualDialog({
           </select>
         </label>
         ) : (
-          <p className="muted small">{t("accounts.createsMain")}</p>
+          accounts.length === 0 ? <p className="muted small">{t("accounts.createsMain")}</p> : null
         )}
         <label className="field">
           <span>{t("planner.category")}</span>

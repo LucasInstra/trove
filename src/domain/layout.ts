@@ -215,11 +215,14 @@ export const DEFAULT_LAYOUT: LayoutCard[] = [
 export interface CardContext {
   people: number;
   housingCents: number;
+  /** Several accounts is an option; the accounts card only makes sense with it on. */
+  multiAccounts?: boolean;
 }
 
 export function isCardAvailable(id: CardId, context: CardContext): boolean {
   if (id === "split") return context.people > 1;
   if (id === "housing") return context.housingCents > 0;
+  if (id === "accounts") return context.multiAccounts !== false;
   return true;
 }
 

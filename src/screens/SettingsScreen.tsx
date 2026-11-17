@@ -44,6 +44,8 @@ export function SettingsScreen({
   updater,
   accounts,
   onCreateAccount,
+  multiAccounts,
+  onMultiAccounts,
   onRenameAccount,
   onArchiveAccount,
   onSaveUserName,
@@ -60,6 +62,8 @@ export function SettingsScreen({
   updater: UpdaterState;
   accounts: Account[];
   onCreateAccount: (name: string) => void;
+  multiAccounts: boolean;
+  onMultiAccounts: (on: boolean) => void;
   onRenameAccount: (id: number, name: string) => void;
   onArchiveAccount: (id: number) => void;
   onSaveUserName: (name: string | null) => void;
@@ -382,7 +386,18 @@ export function SettingsScreen({
         </div>
       </article>
 
-      <div hidden={tab !== "account"}>
+      <article className="card" hidden={tab !== "account"}>
+        <header className="card-head">
+          <h2>{t("accounts.multiTitle")}</h2>
+        </header>
+        <label className="check">
+          <input type="checkbox" checked={multiAccounts} onChange={(event) => onMultiAccounts(event.target.checked)} />
+          {t("accounts.multiLabel")}
+        </label>
+        <p className="muted small">{t("accounts.multiDesc")}</p>
+      </article>
+
+      <div hidden={tab !== "account" || !multiAccounts}>
         <AccountsManager
           accounts={accounts}
           onCreate={onCreateAccount}

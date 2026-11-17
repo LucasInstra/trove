@@ -12,6 +12,8 @@ interface TransactionsScreenProps {
   onImport: () => void;
   onLaunch: () => void;
   onManageAccounts: () => void;
+  multiAccounts: boolean;
+  onMultiAccounts: (on: boolean) => void;
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;

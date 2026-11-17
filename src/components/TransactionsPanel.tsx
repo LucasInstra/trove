@@ -22,6 +22,8 @@ interface Props {
   onImport: () => void;
   onLaunch: () => void;
   onManageAccounts: () => void;
+  multiAccounts: boolean;
+  onMultiAccounts: (on: boolean) => void;
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;
@@ -76,6 +78,8 @@ export function TransactionsPanel({
   onImport,
   onLaunch,
   onManageAccounts,
+  multiAccounts,
+  onMultiAccounts,
   onClearMonth,
   onEditEntry,
   onDeleteEntry,
@@ -205,6 +209,7 @@ export function TransactionsPanel({
             onChange={(event) => onSearch(event.target.value)}
           />
         </label>
+        {multiAccounts ? (
         <label className="account-filter">
           <span className="visually-hidden">{t("ledger.account")}</span>
           <select
@@ -221,10 +226,26 @@ export function TransactionsPanel({
             ))}
           </select>
         </label>
-        <button type="button" className="outline-button" onClick={onManageAccounts}>
-          <Icon name="settings" size={15} />
-          {t("accounts.manage")}
-        </button>
+        ) : null}
+        {multiAccounts ? (
+          <button type="button" className="outline-button" onClick={onManageAccounts}>
+            <Icon name="settings" size={15} />
+            {t("accounts.manage")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="outline-button"
+            title={t("accounts.multiHint")}
+            onClick={() => {
+              onMultiAccounts(true);
+              onManageAccounts();
+            }}
+          >
+            <Icon name="plus" size={15} />
+            {t("accounts.multiUse")}
+          </button>
+        )}
         <label className="account-filter">
           <span className="visually-hidden">{t("tags.filter")}</span>
           <select
