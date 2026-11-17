@@ -250,6 +250,8 @@ export function CardsCard({
   // One fetch per card account gives the dialog its lines and the tiles their
   // future invoices, all derived from the same statement rows.
   const targets = cards.map((entry) => `${entry.meta.id}:${entry.meta.accountId}`).join(",");
+  // A changed usage means a purchase changed, so the statement rows are read again.
+  const usages = cards.map((entry) => entry.usageCents).join(",");
   useEffect(() => {
     const pairs = targets
       ? targets.split(",").map((part) => {
@@ -276,7 +278,7 @@ export function CardsCard({
     return () => {
       cancelled = true;
     };
-  }, [targets]);
+  }, [targets, usages]);
 
   useEffect(() => {
     setMonthIndex(0);

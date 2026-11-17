@@ -595,7 +595,8 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [planner.cards, month]);
+    // `balances` is new after every change to the ledger, so an edited purchase refreshes the usage.
+  }, [planner.cards, month, balances]);
 
   // The chart and the summary count the salary as income, like the plan does: the
   // recurring income of each month, and the statement only where none is set.
@@ -640,7 +641,10 @@ export function App() {
     () =>
       planner.cards.map((meta) => ({
         meta,
-        usageCents: invoices.isPaid(meta.id, month ?? currentMonth()) ? 0 : (usage[meta.id] ?? 0),
+        // A paid invoice owes nothing, unless it grew after it was paid.
+        usageCents: invoices.isPaid(meta.id, month ?? currentMonth())
+          ? Math.max((usage[meta.id] ?? 0) - (invoices.paidInvoice(meta.id, month ?? currentMonth())?.amountCents || (usage[meta.id] ?? 0)), 0)
+          : (usage[meta.id] ?? 0),
         window: invoiceWindow(meta.closingDay, meta.dueDay, month ?? currentMonth()),
       })),
     [planner.cards, usage, month, invoices],
