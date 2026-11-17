@@ -50,6 +50,7 @@ import {
   formatDate,
   formatDelta,
   monthLabel,
+  holderName,
   monthName,
   monthShort,
   todayIso,
@@ -187,13 +188,13 @@ export function CardsScreen({
                     <div>
                       <h2>{meta.brand || t("planner.card")}</h2>
                       <span className="muted small">
-                        {meta.accountName} · ···· {meta.last4 || "0000"}
+                        {holderName(meta.accountName)} · ···· {meta.last4 || "0000"}
                       </span>
                     </div>
                     <div className="entity-actions">
                       <button
                         type="button"
-                        className="round-button"
+                        className="round-button static"
                         disabled={position === 0}
                         aria-label={t("planner.moveCardUp")}
                         title={t("planner.moveCardUp")}
@@ -203,7 +204,7 @@ export function CardsScreen({
                       </button>
                       <button
                         type="button"
-                        className="round-button"
+                        className="round-button static"
                         disabled={position === cards.length - 1}
                         aria-label={t("planner.moveCardDown")}
                         title={t("planner.moveCardDown")}

@@ -31,6 +31,8 @@ import {
   type Span,
 } from "../domain/layout";
 import type { MonthPlan } from "../domain/projection";
+import type { AccountRow } from "../domain/accounts";
+import { AccountsCard } from "../components/AccountsCard";
 import { formatCents, formatDate, monthLabel, monthShort, shiftMonth } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
@@ -115,6 +117,10 @@ function spanForEdge(
 
 interface OverviewProps {
   plan: MonthPlan;
+  accountRows: AccountRow[];
+  accountFilter: number | null;
+  onAccountFilter: (id: number | null) => void;
+  onManageAccounts: () => void;
   cards: { meta: CardMeta; usageCents: number; window: InvoiceWindow }[];
   byCategory: CategoryTotal[];
   series: MonthPoint[];
@@ -161,6 +167,10 @@ interface OverviewProps {
 
 export function OverviewScreen({
   plan,
+  accountRows,
+  accountFilter,
+  onAccountFilter,
+  onManageAccounts,
   cards,
   byCategory,
   series,
@@ -376,9 +386,11 @@ export function OverviewScreen({
       score: t("score.title"),
       inout: t("overview.inout"),
       recent: t("overview.recent"),
+      accounts: t("accounts.cardTitle"),
     })[id];
 
   const cells: Record<CardId, ReactNode> = {
+    accounts: <AccountsCard rows={accountRows} activeId={accountFilter} onSelect={onAccountFilter} onManage={onManageAccounts} />,
     kpis: <KpisCard plan={plan} series={series} month={month} span={spanOf("kpis")} />,
     installments: <InstallmentsCard plan={plan} month={month} />,
     debts: <DebtsCard debts={debts} month={month} onToggleSettled={onToggleDebt} onAdd={onAddDebt} onEdit={onEditDebt} />,

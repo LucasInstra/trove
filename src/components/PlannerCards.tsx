@@ -389,7 +389,7 @@ export function CardsCard({
             <>
               <button
                 type="button"
-                className="round-button"
+                className="round-button static"
                 disabled={index === 0}
                 onClick={() => scrollToCard(index - 1)}
                 aria-label={t("planner.previousCard")}
@@ -398,7 +398,7 @@ export function CardsCard({
               </button>
               <button
                 type="button"
-                className="round-button"
+                className="round-button static"
                 disabled={index === cards.length - 1}
                 onClick={() => scrollToCard(index + 1)}
                 aria-label={t("planner.nextCard")}

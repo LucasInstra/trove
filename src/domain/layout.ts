@@ -29,6 +29,7 @@ export const CARD_IDS = [
   "installments",
   "housing",
   "split",
+  "accounts",
 ] as const;
 
 export type CardId = (typeof CARD_IDS)[number];
@@ -56,6 +57,7 @@ export const CARD_SPANS: Record<CardId, { min: Span; max: Span }> = {
   score: { min: 1, max: 1 },
   split: { min: 1, max: 1 },
   debts: { min: 1, max: 1 },
+  accounts: { min: 1, max: 1 },
 };
 
 export function spanOptions(id: CardId): Span[] {
@@ -196,6 +198,7 @@ export const DEFAULT_LAYOUT: LayoutCard[] = [
   { id: "bills", span: 1, mode: "full", col: 3 },
   { id: "recent", span: 1, mode: "full", col: 3 },
   { id: "donut", span: 1, mode: "full", col: 3 },
+  { id: "accounts", span: 1, mode: "full", col: 1 },
   { id: "housing", span: 1, mode: "full", col: 1 },
   { id: "cards", span: 1, mode: "full", col: 2 },
   { id: "kpis", span: 1, mode: "full", height: 311, col: 2 },

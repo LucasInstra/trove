@@ -125,3 +125,8 @@ export function formatDateTime(iso: string, lang: Lang = "en"): string {
     minute: "2-digit",
   });
 }
+
+/** A card's account is named "Brand •••• 1234"; the digits are shown on their own, so drop them here. */
+export function holderName(accountName: string): string {
+  return accountName.replace(/\s*[•·.*]{2,}\s*\d*\s*$/u, "").trim() || accountName;
+}

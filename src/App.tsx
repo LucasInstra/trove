@@ -16,6 +16,7 @@ import { TransferDialog } from "./components/TransferDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
 import { AccountsManager } from "./components/AccountsManager";
+import { accountRows, parseOpening, serializeOpening } from "./domain/accounts";
 import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
 import {
@@ -49,6 +50,7 @@ import { LEDGER_EVENT, usePaidInvoices } from "./lib/paidInvoices";
 import { CRYPTO_EVENT, CRYPTO_SETTING } from "./domain/crypto";
 import type {
   Account,
+  AccountBalance,
   Bill,
   BillInput,
   BudgetLimitInput,
@@ -272,6 +274,8 @@ export function App() {
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
+  const [balances, setBalances] = useState<AccountBalance[]>([]);
+  const [opening, setOpening] = useState<Record<number, number>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   // First-run state lives with the data: a fresh database always starts with the onboarding,
@@ -440,18 +444,21 @@ export function App() {
           track,
           storedLayout,
           nextRecent,
+          nextBalances,
+          storedOpening,
         ] = await Promise.all([
+
           api.transactions(term, at, accountId, 500, tagId),
           api.accounts(),
           api.categories(),
-          api.monthTotals(at),
-          api.categoryTotals(at),
-          api.monthSeries(at, 12),
-          api.categoryMonthSeries(at, 12),
+          api.monthTotals(at, accountId),
+          api.categoryTotals(at, accountId),
+          api.monthSeries(at, 12, accountId),
+          api.categoryMonthSeries(at, 12, accountId),
           api.plannerState(at),
           api.budgetStatus(at).catch(() => null),
           api.recurrenceRows(at, 12).catch(() => []),
-          api.dailyExpense(at).catch(() => []),
+          api.dailyExpense(at, accountId).catch(() => []),
           api.listRules().catch(() => []),
           api.tags().catch(() => []),
           api.holdings().catch(() => []),
@@ -462,7 +469,11 @@ export function App() {
           api.getSetting("split_track").catch(() => null),
           api.getSetting("dashboard_layout").catch(() => null),
           api.transactions("", at, null, 10, null).catch(() => []),
+          api.accountBalances().catch(() => []),
+          api.getSetting("account_opening").catch(() => null),
         ]);
+        setBalances(nextBalances);
+        setOpening(parseOpening(storedOpening));
         const ramp = rampOf(nextCategories.map((category) => category.color));
         const tone = (row: TransactionRow): TransactionRow =>
           row.categoryColor ? { ...row, categoryColor: ramp(row.categoryColor) } : row;
@@ -620,6 +631,23 @@ export function App() {
       })),
     [planner.cards, usage, month, invoices],
   );
+
+  const accountRowsList = useMemo(
+    () =>
+      accountRows(
+        accounts,
+        balances,
+        opening,
+        new Set(planner.cards.map((meta) => meta.accountId)),
+      ),
+    [accounts, balances, opening, planner.cards],
+  );
+
+  const saveOpening = async (accountId: number, cents: number) => {
+    const next = { ...opening, [accountId]: cents };
+    setOpening(next);
+    await api.setSetting("account_opening", serializeOpening(next));
+  };
 
   const notifications = useMemo(
     () =>
@@ -798,7 +826,10 @@ export function App() {
 
   const removeDemo = () => mutateAndRefresh(() => api.removeDemoData());
 
-  const archiveAccount = (id: number) => mutateAndRefresh(() => api.archiveAccount(id));
+  const archiveAccount = (id: number) => {
+    if (accountFilter === id) setAccountFilter(null);
+    return mutateAndRefresh(() => api.archiveAccount(id));
+  };
 
   const saveDeposit = (input: DepositInput) =>
     mutateAndRefresh(() => api.saveDeposit(input), { closeDialog: true });
@@ -1066,6 +1097,9 @@ export function App() {
               }}
               onImport={() => setRoute("import")}
               onLaunch={() => setDialog({ kind: "manual", entry: null })}
+              accounts={accounts}
+              accountFilter={accountFilter}
+              onAccountFilter={setAccountFilter}
               primaryLabel={t("ledger.import")}
               showLayout={route === "overview"}
               layoutEditing={layoutEditing}
@@ -1116,6 +1150,10 @@ export function App() {
             {route === "overview" && (loading || onboarded === null || !showOnboarding) ? (
               <OverviewScreen
                 plan={plan}
+                accountRows={accountRowsList}
+                accountFilter={accountFilter}
+                onAccountFilter={setAccountFilter}
+                onManageAccounts={() => setDialog({ kind: "accounts" })}
                 cards={cards}
                 byCategory={byCategory}
                 series={incomeSeries}
@@ -1600,6 +1638,8 @@ export function App() {
           <p className="muted small">{t("accounts.manageHint")}</p>
           <AccountsManager
             accounts={accounts}
+            rows={accountRowsList}
+            onOpening={(id, cents) => void saveOpening(id, cents)}
             onCreate={(name) => void createManualAccount(name)}
             onRename={(id, name) => void renameManualAccount(id, name)}
             onArchive={(id) => void archiveAccount(id)}

@@ -151,6 +151,12 @@ fn set_transfer_category(app: tauri::AppHandle, group: String, category_id: Opti
 }
 
 #[tauri::command]
+fn account_balances(app: tauri::AppHandle) -> Result<Vec<db::AccountBalance>, String> {
+    let connection = connection(&app)?;
+    db::account_balances(&connection)
+}
+
+#[tauri::command]
 fn delete_transfer(app: tauri::AppHandle, id: i64) -> Result<(), String> {
     let connection = connection(&app)?;
     db::delete_transfer(&connection, id)
@@ -209,9 +215,13 @@ fn recurrence_rows(
 }
 
 #[tauri::command]
-fn daily_expense(app: tauri::AppHandle, month: String) -> Result<Vec<db::DailyPoint>, String> {
+fn daily_expense(
+    app: tauri::AppHandle,
+    month: String,
+    account_id: Option<i64>,
+) -> Result<Vec<db::DailyPoint>, String> {
     let connection = connection(&app)?;
-    db::daily_expense(&connection, &month)
+    db::daily_expense_in(&connection, &month, account_id)
 }
 
 #[tauri::command]
@@ -329,9 +339,13 @@ fn delete_holding(app: tauri::AppHandle, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn category_totals(app: tauri::AppHandle, month: String) -> Result<Vec<db::CategoryTotal>, String> {
+fn category_totals(
+    app: tauri::AppHandle,
+    month: String,
+    account_id: Option<i64>,
+) -> Result<Vec<db::CategoryTotal>, String> {
     let connection = connection(&app)?;
-    db::category_totals(&connection, &month)
+    db::category_totals_in(&connection, &month, account_id)
 }
 
 #[tauri::command]
@@ -339,9 +353,10 @@ fn category_month_series(
     app: tauri::AppHandle,
     end_month: String,
     count: Option<i64>,
+    account_id: Option<i64>,
 ) -> Result<Vec<db::CategoryMonth>, String> {
     let connection = connection(&app)?;
-    db::category_month_series(&connection, &end_month, count.unwrap_or(6))
+    db::category_month_series_in(&connection, &end_month, count.unwrap_or(6), account_id)
 }
 
 #[tauri::command]
@@ -361,9 +376,10 @@ fn month_series(
     app: tauri::AppHandle,
     month: String,
     count: Option<i64>,
+    account_id: Option<i64>,
 ) -> Result<Vec<db::MonthPoint>, String> {
     let connection = connection(&app)?;
-    db::month_series(&connection, &month, count.unwrap_or(6))
+    db::month_series_in(&connection, &month, count.unwrap_or(6), account_id)
 }
 
 #[tauri::command]
@@ -377,9 +393,13 @@ fn set_category(
 }
 
 #[tauri::command]
-fn month_totals(app: tauri::AppHandle, month: String) -> Result<db::MonthTotals, String> {
+fn month_totals(
+    app: tauri::AppHandle,
+    month: String,
+    account_id: Option<i64>,
+) -> Result<db::MonthTotals, String> {
     let connection = connection(&app)?;
-    db::month_totals(&connection, &month)
+    db::month_totals_in(&connection, &month, account_id)
 }
 
 #[tauri::command]
@@ -681,6 +701,7 @@ pub fn run() {
             delete_manual_transaction,
             save_transfer,
             delete_transfer,
+            account_balances,
             set_transfer_category,
             save_refund,
             save_rule,

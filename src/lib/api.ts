@@ -230,6 +230,12 @@ export interface MonthPoint {
   expenseCents: number;
 }
 
+/** What an account holds from its entries alone; the opening balance is added on top. */
+export interface AccountBalance {
+  accountId: number;
+  balanceCents: number;
+}
+
 export interface ImportReport {  accountId: number;
   accountName: string;
   accountLabel: string;
@@ -556,9 +562,10 @@ export const api = {
   holdings: () => invoke<Holding[]>("list_holdings"),
   saveHolding: (input: HoldingInput) => invoke<number>("save_holding", { input }),
   deleteHolding: (id: number) => invoke<void>("delete_holding", { id }),
-  categoryTotals: (month: string) => invoke<CategoryTotal[]>("category_totals", { month }),
-  monthSeries: (month: string, count = 6) =>
-    invoke<MonthPoint[]>("month_series", { month, count }),
+  categoryTotals: (month: string, accountId: number | null = null) =>
+    invoke<CategoryTotal[]>("category_totals", { month, accountId }),
+  monthSeries: (month: string, count = 6, accountId: number | null = null) =>
+    invoke<MonthPoint[]>("month_series", { month, count, accountId }),
   latestMonth: () => invoke<string | null>("latest_month"),
   imports: (limit = 12) => invoke<ImportRow[]>("list_imports", { limit }),
   setCategory: (transactionId: number, categoryId: number | null) =>
@@ -570,6 +577,7 @@ export const api = {
   deleteManual: (id: number) => invoke<void>("delete_manual_transaction", { id }),
   saveTransfer: (input: TransferInput) => invoke<string>("save_transfer", { input }),
   deleteTransfer: (id: number) => invoke<void>("delete_transfer", { id }),
+  accountBalances: () => invoke<AccountBalance[]>("account_balances"),
   setTransferCategory: (group: string, categoryId: number | null) =>
     invoke<void>("set_transfer_category", { group, categoryId }),
   saveRefund: (input: RefundInput) => invoke<number>("save_refund", { input }),
@@ -581,7 +589,8 @@ export const api = {
   saveBudgetLimit: (input: BudgetLimitInput) => invoke<void>("save_budget_limit", { input }),
   recurrenceRows: (endMonth: string, count = 12) =>
     invoke<RecurrenceRow[]>("recurrence_rows", { endMonth, count }),
-  dailyExpense: (month: string) => invoke<DailyPoint[]>("daily_expense", { month }),
+  dailyExpense: (month: string, accountId: number | null = null) =>
+    invoke<DailyPoint[]>("daily_expense", { month, accountId }),
   createManualAccount: (name: string) => invoke<number>("create_manual_account", { name }),
   renameAccount: (id: number, name: string) => invoke<void>("rename_account", { id, name }),
   archiveAccount: (id: number) => invoke<void>("archive_account", { id }),
@@ -590,9 +599,10 @@ export const api = {
   archiveCategory: (id: number, archived: boolean) =>
     invoke<void>("archive_category", { id, archived }),
   clearMonth: (month: string) => invoke<ClearReport>("clear_month", { month }),
-  categoryMonthSeries: (endMonth: string, count = 6) =>
-    invoke<CategoryMonth[]>("category_month_series", { endMonth, count }),
-  monthTotals: (month: string) => invoke<MonthTotals>("month_totals", { month }),
+  categoryMonthSeries: (endMonth: string, count = 6, accountId: number | null = null) =>
+    invoke<CategoryMonth[]>("category_month_series", { endMonth, count, accountId }),
+  monthTotals: (month: string, accountId: number | null = null) =>
+    invoke<MonthTotals>("month_totals", { month, accountId }),
   databaseLocation: () => invoke<string>("database_location"),
   backupDatabase: (path: string) => invoke<void>("backup_database", { path }),
   restoreDatabase: (path: string) => invoke<void>("restore_database", { path }),

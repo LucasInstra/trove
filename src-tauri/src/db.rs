@@ -2155,6 +2155,15 @@ pub struct DailyPoint {
 /// as the monthly totals: transfers stay out, refund legs net their own side.
 /// The chart domain accumulates these; nothing derived is stored.
 pub fn daily_expense(connection: &Connection, month: &str) -> Result<Vec<DailyPoint>, String> {
+    daily_expense_in(connection, month, None)
+}
+
+/// `daily_expense` for one account, or for all of them when `account` is `None`.
+pub fn daily_expense_in(
+    connection: &Connection,
+    month: &str,
+    account: Option<i64>,
+) -> Result<Vec<DailyPoint>, String> {
     check_month(month)?;
     let first = NaiveDate::parse_from_str(&format!("{month}-01"), "%Y-%m-%d")
         .map_err(|problem| problem.to_string())?;
@@ -2172,12 +2181,13 @@ pub fn daily_expense(connection: &Connection, month: &str) -> Result<Vec<DailyPo
                            - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0))
              from transactions
              where posted_on like ?1 and transfer_group is null and deleted_at is null
+               and (?2 is null or account_id = ?2)
              group by posted_on",
         )
         .map_err(|problem| problem.to_string())?;
     let mut by_day = std::collections::HashMap::new();
     let fetched = statement
-        .query_map(params![prefix], |row| {
+        .query_map(params![prefix, account], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
         })
         .map_err(|problem| problem.to_string())?;
@@ -3369,6 +3379,34 @@ pub fn set_transfer_category(connection: &Connection, group: &str, category_id: 
     Ok(())
 }
 
+/// What every active account holds from its entries alone: the sum of all of its rows, transfer
+/// legs included, so paying a card invoice moves money from one account to the other.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountBalance {
+    pub account_id: i64,
+    pub balance_cents: i64,
+}
+
+pub fn account_balances(connection: &Connection) -> Result<Vec<AccountBalance>, String> {
+    let mut statement = connection
+        .prepare(
+            "select a.id, coalesce(sum(t.amount_cents), 0)
+             from accounts a
+             left join transactions t on t.account_id = a.id and t.deleted_at is null
+             where a.deleted_at is null
+             group by a.id
+             order by a.id",
+        )
+        .map_err(|problem| problem.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(AccountBalance { account_id: row.get(0)?, balance_cents: row.get(1)? })
+        })
+        .map_err(|problem| problem.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|problem| problem.to_string())
+}
+
 /// Deletes both legs of a transfer through the tombstone. Single-leg deletes
 /// would leave money appearing from nowhere, so the group only vanishes whole.
 pub fn delete_transfer(connection: &Connection, id: i64) -> Result<(), String> {
@@ -3594,6 +3632,11 @@ pub fn latest_month(connection: &Connection) -> Result<Option<String>, String> {
 }
 
 pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals, String> {
+    month_totals_in(connection, month, None)
+}
+
+/// `month_totals` for one account, or for all of them when `account` is `None`.
+pub fn month_totals_in(connection: &Connection, month: &str, account: Option<i64>) -> Result<MonthTotals, String> {
     check_month(month)?;
     let prefix = format!("{month}%");
     // Transfers move money between own accounts, so both legs stay out of
@@ -3609,8 +3652,9 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
                 - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0),
                 count(*)
              from transactions
-             where posted_on like ?1 and transfer_group is null and deleted_at is null",
-            params![prefix],
+             where posted_on like ?1 and transfer_group is null and deleted_at is null
+               and (?2 is null or account_id = ?2)",
+            params![prefix, account],
             |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
@@ -3639,6 +3683,15 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
 /// same bucket, so a returned purchase lowers its category instead of
 /// inflating income.
 pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<CategoryTotal>, String> {
+    category_totals_in(connection, month, None)
+}
+
+/// `category_totals` for one account, or for all of them when `account` is `None`.
+pub fn category_totals_in(
+    connection: &Connection,
+    month: &str,
+    account: Option<i64>,
+) -> Result<Vec<CategoryTotal>, String> {
     check_month(month)?;
     let prefix = format!("{month}%");
     let mut statement = connection
@@ -3660,13 +3713,14 @@ pub fn category_totals(connection: &Connection, month: &str) -> Result<Vec<Categ
                and ((t.amount_cents < 0 and t.refund_of is null)
                     or (t.amount_cents > 0 and t.refund_of is not null))
                and t.deleted_at is null
+               and (?2 is null or t.account_id = ?2)
              group by coalesce(g.id, t.category_id)
              order by total desc",
         )
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![prefix], |row| {
+        .query_map(params![prefix, account], |row| {
             Ok(CategoryTotal {
                 category_id: row.get(0)?,
                 name: row.get(1)?,
@@ -3688,6 +3742,16 @@ pub fn category_month_series(
     connection: &Connection,
     end_month: &str,
     count: i64,
+) -> Result<Vec<CategoryMonth>, String> {
+    category_month_series_in(connection, end_month, count, None)
+}
+
+/// `category_month_series` for one account, or for all of them when `account` is `None`.
+pub fn category_month_series_in(
+    connection: &Connection,
+    end_month: &str,
+    count: i64,
+    account: Option<i64>,
 ) -> Result<Vec<CategoryMonth>, String> {
     let end = NaiveDate::parse_from_str(&format!("{end_month}-01"), "%Y-%m-%d")
         .map_err(|problem| problem.to_string())?;
@@ -3713,13 +3777,14 @@ pub fn category_month_series(
                and ((t.amount_cents < 0 and t.refund_of is null)
                     or (t.amount_cents > 0 and t.refund_of is not null))
                and t.deleted_at is null
+               and (?3 is null or t.account_id = ?3)
              group by month, coalesce(c.id, t.category_id)
              order by month, total desc",
         )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
         .query_map(
-            params![start.format("%Y-%m-%d").to_string(), end_month],
+            params![start.format("%Y-%m-%d").to_string(), end_month, account],
             |row| {
                 Ok(CategoryMonth {
                     month: row.get(0)?,
@@ -3741,6 +3806,16 @@ pub fn month_series(
     connection: &Connection,
     end_month: &str,
     count: i64,
+) -> Result<Vec<MonthPoint>, String> {
+    month_series_in(connection, end_month, count, None)
+}
+
+/// `month_series` for one account, or for all of them when `account` is `None`.
+pub fn month_series_in(
+    connection: &Connection,
+    end_month: &str,
+    count: i64,
+    account: Option<i64>,
 ) -> Result<Vec<MonthPoint>, String> {
     if count <= 0 {
         return Ok(Vec::new());
@@ -3775,12 +3850,13 @@ pub fn month_series(
                            - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0))
              from transactions
              where posted_on >= ?1 and transfer_group is null and deleted_at is null
+               and (?2 is null or account_id = ?2)
              group by month",
         )
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![from], |row| {
+        .query_map(params![from, account], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, i64>(1)?,
@@ -4068,6 +4144,49 @@ mod tests {
         assert!(archive_account(&connection, id).is_err());
 
         let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn totals_can_be_limited_to_one_account() {
+        let path = temporary_database("per-account-totals");
+        let connection = open(&path).expect("should open");
+        let first = create_manual_account(&connection, "Main").expect("account");
+        let second = create_manual_account(&connection, "Savings").expect("account");
+        for (account_id, cents) in [(first, -1_000), (second, -2_500), (second, 4_000)] {
+            save_manual_transaction(
+                &connection,
+                &ManualInput {
+                    account_id,
+                    posted_on: "2024-03-10".into(),
+                    amount_cents: cents,
+                    description: "Entry".into(),
+                    category_id: None,
+                    notes: String::new(),
+                },
+            )
+            .expect("should save");
+        }
+
+        let all = month_totals_in(&connection, "2024-03", None).expect("all");
+        assert_eq!((all.income_cents, all.expense_cents), (4_000, 3_500));
+        let one = month_totals_in(&connection, "2024-03", Some(first)).expect("one");
+        assert_eq!((one.income_cents, one.expense_cents), (0, 1_000));
+        let other = month_totals_in(&connection, "2024-03", Some(second)).expect("other");
+        assert_eq!((other.income_cents, other.expense_cents), (4_000, 2_500));
+
+        let by_category = category_totals_in(&connection, "2024-03", Some(second)).expect("categories");
+        assert_eq!(by_category.iter().map(|row| row.total_cents).sum::<i64>(), 2_500);
+        let series = month_series_in(&connection, "2024-03", 1, Some(first)).expect("series");
+        assert_eq!(series[0].expense_cents, 1_000);
+        let days = daily_expense_in(&connection, "2024-03", Some(second)).expect("days");
+        assert_eq!(days.iter().map(|day| day.expense_cents).sum::<i64>(), 2_500);
+
+        let balances = account_balances(&connection).expect("balances");
+        let of = |id: i64| balances.iter().find(|row| row.account_id == id).map(|row| row.balance_cents);
+        assert_eq!(of(first), Some(-1_000));
+        assert_eq!(of(second), Some(1_500));
+
         let _ = std::fs::remove_file(&path);
     }
 

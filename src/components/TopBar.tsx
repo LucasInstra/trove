@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { PlanNotification } from "../domain/notifications";
+import type { Account } from "../lib/api";
 import { monthName } from "../lib/format";
 import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
@@ -29,6 +30,9 @@ interface TopBarProps {
   showLayout: boolean;
   layoutEditing: boolean;
   onToggleLayout: () => void;
+  accounts: Account[];
+  accountFilter: number | null;
+  onAccountFilter: (accountId: number | null) => void;
 }
 
 export function TopBar({
@@ -43,6 +47,9 @@ export function TopBar({
   showLayout,
   layoutEditing,
   onToggleLayout,
+  accounts,
+  accountFilter,
+  onAccountFilter,
 }: TopBarProps) {
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -98,6 +105,22 @@ export function TopBar({
 
       <div className="topbar-actions">
         <div id="topbar-extra" className="topbar-extra" />
+        {accounts.length > 1 ? (
+          <label className="topbar-account" title={t("accounts.scopeHint")}>
+            <span className="visually-hidden">{t("ledger.account")}</span>
+            <select
+              value={accountFilter ?? ""}
+              onChange={(event) => onAccountFilter(event.target.value === "" ? null : Number(event.target.value))}
+            >
+              <option value="">{t("ledger.allAccounts")}</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <button
           type="button"
           className="icon-button"

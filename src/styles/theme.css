@@ -641,7 +641,7 @@ select:not([multiple]) {
   transform: scale(1.08);
 }
 
-.round-button:hover svg,
+.round-button:not(.static):hover svg,
 .account-edit:hover svg {
   transform: rotate(90deg);
 }
@@ -2100,4 +2100,81 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
+}
+
+.topbar-account select {
+  max-width: 190px;
+  min-height: 34px;
+}
+
+/* Accounts card: one row per account, the whole row picks that account as the scope. */
+.accounts-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accounts-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms var(--ease-out);
+}
+
+.accounts-row:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.accounts-row.active {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  font-weight: 600;
+}
+
+.accounts-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accounts-value {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.accounts-value.neg {
+  color: var(--negative);
+}
+
+.accounts-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 10px 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.accounts-total strong {
+  font-size: 18px;
+}
+
+.installment-head .accounts-value {
+  margin-left: auto;
+  margin-right: 8px;
+  font-size: 13px;
 }

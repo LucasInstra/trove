@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { CardMeta } from "../lib/api";
 import { bankByTexture, bankForName, type Bank } from "../domain/cardDesigns";
+import { holderName } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { Icon } from "./Icons";
 
@@ -223,7 +224,7 @@ export function CreditCardArt({ meta, status }: { meta: CardMeta; status?: strin
 
       <span className="card-art-bottom">
         <span className="card-art-field">
-          <em>{meta.accountName}</em>
+          <em>{holderName(meta.accountName)}</em>
           <small>
             {t("planner.closesDayShort", { day: meta.closingDay })} · {t("planner.dueDayShort", { day: meta.dueDay })}
           </small>
