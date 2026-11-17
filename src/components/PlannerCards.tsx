@@ -345,6 +345,8 @@ export function CardsCard({
   const paid = invoices.isPaid(entry.meta.id, activeMonth);
   const record = invoices.paidInvoice(entry.meta.id, activeMonth);
   const paidCents = record && record.amountCents > 0 ? record.amountCents : usage;
+  // The invoice grew after it was paid (a purchase was edited or added): what is left to pay.
+  const extraCents = paid && record && record.amountCents > 0 ? Math.max(usage - record.amountCents, 0) : 0;
   const togglePaid = () => {
     if (paid) void invoices.unmarkPaid(entry.meta.id, activeMonth);
     else setPayOpen(true);
@@ -412,18 +414,19 @@ export function CardsCard({
       </header>
 
       <div className="card-figure">
-        <strong><Money cents={paid ? 0 : usage} /></strong>
+        <strong><Money cents={paid ? extraCents : usage} /></strong>
         <span className="muted small">
           {entry.meta.brand || t("planner.card")} •••• {entry.meta.last4 || "0000"} ·{" "}
           {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
         </span>
         {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(paidCents) })}</span> : null}
+        {extraCents > 0 ? <span className="muted small">{t("planner.grewAfterPaid")}</span> : null}
         <span className="card-status">
           <span
             className="dot"
             style={{ background: entryOpen ? "var(--positive)" : "var(--line-strong)" }}
           />
-          {paid ? t("planner.paid") : entryOpen ? t("planner.open") : t("planner.closed")}
+          {extraCents > 0 ? t("planner.paidPartly") : paid ? t("planner.paid") : entryOpen ? t("planner.open") : t("planner.closed")}
         </span>
       </div>
 
@@ -436,6 +439,12 @@ export function CardsCard({
           <Icon name="check" size={16} />
           {paid ? t("planner.unmarkPaid") : t("planner.markPaid")}
         </button>
+        {extraCents > 0 ? (
+          <button type="button" className="outline-button" onClick={() => setPayOpen(true)}>
+            <Icon name="check" size={16} />
+            {t("planner.payDifference")}
+          </button>
+        ) : null}
       </div>
 
       <div className={split ? "cards-body is-split" : "cards-body"}>
@@ -515,8 +524,14 @@ export function CardsCard({
         <PayInvoiceDialog
           card={entry.meta}
           month={activeMonth}
-          amountCents={usage}
-          onPaid={(paidRecord) => void invoices.markPaid(entry.meta.id, activeMonth, paidRecord)}
+          amountCents={extraCents > 0 ? extraCents : usage}
+          onPaid={(paidRecord) =>
+            void invoices.markPaid(
+              entry.meta.id,
+              activeMonth,
+              extraCents > 0 ? { ...paidRecord, amountCents: paidCents + paidRecord.amountCents } : paidRecord,
+            )
+          }
           onClose={() => setPayOpen(false)}
         />
       ) : null}
