@@ -29,6 +29,8 @@ interface Props {
   onBulkTag: (ids: number[], tagId: number, assign: boolean) => void;
   onNewTag: (name: string) => Promise<number | null>;
   onDeleteTag: (id: number) => void;
+  /** Recurring income of the month (the salary), counted with the entries in the summary. */
+  salaryCents?: number;
   month: string;
   groups: { day: string; rows: TransactionRow[]; total: number }[];
   accounts: Account[];
@@ -62,6 +64,7 @@ function TxIcon({ row, color }: { row: TransactionRow; color: string }) {
 
 export function TransactionsPanel({
   rows,
+  salaryCents,
   categories,
   tags,
   search,
@@ -101,7 +104,8 @@ export function TransactionsPanel({
   const keptSelection = selected.filter((id) => visibleIds.has(id));
   const [kind, setKind] = useState<"all" | "in" | "out">("all");
   const real = rows.filter((row) => row.transferGroup == null);
-  const incomeCents = real.filter((row) => row.amountCents > 0).reduce((sum, row) => sum + row.amountCents, 0);
+  const incomeCents =
+    real.filter((row) => row.amountCents > 0).reduce((sum, row) => sum + row.amountCents, 0) + (salaryCents ?? 0);
   const expenseCents = real.filter((row) => row.amountCents < 0).reduce((sum, row) => sum - row.amountCents, 0);
   const shownGroups = groups
     .map((group) => ({

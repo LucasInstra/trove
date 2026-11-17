@@ -568,6 +568,13 @@ export function App() {
   );
 
   const monthIncomes = useMemo(() => incomesInMonth(planner.incomes, month ?? currentMonth()), [planner.incomes, month]);
+  const monthlySalaryCents = useMemo(
+    () =>
+      monthIncomes
+        .filter((income) => income.active && income.frequency === "monthly")
+        .reduce((total, income) => total + income.amountCents, 0),
+    [monthIncomes],
+  );
 
   const plan = useMemo(
     () =>
@@ -1132,6 +1139,7 @@ export function App() {
             {route === "transactions" ? (
               <TransactionsScreen
                 rows={rows}
+                salaryCents={accountFilter == null ? monthlySalaryCents : 0}
                 categories={categories}
                 tags={tags}
                 search={search}

@@ -24,6 +24,8 @@ interface TransactionsScreenProps {
   accounts: Account[];
   accountFilter: number | null;
   onAccountFilter: (accountId: number | null) => void;
+  /** Recurring income of the month (the salary), counted with the entries in the summary. */
+  salaryCents?: number;
   tagFilter: number | null;
   onTagFilter: (tagId: number | null) => void;
 }
