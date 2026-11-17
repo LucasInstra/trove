@@ -121,12 +121,14 @@ export function AccountsManager({
   return (
     <article className={bare ? "accounts-bare" : "card"}>
       <header className="card-head">
-        <div className="card-title">{bare ? null : <h2>{t("accounts.title")}</h2>}</div>
+        <div className="card-title">
+          {bare ? <p className="muted small accounts-hint">{hint}</p> : <h2>{t("accounts.title")}</h2>}
+        </div>
         <button type="button" className="round-button" onClick={() => setDialog({ mode: "create" })} aria-label={t("accounts.new")}>
           <Icon name="plus" size={16} />
         </button>
       </header>
-      {hint ? <p className="muted small accounts-hint">{hint}</p> : null}
+      {hint && !bare ? <p className="muted small accounts-hint">{hint}</p> : null}
       {manual.length === 0 ? (
         <p className="card-empty">{t("accounts.empty")}</p>
       ) : (
