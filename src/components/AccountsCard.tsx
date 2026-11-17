@@ -59,6 +59,7 @@ export function AccountsCard({
               <Money cents={totalHeldCents(rows)} />
             </strong>
           </footer>
+          <p className="muted small">{t("accounts.estimateNote")}</p>
           {owed > 0 ? (
             <p className="muted small">{t("accounts.owed", { amount: formatCents(owed) })}</p>
           ) : null}
