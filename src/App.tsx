@@ -109,6 +109,7 @@ import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
 import { SheetsScreen } from "./screens/SheetsScreen";
 import { Onboarding, ONBOARDING_EVENT } from "./components/Onboarding";
+import { ScreenTip } from "./components/ScreenTip";
 import { rampOf } from "./lib/color";
 import { initialsOf } from "./lib/avatar";
 import { usePrivacy } from "./lib/privacy";
@@ -1062,6 +1063,8 @@ export function App() {
               onToggleLayout={() => setLayoutEditing((value) => !value)}
             />
           ) : null}
+
+          {onboarded !== null && !showOnboarding ? <ScreenTip route={route} /> : null}
 
           <div className="route-view" key={route}>
             {route === "overview" && !loading && showOnboarding ? (
