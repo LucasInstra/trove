@@ -404,11 +404,12 @@ export function CardsCard({
       </header>
 
       <div className="card-figure">
-        <strong><Money cents={usage} /></strong>
+        <strong><Money cents={paid ? 0 : usage} /></strong>
         <span className="muted small">
           {entry.meta.brand || t("planner.card")} •••• {entry.meta.last4 || "0000"} ·{" "}
           {t("planner.invoiceOf", { month: monthName(activeMonth, lang) })}
         </span>
+        {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(usage) })}</span> : null}
         <span className="card-status">
           <span
             className="dot"
@@ -418,14 +419,16 @@ export function CardsCard({
         </span>
       </div>
 
-      <button type="button" className="outline-button" onClick={() => setInvoiceOpen(true)}>
-        <Icon name="file-text" size={16} />
-        {t("planner.viewInvoice")}
-      </button>
-      <button type="button" className="outline-button" aria-pressed={paid} onClick={() => invoices.setPaid(entry.meta.id, activeMonth, !paid)}>
-        <Icon name="check" size={16} />
-        {paid ? t("planner.unmarkPaid") : t("planner.markPaid")}
-      </button>
+      <div className="card-actions">
+        <button type="button" className="outline-button" onClick={() => setInvoiceOpen(true)}>
+          <Icon name="file-text" size={16} />
+          {t("planner.viewInvoice")}
+        </button>
+        <button type="button" className="outline-button" aria-pressed={paid} onClick={() => invoices.setPaid(entry.meta.id, activeMonth, !paid)}>
+          <Icon name="check" size={16} />
+          {paid ? t("planner.unmarkPaid") : t("planner.markPaid")}
+        </button>
+      </div>
 
       <div className={split ? "cards-body is-split" : "cards-body"}>
         <div className="cards-main">

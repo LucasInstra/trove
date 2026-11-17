@@ -27,8 +27,9 @@ export function InvoiceDialog({ card, month, window, dueDate, lines, totalCents,
         <div>
           <span className="muted small">{card.brand || t("planner.card")}</span>
           <strong>
-            {formatCents(totalCents)}
+            {formatCents(paid ? 0 : totalCents)}
           </strong>
+          {paid ? <span className="muted small">{t("planner.paidAmount", { amount: formatCents(totalCents) })}</span> : null}
         </div>
         <div className="invoice-dates">
           <span className="muted small">{t("planner.dueDate", { date: formatDate(dueDate) })}</span>

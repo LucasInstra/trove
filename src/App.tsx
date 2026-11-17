@@ -44,6 +44,7 @@ import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { InvestmentsScreen } from "./screens/InvestmentsScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import { CryptoPrompt } from "./components/CryptoCard";
+import { usePaidInvoices } from "./lib/paidInvoices";
 import { CRYPTO_EVENT, CRYPTO_SETTING } from "./domain/crypto";
 import type {
   Account,
@@ -214,6 +215,7 @@ export function App() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [planner, setPlanner] = useState<PlannerState>(EMPTY_PLANNER);
   const [usage, setUsage] = useState<Record<number, number>>({});
+  const invoices = usePaidInvoices();
   const [housingCategoryId, setHousingCategoryId] = useState<number | null>(null);
   const [ceilingPct, setCeilingPct] = useState(30);
   const [housingScope, setHousingScope] = useState<"primary" | "total">("primary");
@@ -567,10 +569,10 @@ export function App() {
     () =>
       planner.cards.map((meta) => ({
         meta,
-        usageCents: usage[meta.id] ?? 0,
+        usageCents: invoices.isPaid(meta.id, month ?? currentMonth()) ? 0 : (usage[meta.id] ?? 0),
         window: invoiceWindow(meta.closingDay, meta.dueDay, month ?? currentMonth()),
       })),
-    [planner.cards, usage, month],
+    [planner.cards, usage, month, invoices],
   );
 
   const notifications = useMemo(
