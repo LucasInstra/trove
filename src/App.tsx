@@ -15,6 +15,7 @@ import { ManualDialog } from "./components/ManualDialog";
 import { TransferDialog } from "./components/TransferDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
+import { AccountsManager } from "./components/AccountsManager";
 import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
 import {
@@ -177,6 +178,7 @@ type DialogState =
     }
   | { kind: "manual"; entry: TransactionRow | null }
   | { kind: "transfer" }
+  | { kind: "accounts" }
   | { kind: "ceiling" }
   | null;
 
@@ -1195,6 +1197,7 @@ export function App() {
                 onCategory={(id, categoryId) => void onCategory(id, categoryId)}
                 onImport={() => setRoute("import")}
                 onLaunch={() => setDialog({ kind: "manual", entry: null })}
+                onManageAccounts={() => setDialog({ kind: "accounts" })}
                 onClearMonth={() => void clearMonth()}
                 onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
                 onDeleteEntry={(id) => void deleteManual(id)}
@@ -1590,6 +1593,18 @@ export function App() {
           onUpdate={(input) => void updateManual(input)}
           onDelete={(id) => void deleteManual(id)}
         />
+      ) : null}
+
+      {dialog?.kind === "accounts" ? (
+        <Dialog title={t("accounts.manage")} onClose={() => setDialog(null)}>
+          <p className="muted small">{t("accounts.manageHint")}</p>
+          <AccountsManager
+            accounts={accounts}
+            onCreate={(name) => void createManualAccount(name)}
+            onRename={(id, name) => void renameManualAccount(id, name)}
+            onArchive={(id) => void archiveAccount(id)}
+          />
+        </Dialog>
       ) : null}
 
       {dialog?.kind === "transfer" ? (

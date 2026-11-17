@@ -21,6 +21,7 @@ interface Props {
   onCategory: (transactionId: number, categoryId: number | null) => void;
   onImport: () => void;
   onLaunch: () => void;
+  onManageAccounts: () => void;
   onClearMonth: () => void;
   onEditEntry: (entry: TransactionRow) => void;
   onDeleteEntry: (id: number) => void;
@@ -74,6 +75,7 @@ export function TransactionsPanel({
   onCategory,
   onImport,
   onLaunch,
+  onManageAccounts,
   onClearMonth,
   onEditEntry,
   onDeleteEntry,
@@ -219,6 +221,10 @@ export function TransactionsPanel({
             ))}
           </select>
         </label>
+        <button type="button" className="outline-button" onClick={onManageAccounts}>
+          <Icon name="settings" size={15} />
+          {t("accounts.manage")}
+        </button>
         <label className="account-filter">
           <span className="visually-hidden">{t("tags.filter")}</span>
           <select
