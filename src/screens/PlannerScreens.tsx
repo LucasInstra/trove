@@ -328,8 +328,8 @@ export function ReserveScreen({
                     <h2>{goal.name}</h2>
                     <span className="muted small">
                       {t("planner.goalProgress", { percent: Math.round(sharePct) })}
-                      {goal.accountId !== null && accountNames?.has(goal.accountId)
-                        ? ` · ${accountNames.get(goal.accountId)}`
+                      {accountNames
+                        ? ` · ${(goal.accountId !== null && accountNames.get(goal.accountId)) || t("goal.noAccount")}`
                         : ""}
                     </span>
                   </div>
