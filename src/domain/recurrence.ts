@@ -44,7 +44,8 @@ const mode = (values: number[]): number => {
 export function detectRecurring(rows: LedgerRow[], currentMonth: string): RecurringCharge[] {
   const groups = new Map<string, LedgerRow[]>();
   for (const row of rows) {
-    if (row.amountCents === 0) continue;
+    // Only charges: money coming in (a salary) is not a subscription.
+    if (row.amountCents >= 0) continue;
     const list = groups.get(keyOf(row)) ?? [];
     list.push(row);
     groups.set(keyOf(row), list);

@@ -1783,7 +1783,22 @@ export function DebtsScreen({
   onEditBill: (bill: Bill) => void;
 }) {
   const { lang, t } = useLanguage();
-  const recurring = useMemo(() => detectRecurring(history, month), [history, month]);
+  const [hiddenCharges, setHiddenCharges] = useState<string[]>([]);
+  useEffect(() => {
+    api
+      .getSetting("recurrence_hidden")
+      .then((value) => setHiddenCharges(value ? (JSON.parse(value) as string[]) : []))
+      .catch(() => {});
+  }, []);
+  const hideCharge = (label: string) => {
+    const next = [...hiddenCharges, label];
+    setHiddenCharges(next);
+    void api.setSetting("recurrence_hidden", JSON.stringify(next)).catch(() => {});
+  };
+  const recurring = useMemo(
+    () => detectRecurring(history, month).filter((charge) => !hiddenCharges.includes(charge.label)),
+    [history, month, hiddenCharges],
+  );
   const installments = plan.dueBills.flatMap((bill) => {
     const current = remainingInstallments(bill, month);
     const ends = installmentEndMonth(bill);
@@ -1947,7 +1962,12 @@ export function DebtsScreen({
               <li key={`${charge.label}-${charge.amountCents}`} className="installment">
                 <div className="installment-head">
                   <span className="installment-name">{charge.label}</span>
-                  <span className="muted small">{formatCents(charge.amountCents)}</span>
+                  <span className="muted small">
+                    {formatCents(charge.amountCents)}{" "}
+                    <button type="button" className="icon-button" title={t("recurrence.hide")} aria-label={`${t("recurrence.hide")}: ${charge.label}`} onClick={() => hideCharge(charge.label)}>
+                      <Icon name="eye-off" size={14} />
+                    </button>
+                  </span>
                 </div>
                 <span className={charge.status === "overdue" ? "muted small over" : "muted small"}>
                   {t(`recurrence.${charge.status}`, {

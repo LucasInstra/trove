@@ -919,6 +919,7 @@ const en: Dictionary = {
   "rules.applied": "{count} entries categorized",
 
   "recurrence.title": "Recurring charges",
+  "recurrence.hide": "Hide this charge",
   "recurrence.subtitle": "subscriptions hiding in the ledger",
   "recurrence.due": "expected in {month}, around day {day}",
   "recurrence.overdue": "missing since {month}, was day {day}",
@@ -1903,6 +1904,7 @@ const pt: Dictionary = {
   "rules.applied": "{count} lançamentos categorizados",
 
   "recurrence.title": "Cobranças recorrentes",
+  "recurrence.hide": "Ocultar esta cobrança",
   "recurrence.subtitle": "assinaturas escondidas no extrato",
   "recurrence.due": "esperada em {month}, por volta do dia {day}",
   "recurrence.overdue": "atrasada desde {month}, era dia {day}",
