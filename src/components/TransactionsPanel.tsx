@@ -239,7 +239,6 @@ export function TransactionsPanel({
             title={t("accounts.multiHint")}
             onClick={() => {
               onMultiAccounts(true);
-              onManageAccounts();
             }}
           >
             <Icon name="plus" size={15} />

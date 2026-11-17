@@ -16,6 +16,7 @@ import { TransferDialog } from "./components/TransferDialog";
 import { DebtDialog } from "./components/DebtsCard";
 import { Dialog } from "./components/Dialog";
 import { AccountsManager } from "./components/AccountsManager";
+import { MultiAccountsBanner } from "./components/MultiAccountsBanner";
 import { accountRows, parseOpening, serializeOpening } from "./domain/accounts";
 import { Icon, type IconName } from "./components/Icons";
 import { BottomNav } from "./components/ui/bottom-nav";
@@ -181,6 +182,7 @@ type DialogState =
   | { kind: "manual"; entry: TransactionRow | null }
   | { kind: "transfer" }
   | { kind: "accounts" }
+  | { kind: "multiOn" }
   | { kind: "ceiling" }
   | null;
 
@@ -351,7 +353,7 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const updater = useUpdater();
-  const [settingsTab, setSettingsTab] = useState<"updates" | undefined>(undefined);
+  const [settingsTab, setSettingsTab] = useState<"updates" | "account" | undefined>(undefined);
   useEffect(() => {
     if (route !== "settings") setSettingsTab(undefined);
   }, [route]);
@@ -652,8 +654,9 @@ export function App() {
   const multiAccounts =
     multiSetting === "on" || (multiSetting === null && accountRowsList.filter((row) => !row.isCard).length > 1);
 
-  const setMultiAccounts = (on: boolean) => {
+  const setMultiAccounts = (on: boolean, explain = false) => {
     setMultiSetting(on ? "on" : "off");
+    if (on && explain) setDialog({ kind: "multiOn" });
     if (!on) setAccountFilter(null);
     void api.setSetting("multi_accounts", on ? "on" : "off").catch(() => {});
   };
@@ -1123,6 +1126,10 @@ export function App() {
           ) : null}
 
           {onboarded !== null && !showOnboarding ? <ScreenTip route={route} /> : null}
+          {onboarded !== null && !showOnboarding && multiSetting === null && !multiAccounts &&
+          (route === "overview" || route === "transactions") ? (
+            <MultiAccountsBanner onUse={() => setMultiAccounts(true, true)} onLater={() => setMultiAccounts(false)} />
+          ) : null}
 
           <div className="route-view" key={route}>
             {route === "overview" && !loading && showOnboarding ? (
@@ -1253,7 +1260,7 @@ export function App() {
                 onLaunch={() => setDialog({ kind: "manual", entry: null })}
                 onManageAccounts={() => setDialog({ kind: "accounts" })}
                 multiAccounts={multiAccounts}
-                onMultiAccounts={setMultiAccounts}
+                onMultiAccounts={(on) => setMultiAccounts(on, true)}
                 onClearMonth={() => void clearMonth()}
                 onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
                 onDeleteEntry={(id) => void deleteManual(id)}
@@ -1667,6 +1674,48 @@ export function App() {
             onRename={(id, name) => void renameManualAccount(id, name)}
             onArchive={(id) => void archiveAccount(id)}
           />
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                setMultiAccounts(false);
+                setDialog(null);
+              }}
+            >
+              {t("accounts.turnOff")}
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
+
+      {dialog?.kind === "multiOn" ? (
+        <Dialog title={t("accounts.onTitle")} onClose={() => setDialog(null)}>
+          <div className="dialog-form">
+            <p>{t("accounts.onBody")}</p>
+            <ul className="multi-on-list">
+              <li>{t("accounts.onPoint1")}</li>
+              <li>{t("accounts.onPoint2")}</li>
+              <li>{t("accounts.onPoint3")}</li>
+            </ul>
+            <p className="muted small">{t("accounts.onTurnOff")}</p>
+            <div className="dialog-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setDialog(null);
+                  setSettingsTab("account");
+                  setRoute("settings");
+                }}
+              >
+                {t("accounts.onSettings")}
+              </button>
+              <button type="button" className="primary" onClick={() => setDialog({ kind: "accounts" })}>
+                {t("accounts.onAdd")}
+              </button>
+            </div>
+          </div>
         </Dialog>
       ) : null}
 

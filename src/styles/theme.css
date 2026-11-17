@@ -2202,3 +2202,19 @@ article.card.card-with-art .card-head .card-title h2 { font-size: 18px; line-hei
 .accounts-bare .accounts-hint {
   margin: 0;
 }
+
+.multi-banner {
+  flex-wrap: wrap;
+}
+
+.multi-banner p {
+  min-width: 220px;
+}
+
+.multi-on-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
