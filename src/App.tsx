@@ -1280,6 +1280,10 @@ export function App() {
                 onSaveHolding={(input) => void saveHolding(input)}
                 onDeleteHolding={(id) => void deleteHolding(id)}
                 rows={sheetRows}
+                categories={categories}
+                onCategory={(id, categoryId) => void onCategory(id, categoryId)}
+                onEditEntry={(entry) => setDialog({ kind: "manual", entry })}
+                onDeleteEntry={(id) => void deleteManual(id)}
                 incomes={planner.incomes}
                 bills={planner.bills}
                 payments={planner.payments}
