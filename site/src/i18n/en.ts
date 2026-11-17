@@ -68,7 +68,7 @@ export const en: Strings = {
       {
         title: "The file",
         text: "SQLite, open, inspectable, no proprietary format.",
-        code: "%APPDATA%\\com.lucas.trove\\trove.db",
+        code: "%APPDATA%\\trove\\trove.db",
       },
       {
         title: "The copy",
@@ -127,7 +127,7 @@ export const en: Strings = {
       },
       {
         q: "Where is my data?",
-        a: "In a SQLite file on your computer: %APPDATA%\\com.lucas.trove\\trove.db. Settings shows the folder.",
+        a: "In a SQLite file on your computer: %APPDATA%\\trove\\trove.db. Settings shows the folder.",
       },
       {
         q: "Can I back it up?",
@@ -243,7 +243,7 @@ export const en: Strings = {
       },
       {
         h: "Where the data is",
-        p: "The database is the file trove.db in %APPDATA%\\com.lucas.trove. Settings shows the folder.",
+        p: "The database is the file trove.db in %APPDATA%\\trove. Settings shows the folder.",
       },
       {
         h: "This site",

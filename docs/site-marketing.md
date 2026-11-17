@@ -133,7 +133,7 @@ Título: **Seu banco de dados é um arquivo. Você sabe onde ele está.**
 
 Conteúdo em três colunas:
 
-- **O arquivo.** `%APPDATA%\com.lucas.trove\trove.db`. SQLite, aberto, inspecionável, sem formato proprietário.
+- **O arquivo.** `%APPDATA%	rove\trove.db`. SQLite, aberto, inspecionável, sem formato proprietário.
 - **A cópia.** Backup com `VACUUM INTO`, restauração com verificação de integridade antes de substituir o arquivo ativo.
 - **A única conexão.** O app fala com o GitHub para checar atualização. Nada mais.
 

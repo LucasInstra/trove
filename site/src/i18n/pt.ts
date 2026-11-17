@@ -74,7 +74,7 @@ export const pt = {
       {
         title: "O arquivo",
         text: "SQLite, aberto, inspecionável, sem formato proprietário.",
-        code: "%APPDATA%\\com.lucas.trove\\trove.db",
+        code: "%APPDATA%\\trove\\trove.db",
       },
       {
         title: "A cópia",
@@ -133,7 +133,7 @@ export const pt = {
       },
       {
         q: "Onde ficam meus dados?",
-        a: "Em um arquivo SQLite no seu computador: %APPDATA%\\com.lucas.trove\\trove.db. A tela de Configurações mostra a pasta.",
+        a: "Em um arquivo SQLite no seu computador: %APPDATA%\\trove\\trove.db. A tela de Configurações mostra a pasta.",
       },
       {
         q: "Consigo fazer backup?",
@@ -249,7 +249,7 @@ export const pt = {
       },
       {
         h: "Onde ficam os dados",
-        p: "O banco de dados é o arquivo trove.db em %APPDATA%\\com.lucas.trove. A tela de Configurações mostra a pasta.",
+        p: "O banco de dados é o arquivo trove.db em %APPDATA%\\trove. A tela de Configurações mostra a pasta.",
       },
       {
         h: "Este site",

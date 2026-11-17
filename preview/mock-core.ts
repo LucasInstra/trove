@@ -361,7 +361,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     settings[args.key as string] = args.value as string;
     return null;
   },
-  database_location: () => "C:\\Users\\demo\\AppData\\Roaming\\com.lucas.trove\\trove.db",
+  database_location: () => "C:\\Users\\demo\\AppData\\Roaming\\trove\\trove.db",
 };
 
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {

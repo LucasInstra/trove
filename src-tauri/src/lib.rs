@@ -15,11 +15,107 @@ fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         std::fs::create_dir_all(&directory).map_err(|problem| problem.to_string())?;
         return Ok(PathBuf::from(directory).join("trove.db"));
     }
-    let directory = app
+    // The folder used to be named after the bundle identifier (`com.lucas.trove`). It is now
+    // `trove` next to it; the first launch after an update moves the old folder over.
+    let legacy = app
         .path()
         .app_data_dir()
         .map_err(|problem| problem.to_string())?;
+    let directory = match legacy.parent() {
+        Some(parent) => resolve_data_dir(&legacy, &parent.join("trove")),
+        None => legacy,
+    };
+    std::fs::create_dir_all(&directory).map_err(|problem| problem.to_string())?;
     Ok(directory.join("trove.db"))
+}
+
+/// Picks the folder the data lives in, moving the legacy one into place when it can.
+/// Never loses data: if anything cannot be moved, the legacy folder keeps being used.
+fn resolve_data_dir(legacy: &Path, current: &Path) -> PathBuf {
+    if current.join("trove.db").exists() || !legacy.exists() {
+        return current.to_path_buf();
+    }
+    if !current.exists() {
+        return match std::fs::rename(legacy, current) {
+            Ok(()) => current.to_path_buf(),
+            Err(_) => legacy.to_path_buf(),
+        };
+    }
+    // The new folder exists without a database: move the entries one by one.
+    let entries = match std::fs::read_dir(legacy) {
+        Ok(entries) => entries.flatten().collect::<Vec<_>>(),
+        Err(_) => return legacy.to_path_buf(),
+    };
+    for entry in &entries {
+        let target = current.join(entry.file_name());
+        if !target.exists() && std::fs::rename(entry.path(), &target).is_err() {
+            return legacy.to_path_buf();
+        }
+    }
+    current.to_path_buf()
+}
+
+#[cfg(test)]
+mod data_dir_tests {
+    use super::resolve_data_dir;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn scratch(name: &str) -> PathBuf {
+        let base = std::env::temp_dir().join(format!("trove-data-dir-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        base
+    }
+
+    #[test]
+    fn moves_the_legacy_folder_to_the_new_name() {
+        let base = scratch("move");
+        let legacy = base.join("com.lucas.trove");
+        let current = base.join("trove");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::write(legacy.join("trove.db"), b"data").unwrap();
+        assert_eq!(resolve_data_dir(&legacy, &current), current);
+        assert_eq!(fs::read(current.join("trove.db")).unwrap(), b"data");
+        assert!(!legacy.exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn keeps_the_new_folder_when_it_already_has_the_database() {
+        let base = scratch("keep");
+        let legacy = base.join("com.lucas.trove");
+        let current = base.join("trove");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::create_dir_all(&current).unwrap();
+        fs::write(legacy.join("trove.db"), b"old").unwrap();
+        fs::write(current.join("trove.db"), b"new").unwrap();
+        assert_eq!(resolve_data_dir(&legacy, &current), current);
+        assert_eq!(fs::read(legacy.join("trove.db")).unwrap(), b"old");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn moves_entries_into_an_existing_empty_folder() {
+        let base = scratch("fill");
+        let legacy = base.join("com.lucas.trove");
+        let current = base.join("trove");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::create_dir_all(&current).unwrap();
+        fs::write(legacy.join("trove.db"), b"data").unwrap();
+        assert_eq!(resolve_data_dir(&legacy, &current), current);
+        assert_eq!(fs::read(current.join("trove.db")).unwrap(), b"data");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_fresh_install_uses_the_new_folder() {
+        let base = scratch("fresh");
+        let legacy = base.join("com.lucas.trove");
+        let current = base.join("trove");
+        assert_eq!(resolve_data_dir(&legacy, &current), current);
+        let _ = fs::remove_dir_all(&base);
+    }
 }
 
 fn connection(app: &tauri::AppHandle) -> Result<Connection, String> {

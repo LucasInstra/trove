@@ -12,7 +12,7 @@ Este arquivo descreve a arquitetura implementada. O histórico por versão fica 
 
 ## Dados e invariantes
 
-- O banco local é `trove.db` no diretório de dados do app (`%APPDATA%\com.lucas.trove`). Dinheiro é armazenado em centavos inteiros; valores derivados são calculados, não persistidos.
+- O banco local é `trove.db` no diretório de dados do app (`%APPDATA%	rove`). Dinheiro é armazenado em centavos inteiros; valores derivados são calculados, não persistidos.
 - A versão atual do schema está em `SCHEMA_VERSION` (`src-tauri/src/db.rs`). `BASELINE_V1` é congelada; mudanças de schema devem ser feitas por migrações aditivas e idempotentes.
 - Importações OFX/CSV guardam a origem e deduplicam por `FITID` quando disponível, ou por fingerprint de conta, data, valor e descrição normalizada. A mesma transação pode ser reconhecida entre os dois formatos.
 - Transferências são pares indivisíveis e não entram nos totais de receitas/despesas. Estornos compensam a transação original; edições e exclusões respeitam esses vínculos.

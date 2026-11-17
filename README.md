@@ -88,7 +88,7 @@ Updates are automatic: the app checks on launch and offers the install from Sett
 
 ## Privacy
 
-No financial data leaves the computer. There is no login, no telemetry and no server of ours; the app only connects to GitHub to check for and download updates. Crypto price tracking is optional and off until you turn it on in Settings; when on, it asks CoinGecko for the price of the coins you hold, sending only the coin names, and turning it off stops every price request. The database lives in `%APPDATA%\com.lucas.trove\trove.db`, and Settings shows the folder.
+No financial data leaves the computer. There is no login, no telemetry and no server of ours; the app only connects to GitHub to check for and download updates. Crypto price tracking is optional and off until you turn it on in Settings; when on, it asks CoinGecko for the price of the coins you hold, sending only the coin names, and turning it off stops every price request. The database lives in `%APPDATA%\trove\trove.db`, and Settings shows the folder.
 
 ## Roadmap
 
