@@ -51,6 +51,15 @@ describe("account balances", () => {
     expect(totalBalanceKnown(all)).toBe(true);
   });
 
+  it("counts the salary on the account that receives it", () => {
+    const results = [
+      { accountId: 1, resultCents: -6_145 },
+      { accountId: 2, resultCents: 0 },
+    ];
+    const rows = accountRows(accounts, balances, {}, new Set([3]), results, { accountId: 1, cents: 300_000 });
+    expect(rows.map((row) => row.monthCents)).toEqual([293_855, 0, 0]);
+  });
+
   it("round-trips the setting and ignores junk", () => {
     expect(parseOpening(serializeOpening({ 1: 500, 2: 0 }))).toEqual({ 1: 500 });
     expect(parseOpening("not json")).toEqual({});

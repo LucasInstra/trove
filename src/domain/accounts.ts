@@ -49,6 +49,8 @@ export function accountRows(
   opening: Record<number, number>,
   cardAccountIds: ReadonlySet<number>,
   results: AccountResult[] = [],
+  /** The recurring salary is not an entry of any account, so it counts on the one that receives it. */
+  salary: { accountId: number | undefined; cents: number } = { accountId: undefined, cents: 0 },
 ): AccountRow[] {
   const entries = new Map(balances.map((row) => [row.accountId, row.balanceCents]));
   const months = new Map(results.map((row) => [row.accountId, row.resultCents]));
@@ -59,7 +61,7 @@ export function accountRows(
       name: account.name,
       openingCents,
       balanceCents: openingCents + (entries.get(account.id) ?? 0),
-      monthCents: months.get(account.id) ?? 0,
+      monthCents: (months.get(account.id) ?? 0) + (salary.accountId === account.id ? salary.cents : 0),
       hasOpening: account.id in opening && opening[account.id] !== 0,
       isCard: cardAccountIds.has(account.id),
       manual: account.bankId === "" && account.acctId.startsWith("manual:"),

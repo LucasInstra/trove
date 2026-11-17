@@ -121,7 +121,7 @@ export function BillDialog({
   const { t } = useLanguage();
   const [name, setName] = useState(bill?.name ?? "");
   const [amount, setAmount] = useState(bill ? (bill.amountCents / 100).toFixed(2) : "");
-  const [dueDay, setDueDay] = useState(bill?.dueDay ?? new Date().getDate());
+  const [dueDay, setDueDay] = useState(bill?.dueDay ?? 5);
   const [categoryId, setCategoryId] = useState<number | null>(bill?.categoryId ?? defaultCategoryId);
   const [payer, setPayer] = useState<number | null>(
     payerId ?? (people.find((person) => person.isSelf) ?? people[0])?.id ?? null,

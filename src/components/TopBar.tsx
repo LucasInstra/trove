@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { PlanNotification } from "../domain/notifications";
 import type { Account } from "../lib/api";
-import { currentMonth, monthName } from "../lib/format";
+import { monthName } from "../lib/format";
 import { BrushUnderline } from "./editorial";
 import { useLanguage } from "../lib/language";
 import { MonthPicker } from "./MonthPicker";
+import { DayPicker } from "./DayPicker";
 import { Icon } from "./Icons";
 import { Icon3DSet } from "./Icon3DSet";
 
@@ -30,6 +31,10 @@ interface TopBarProps {
   showLayout: boolean;
   layoutEditing: boolean;
   onToggleLayout: () => void;
+  /** The day of the month shown left of the month, and the day today is when it is the current month. */
+  day: number;
+  todayDay: number | null;
+  onPickDay: (day: number) => void;
   accounts: Account[];
   accountFilter: number | null;
   onAccountFilter: (accountId: number | null) => void;
@@ -47,6 +52,9 @@ export function TopBar({
   showLayout,
   layoutEditing,
   onToggleLayout,
+  day,
+  todayDay,
+  onPickDay,
   accounts,
   accountFilter,
   onAccountFilter,
@@ -87,8 +95,11 @@ export function TopBar({
           <Icon name="chevron-left" size={18} />
         </button>
         <h1 key={month} className={`month-title month-${direction}`}>
-          <BrushUnderline>{monthName(month, lang)}</BrushUnderline>
-          <span className="title-year">{month.slice(0, 4)}</span>
+          <DayPicker month={month} day={day} today={todayDay} onPick={onPickDay} />
+          <MonthPicker month={month} onPick={onPickMonth}>
+            <BrushUnderline>{monthName(month, lang)}</BrushUnderline>
+            <span className="title-year">{month.slice(0, 4)}</span>
+          </MonthPicker>
         </h1>
         <button
           type="button"
@@ -99,16 +110,6 @@ export function TopBar({
           <Icon name="chevron-right" size={18} />
         </button>
         <MonthPicker month={month} onPick={onPickMonth} />
-        <button
-          type="button"
-          className="today-chip"
-          title={t("topbar.goToday")}
-          onClick={() => onPickMonth(currentMonth())}
-        >
-          {t("topbar.today", {
-            date: new Date().toLocaleDateString(lang === "pt" ? "pt-BR" : "en-GB", { day: "numeric", month: "long" }),
-          })}
-        </button>
         <div id="topbar-slot" className="topbar-slot" />
         </div>
       </div>

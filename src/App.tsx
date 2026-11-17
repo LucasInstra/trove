@@ -278,6 +278,8 @@ export function App() {
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
+  // The day picked in the top bar. Until the user picks one, new entries start on today.
+  const [pickedDay, setPickedDay] = useState<number | null>(null);
   const [multiSetting, setMultiSetting] = useState<string | null>(null);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
   const [monthResults, setMonthResults] = useState<AccountResult[]>([]);
@@ -648,6 +650,12 @@ export function App() {
   const monthKpis = computeKpis(plan, incomeSeries, month ?? currentMonth());
   const monthLeftCents = monthKpis.income.valueCents - monthKpis.expense.valueCents;
 
+  const daysInMonth = new Date(Number((month ?? currentMonth()).slice(0, 4)), Number((month ?? currentMonth()).slice(5, 7)), 0).getDate();
+  const shownDay = Math.min(pickedDay ?? new Date().getDate(), daysInMonth);
+  // The date a new entry starts on: the day picked in the top bar, else today.
+  const entryDate =
+    pickedDay === null ? undefined : `${month ?? currentMonth()}-${String(shownDay).padStart(2, "0")}`;
+
   const accountRowsList = useMemo(
     () =>
       accountRows(
@@ -656,8 +664,12 @@ export function App() {
         opening,
         new Set(planner.cards.map((meta) => meta.accountId)),
         monthResults,
+        {
+          accountId: accounts.find((account) => !planner.cards.some((meta) => meta.accountId === account.id))?.id,
+          cents: monthlySalaryCents,
+        },
       ),
-    [accounts, balances, opening, planner.cards, monthResults],
+    [accounts, balances, opening, planner.cards, monthResults, monthlySalaryCents],
   );
 
   // Several accounts is the user's choice. Without a choice yet, it is on for anyone who already
@@ -1126,6 +1138,9 @@ export function App() {
               }}
               onImport={() => setRoute("import")}
               onLaunch={() => setDialog({ kind: "manual", entry: null })}
+              day={shownDay}
+              todayDay={month === currentMonth() ? new Date().getDate() : null}
+              onPickDay={setPickedDay}
               accounts={multiAccounts ? accounts : []}
               accountFilter={accountFilter}
               onAccountFilter={setAccountFilter}
@@ -1663,6 +1678,7 @@ export function App() {
       {dialog?.kind === "manual" ? (
         <ManualDialog
           accounts={accounts}
+          defaultDate={entryDate}
           askAccount={multiAccounts || dialog.entry !== null}
           defaultAccountId={accountRowsList.find((row) => !row.isCard)?.id}
           categories={categories}

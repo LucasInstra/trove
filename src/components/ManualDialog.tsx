@@ -16,6 +16,7 @@ import { useLanguage } from "../lib/language";
 export function ManualDialog({
   accounts,
   askAccount = true,
+  defaultDate,
   defaultAccountId,
   categories,
   entry,
@@ -27,6 +28,8 @@ export function ManualDialog({
   accounts: Account[];
   /** With several accounts off, the entry goes to the first account without asking. */
   askAccount?: boolean;
+  /** The date a new entry starts on; today when not given. */
+  defaultDate?: string;
   /** The account a new entry starts on: the first one that is not a card's. */
   defaultAccountId?: number;
   categories: Category[];
@@ -40,7 +43,7 @@ export function ManualDialog({
   const [kind, setKind] = useState<"expense" | "income">(entry && entry.amountCents >= 0 ? "income" : "expense");
   const [description, setDescription] = useState(entry?.description ?? "");
   const [amount, setAmount] = useState(entry ? (Math.abs(entry.amountCents) / 100).toFixed(2) : "");
-  const [date, setDate] = useState(entry?.postedOn.slice(0, 10) ?? todayIso());
+  const [date, setDate] = useState(entry?.postedOn.slice(0, 10) ?? defaultDate ?? todayIso());
   const [accountId, setAccountId] = useState(entry?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? 0);
   const [categoryId, setCategoryId] = useState<number | null>(entry?.categoryId ?? null);
   const [notes, setNotes] = useState(entry?.notes ?? "");

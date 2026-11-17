@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "./Icons";
 import { monthShort } from "../lib/format";
 import { useLanguage } from "../lib/language";
@@ -7,9 +8,12 @@ import { useLanguage } from "../lib/language";
 export function MonthPicker({
   month,
   onPick,
+  children,
 }: {
   month: string;
   onPick: (month: string) => void;
+  /** When given, these are the button: the month name itself opens the picker. */
+  children?: ReactNode;
 }) {
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -37,17 +41,17 @@ export function MonthPicker({
   const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
   return (
-    <div className="month-pop" ref={root}>
+    <div className={children ? "month-pop title" : "month-pop"} ref={root}>
       <button
         type="button"
-        className="icon-button"
+        className={children ? "title-button" : "icon-button"}
         title={t("planner.pickMonth")}
         aria-label={t("planner.pickMonth")}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((value) => !value)}
       >
-        <Icon name="calendar" size={16} />
+        {children ?? <Icon name="calendar" size={16} />}
       </button>
       {open ? (
         <div className="month-pop-panel" role="dialog" aria-label={t("planner.pickMonth")}>
