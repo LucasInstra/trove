@@ -239,6 +239,10 @@ export function SettingsScreen({
         </div>
       </article>
 
+      <div hidden={tab !== "account"}>
+        <CryptoCard />
+      </div>
+
       <article className="card" hidden={tab !== "account"}>
         <header className="card-head">
           <h2>{t("settings.profile")}</h2>
@@ -314,10 +318,6 @@ export function SettingsScreen({
           </div>
         ) : null}
       </article>
-
-      <div hidden={tab !== "account"}>
-        <CryptoCard />
-      </div>
 
       <article className="card" hidden={tab !== "updates"}>
         <header className="card-head">
