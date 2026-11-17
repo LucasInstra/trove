@@ -145,6 +145,12 @@ fn save_transfer(app: tauri::AppHandle, input: db::TransferInput) -> Result<Stri
 }
 
 #[tauri::command]
+fn set_transfer_category(app: tauri::AppHandle, group: String, category_id: Option<i64>) -> Result<(), String> {
+    let connection = connection(&app)?;
+    db::set_transfer_category(&connection, &group, category_id)
+}
+
+#[tauri::command]
 fn delete_transfer(app: tauri::AppHandle, id: i64) -> Result<(), String> {
     let connection = connection(&app)?;
     db::delete_transfer(&connection, id)
@@ -675,6 +681,7 @@ pub fn run() {
             delete_manual_transaction,
             save_transfer,
             delete_transfer,
+            set_transfer_category,
             save_refund,
             save_rule,
             delete_rule,

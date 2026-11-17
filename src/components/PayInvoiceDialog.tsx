@@ -14,6 +14,16 @@ function today() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+/** The category card payments are filed under, created the first time it is needed. */
+async function cardCategory(name: string): Promise<number | null> {
+  const all = await api.categories().catch(() => []);
+  const found = all.find((category) => category.name.toLowerCase() === name.toLowerCase());
+  if (found) return found.id;
+  return api
+    .saveCategory({ id: null, name, kind: "expense", color: "#6366f1", parentId: null, emoji: "💳", sortOrder: all.length + 1 })
+    .catch(() => null);
+}
+
 /**
  * Asks which account paid the invoice and when. The payment becomes a transfer from
  * that account to the card, so the money leaves the account without counting as a
@@ -64,6 +74,8 @@ export function PayInvoiceDialog({
           description: t("planner.payDescription", { card: card.brand || t("planner.card"), month: monthLabel(month, lang) }),
           notes: "",
         });
+        const categoryId = await cardCategory(t("planner.payCategory"));
+        await api.setTransferCategory(transferGroup, categoryId).catch(() => undefined);
         window.dispatchEvent(new Event(LEDGER_EVENT));
       }
       onPaid({ amountCents, paidOn, transferGroup });

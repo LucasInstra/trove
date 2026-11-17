@@ -3357,6 +3357,18 @@ pub fn save_transfer(connection: &mut Connection, input: &TransferInput) -> Resu
     Ok(group)
 }
 
+/// Puts a category on both legs of a transfer, so a card payment can be filed under one.
+pub fn set_transfer_category(connection: &Connection, group: &str, category_id: Option<i64>) -> Result<(), String> {
+    connection
+        .execute(
+            "update transactions set category_id = ?1, updated_at = ?2
+             where transfer_group = ?3 and deleted_at is null",
+            params![category_id, Utc::now().to_rfc3339(), group],
+        )
+        .map_err(|problem| problem.to_string())?;
+    Ok(())
+}
+
 /// Deletes both legs of a transfer through the tombstone. Single-leg deletes
 /// would leave money appearing from nowhere, so the group only vanishes whole.
 pub fn delete_transfer(connection: &Connection, id: i64) -> Result<(), String> {

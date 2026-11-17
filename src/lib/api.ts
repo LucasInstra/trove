@@ -570,6 +570,8 @@ export const api = {
   deleteManual: (id: number) => invoke<void>("delete_manual_transaction", { id }),
   saveTransfer: (input: TransferInput) => invoke<string>("save_transfer", { input }),
   deleteTransfer: (id: number) => invoke<void>("delete_transfer", { id }),
+  setTransferCategory: (group: string, categoryId: number | null) =>
+    invoke<void>("set_transfer_category", { group, categoryId }),
   saveRefund: (input: RefundInput) => invoke<number>("save_refund", { input }),
   saveRule: (input: RuleInput) => invoke<number>("save_rule", { input }),
   deleteRule: (id: number) => invoke<void>("delete_rule", { id }),
