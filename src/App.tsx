@@ -108,7 +108,7 @@ import {
 import { BUILD_LABEL } from "./lib/build";
 import { SectionPage } from "./components/SectionPage";
 import { SheetsScreen } from "./screens/SheetsScreen";
-import { Onboarding } from "./components/Onboarding";
+import { Onboarding, ONBOARDING_EVENT } from "./components/Onboarding";
 import { rampOf } from "./lib/color";
 import { initialsOf } from "./lib/avatar";
 import { usePrivacy } from "./lib/privacy";
@@ -271,13 +271,31 @@ export function App() {
   const [accountFilter, setAccountFilter] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [onboarded, setOnboarded] = useState(() => {
-    try {
-      return window.localStorage.getItem("trove.onboarded") === "1";
-    } catch {
-      return false;
-    }
-  });
+  // First-run state lives with the data: a fresh database always starts with the onboarding,
+  // and Settings can open it again. null while the setting is still being read.
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  const [redoOnboarding, setRedoOnboarding] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getSetting("onboarded")
+      .then((value) => {
+        if (!cancelled) setOnboarded(value === "1");
+      })
+      .catch(() => {
+        if (!cancelled) setOnboarded(true);
+      });
+    const again = () => {
+      setRedoOnboarding(true);
+      setRoute("overview");
+    };
+    window.addEventListener(ONBOARDING_EVENT, again);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(ONBOARDING_EVENT, again);
+    };
+  }, []);
+  const showOnboarding = onboarded !== null && (redoOnboarding || (!onboarded && accounts.length === 0));
   // Crypto prices are opt-in: null means the user was never asked (first use, or an update from a version without it).
   const [cryptoChoice, setCryptoChoice] = useState<string | null | undefined>(undefined);
   const refreshDataRef = useRef<() => Promise<void>>(async () => {});
@@ -315,11 +333,8 @@ export function App() {
 
   const finishOnboarding = () => {
     setOnboarded(true);
-    try {
-      window.localStorage.setItem("trove.onboarded", "1");
-    } catch {
-      // the welcome simply shows again next launch
-    }
+    setRedoOnboarding(false);
+    void api.setSetting("onboarded", "1").catch(() => {});
   };
   const [userName, setUserName] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -1049,7 +1064,7 @@ export function App() {
           ) : null}
 
           <div className="route-view" key={route}>
-            {route === "overview" && !loading && !onboarded && accounts.length === 0 ? (
+            {route === "overview" && !loading && showOnboarding ? (
               <Onboarding
                 busy={false}
                 onSaveName={(value) => {
@@ -1057,19 +1072,22 @@ export function App() {
                   void api.setSetting("user_name", value).catch(() => {});
                 }}
                 onSaveIncome={(amountCents, payDay) =>
-                  mutateAndRefresh(() =>
-                    api.saveIncome(
+                  mutateAndRefresh(() => {
+                    // Redoing the onboarding edits the salary instead of adding a second one.
+                    const existing = planner.incomes.find((income) => income.active && income.frequency === "monthly");
+                    return api.saveIncome(
                       withMonth({
-                        id: null,
-                        name: t("onboard.salaryName"),
+                        id: existing?.id ?? null,
+                        name: existing?.name ?? t("onboard.salaryName"),
                         amountCents,
                         frequency: "monthly",
                         payDay,
-                        accountId: null,
+                        accountId: existing?.accountId ?? null,
+                        personId: existing?.personId ?? null,
                         active: true,
                       }),
-                    ),
-                  )
+                    );
+                  })
                 }
                 onManual={() => {
                   finishOnboarding();
@@ -1087,7 +1105,7 @@ export function App() {
               />
             ) : null}
 
-            {route === "overview" && (loading || onboarded || accounts.length > 0) ? (
+            {route === "overview" && (loading || onboarded === null || !showOnboarding) ? (
               <OverviewScreen
                 plan={plan}
                 cards={cards}
@@ -1488,7 +1506,7 @@ export function App() {
         />
       ) : null}
 
-      {cryptoChoice === null && !loading && (onboarded || accounts.length > 0) ? (
+      {cryptoChoice === null && !loading && onboarded !== null && !showOnboarding ? (
         <CryptoPrompt />
       ) : null}
       {dialog?.kind === "bill" ? (

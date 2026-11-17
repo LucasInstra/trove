@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { BrushUnderline, Polaroid } from "./editorial";
+import { Polaroid } from "./editorial";
 import { parseCents } from "./PlannerDialogs";
+import { chooseCrypto } from "./CryptoCard";
 import { useLanguage } from "../lib/language";
 import type { Lang } from "../lib/i18n";
 
-type Step = "welcome" | "name" | "income" | "ready";
-const ORDER: Step[] = ["welcome", "name", "income", "ready"];
+/** Raised by Settings to open the onboarding again. */
+export const ONBOARDING_EVENT = "trove:onboarding";
+
+type Step = "name" | "income" | "crypto" | "ready";
+const ORDER: Step[] = ["name", "income", "crypto", "ready"];
 
 /**
  * First launch: no accounts yet. A short guided start: welcome, your name and
@@ -30,12 +34,11 @@ export function Onboarding({
   onDismiss: () => void;
 }) {
   const { lang, setLang, t } = useLanguage();
-  const [step, setStep] = useState<Step>("welcome");
+  const [step, setStep] = useState<Step>("name");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [payDay, setPayDay] = useState("5");
   const [saving, setSaving] = useState(false);
-  const [before, after] = t("onboard.title", { word: "\u0000" }).split("\u0000");
   const index = ORDER.indexOf(step);
   const next = () => setStep(ORDER[Math.min(index + 1, ORDER.length - 1)]);
 
@@ -63,37 +66,14 @@ export function Onboarding({
       <div className="onboarding-copy">
         <span className="eyebrow">
           {t("onboard.eyebrow")}
-          {step === "welcome" ? "" : ` · ${t("onboard.stepOf", { n: index, total: ORDER.length - 1 })}`}
+          {` · ${t("onboard.stepOf", { n: index + 1, total: ORDER.length })}`}
         </span>
-
-        {step === "welcome" ? (
-          <>
-            <h1 id="onboarding-title">
-              {before}
-              <BrushUnderline>{t("onboard.word")}</BrushUnderline>
-              {after}
-            </h1>
-            <p>{t("onboard.desc")}</p>
-            <ol className="onboarding-steps">
-              <li>{t("onboard.step1")}</li>
-              <li>{t("onboard.step2")}</li>
-              <li>{t("onboard.step3")}</li>
-            </ol>
-            <div className="onboarding-actions">
-              <button type="button" className="primary" onClick={next}>
-                {t("onboard.start")}
-              </button>
-              <button type="button" className="ghost" onClick={onDismiss}>
-                {t("onboard.dismiss")}
-              </button>
-            </div>
-          </>
-        ) : null}
 
         {step === "name" ? (
           <>
             <h1 id="onboarding-title">{t("onboard.nameTitle")}</h1>
             <p>{t("onboard.nameDesc")}</p>
+            <div className="onboarding-form">
             <label className="field">
               <span>{t("onboard.nameLabel")}</span>
               <input
@@ -110,11 +90,18 @@ export function Onboarding({
               <span>{t("onboard.language")}</span>
               <div className="segmented" role="group" aria-label={t("onboard.language")}>
                 {(["pt", "en"] as Lang[]).map((option) => (
-                  <button key={option} type="button" aria-pressed={lang === option} onClick={() => setLang(option)}>
+                  <button
+                    key={option}
+                    type="button"
+                    className={lang === option ? "active" : ""}
+                    aria-pressed={lang === option}
+                    onClick={() => setLang(option)}
+                  >
                     {option === "pt" ? "Português" : "English"}
                   </button>
                 ))}
               </div>
+            </div>
             </div>
             <div className="onboarding-actions">
               <button type="button" className="primary" onClick={saveName}>
@@ -131,6 +118,7 @@ export function Onboarding({
           <>
             <h1 id="onboarding-title">{t("onboard.incomeTitle")}</h1>
             <p>{t("onboard.incomeDesc")}</p>
+            <div className="onboarding-form">
             <label className="field">
               <span>{t("onboard.incomeLabel")}</span>
               <input
@@ -145,12 +133,43 @@ export function Onboarding({
               <span>{t("onboard.payDay")}</span>
               <input inputMode="numeric" value={payDay} maxLength={2} onChange={(event) => setPayDay(event.target.value)} />
             </label>
+            </div>
             <div className="onboarding-actions">
               <button type="button" className="primary" disabled={saving} onClick={() => void saveIncome()}>
                 {t("onboard.next")}
               </button>
               <button type="button" className="ghost" onClick={next}>
                 {t("onboard.skip")}
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {step === "crypto" ? (
+          <>
+            <h1 id="onboarding-title">{t("onboard.cryptoTitle")}</h1>
+            <p>{t("onboard.cryptoDesc")}</p>
+            <p className="muted small">{t("crypto.privacy")}</p>
+            <div className="onboarding-actions">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  void chooseCrypto(true);
+                  next();
+                }}
+              >
+                {t("onboard.cryptoYes")}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  void chooseCrypto(false);
+                  next();
+                }}
+              >
+                {t("onboard.cryptoNo")}
               </button>
             </div>
           </>

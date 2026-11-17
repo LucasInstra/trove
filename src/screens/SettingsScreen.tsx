@@ -1,4 +1,5 @@
 import { CryptoCard } from "../components/CryptoCard";
+import { ONBOARDING_EVENT } from "../components/Onboarding";
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -54,7 +55,7 @@ export function SettingsScreen({
   onTheme,
 }: {
   /** Opens on this tab, e.g. the updates one from the "new version" banner. */
-  initialTab?: "account" | "appearance" | "updates" | "about";
+  initialTab?: "profile" | "account" | "appearance" | "updates" | "about";
   updater: UpdaterState;
   accounts: Account[];
   onCreateAccount: (name: string) => void;
@@ -80,7 +81,7 @@ export function SettingsScreen({
   const [demoBusy, setDemoBusy] = useState(false);
   const [eraseOpen, setEraseOpen] = useState(false);
   const [eraseWord, setEraseWord] = useState("");
-  const [tab, setTab] = useState<"account" | "appearance" | "updates" | "about">(initialTab ?? "account");
+  const [tab, setTab] = useState<"profile" | "account" | "appearance" | "updates" | "about">(initialTab ?? "profile");
   useEffect(() => {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
@@ -186,8 +187,9 @@ export function SettingsScreen({
       <SectionPage
         eyebrow={t("nav.settingsGroup")}
         tabs={[
-          { id: "account", label: t("settings.tabAccount") },
+          { id: "profile", label: t("settings.tabProfile") },
           { id: "appearance", label: t("settings.tabAppearance") },
+          { id: "account", label: t("settings.tabAccount") },
           { id: "updates", label: t("settings.tabUpdates") },
           { id: "about", label: t("settings.tabAbout") },
         ]}
@@ -239,11 +241,25 @@ export function SettingsScreen({
         </div>
       </article>
 
-      <div hidden={tab !== "account"}>
+      <div hidden={tab !== "updates"}>
         <CryptoCard />
       </div>
 
-      <article className="card" hidden={tab !== "account"}>
+      <div hidden={tab !== "profile"}>
+        <article className="card">
+          <header className="card-head">
+            <div className="card-title">
+              <h2>{t("onboard.redoTitle")}</h2>
+            </div>
+          </header>
+          <p className="muted small">{t("onboard.redoDesc")}</p>
+          <button type="button" className="outline-button" onClick={() => window.dispatchEvent(new Event(ONBOARDING_EVENT))}>
+            {t("onboard.redo")}
+          </button>
+        </article>
+      </div>
+
+      <article className="card" hidden={tab !== "profile"}>
         <header className="card-head">
           <h2>{t("settings.profile")}</h2>
         </header>
