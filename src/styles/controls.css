@@ -813,3 +813,97 @@ select option {
 [data-theme="dark"] {
   color-scheme: dark;
 }
+
+/* Customizable select (Chromium 135+): the open list is ours, not the browser's. Where the engine
+   does not support it, the rule is skipped and the native list stays. */
+@supports (appearance: base-select) {
+  select:not([multiple]),
+  select:not([multiple])::picker(select) {
+    appearance: base-select;
+  }
+
+  select:not([multiple]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background-image: none;
+    padding-right: 10px;
+  }
+
+  select:not([multiple])::picker-icon {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-bottom: 3px;
+    border-right: 1.5px solid var(--muted);
+    border-bottom: 1.5px solid var(--muted);
+    transform: rotate(45deg);
+    transition: transform 160ms var(--ease-out);
+  }
+
+  select:not([multiple]):open::picker-icon {
+    transform: rotate(225deg);
+    margin-bottom: -3px;
+  }
+
+  select:not([multiple])::picker(select) {
+    margin-top: 6px;
+    padding: 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 14px 36px rgba(20, 24, 40, 0.16);
+    max-height: 320px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 140ms var(--ease-out), transform 140ms var(--ease-out), display 140ms allow-discrete,
+      overlay 140ms allow-discrete;
+  }
+
+  select:not([multiple])::picker(select):popover-open {
+    opacity: 1;
+    transform: none;
+  }
+
+  @starting-style {
+    select:not([multiple])::picker(select):popover-open {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+
+  select:not([multiple]) option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  select:not([multiple]) option:hover,
+  select:not([multiple]) option:focus-visible {
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    outline: none;
+  }
+
+  select:not([multiple]) option:checked {
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    font-weight: 600;
+  }
+
+  select:not([multiple]) option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--primary);
+  }
+
+  select.payer-select::picker-icon {
+    width: 5px;
+    height: 5px;
+  }
+}
