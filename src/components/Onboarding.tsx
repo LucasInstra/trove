@@ -8,8 +8,8 @@ import type { Lang } from "../lib/i18n";
 /** Raised by Settings to open the onboarding again. */
 export const ONBOARDING_EVENT = "trove:onboarding";
 
-type Step = "name" | "income" | "crypto" | "ready";
-const ORDER: Step[] = ["name", "income", "crypto", "ready"];
+type Step = "name" | "income" | "accounts" | "crypto" | "ready";
+const ORDER: Step[] = ["name", "income", "accounts", "crypto", "ready"];
 
 /**
  * First launch: no accounts yet. A short guided start: welcome, your name and
@@ -20,6 +20,7 @@ export function Onboarding({
   busy,
   onSaveName,
   onSaveIncome,
+  onMultiAccounts,
   onImport,
   onDemo,
   onDismiss,
@@ -27,6 +28,7 @@ export function Onboarding({
   busy: boolean;
   onSaveName: (name: string) => void;
   onSaveIncome: (amountCents: number, payDay: number) => Promise<void>;
+  onMultiAccounts: (on: boolean) => void;
   onImport: () => void;
   onDemo: () => void;
   onDismiss: () => void;
@@ -138,6 +140,36 @@ export function Onboarding({
               </button>
               <button type="button" className="ghost" onClick={next}>
                 {t("onboard.skip")}
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {step === "accounts" ? (
+          <>
+            <h1 id="onboarding-title">{t("onboard.accountsTitle")}</h1>
+            <p>{t("onboard.accountsDesc")}</p>
+            <p className="muted small">{t("onboard.accountsHint")}</p>
+            <div className="onboarding-actions">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  onMultiAccounts(false);
+                  next();
+                }}
+              >
+                {t("onboard.accountsOne")}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  onMultiAccounts(true);
+                  next();
+                }}
+              >
+                {t("onboard.accountsMany")}
               </button>
             </div>
           </>

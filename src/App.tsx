@@ -1205,6 +1205,7 @@ export function App() {
                   setUserName(value);
                   void api.setSetting("user_name", value).catch(() => {});
                 }}
+                onMultiAccounts={(on) => setMultiAccounts(on)}
                 onSaveIncome={(amountCents, payDay) =>
                   mutateAndRefresh(() => {
                     // Redoing the onboarding edits the salary instead of adding a second one.

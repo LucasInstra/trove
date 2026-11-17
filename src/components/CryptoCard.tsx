@@ -50,6 +50,7 @@ export function CryptoCard() {
   const { t } = useLanguage();
   const [value, setValue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export function CryptoCard() {
 
   const on = value === "on";
   const refresh = async () => {
+    setConfirming(false);
     setBusy(true);
     setMessage("");
     try {
@@ -95,9 +97,21 @@ export function CryptoCard() {
       </div>
       {on ? (
         <p>
-          <button type="button" disabled={busy} onClick={() => void refresh()}>
-            {t("crypto.refresh")}
-          </button>{" "}
+          {confirming ? (
+            <>
+              <span className="small">{t("crypto.confirmRefresh")}</span>{" "}
+              <button type="button" className="primary" disabled={busy} onClick={() => void refresh()}>
+                {t("crypto.confirmYes")}
+              </button>{" "}
+              <button type="button" className="ghost" onClick={() => setConfirming(false)}>
+                {t("crypto.confirmNo")}
+              </button>
+            </>
+          ) : (
+            <button type="button" disabled={busy} onClick={() => setConfirming(true)}>
+              {t("crypto.refresh")}
+            </button>
+          )}{" "}
           <span className="muted small" role="status">
             {message}
           </span>
