@@ -1052,6 +1052,29 @@ export function App() {
             {route === "overview" && !loading && !onboarded && accounts.length === 0 ? (
               <Onboarding
                 busy={false}
+                onSaveName={(value) => {
+                  setUserName(value);
+                  void api.setSetting("user_name", value).catch(() => {});
+                }}
+                onSaveIncome={(amountCents, payDay) =>
+                  mutateAndRefresh(() =>
+                    api.saveIncome(
+                      withMonth({
+                        id: null,
+                        name: t("onboard.salaryName"),
+                        amountCents,
+                        frequency: "monthly",
+                        payDay,
+                        accountId: null,
+                        active: true,
+                      }),
+                    ),
+                  )
+                }
+                onManual={() => {
+                  finishOnboarding();
+                  setRoute("sheets");
+                }}
                 onImport={() => {
                   finishOnboarding();
                   setRoute("import");

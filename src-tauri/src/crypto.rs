@@ -105,6 +105,14 @@ pub fn fetch_prices(ids: &[&str]) -> Result<HashMap<String, f64>, String> {
 mod tests {
     use super::*;
 
+    /// Hits the real CoinGecko API: `cargo test live_prices -- --ignored`.
+    #[test]
+    #[ignore]
+    fn live_prices() {
+        let prices = fetch_prices(&["bitcoin", "ethereum"]).expect("live fetch");
+        assert!(prices["bitcoin"] > 1000.0, "bitcoin price looks wrong: {prices:?}");
+    }
+
     #[test]
     fn parses_the_price_answer() {
         let prices = parse_prices(r#"{"bitcoin":{"brl":350000.5},"ethereum":{"brl":12000}}"#).expect("parse");
