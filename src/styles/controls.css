@@ -11,7 +11,7 @@ input[type="checkbox"] {
   height: 18px;
   margin: 0;
   border: 1.5px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 5px;
   background: var(--surface);
   cursor: pointer;
   transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out),
@@ -53,9 +53,9 @@ input[type="checkbox"]:disabled {
   cursor: not-allowed;
 }
 
-/* The bill rows keep their round, green tick. */
+/* The bill rows keep the green tick, on the same rounded square. */
 .bill-check input[type="checkbox"] {
-  border-radius: 50%;
+  border-radius: 5px;
 }
 
 .bill-check input[type="checkbox"]:checked {

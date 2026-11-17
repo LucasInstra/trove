@@ -3189,7 +3189,7 @@ select.tx-category {
   height: 18px;
   margin: 0;
   border: 1.5px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: 5px;
   background: var(--surface);
   cursor: pointer;
 }
