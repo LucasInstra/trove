@@ -19,6 +19,7 @@ const card = (id: number, limitCents: number): CardMeta => ({
   dueDay: 12,
   color: "var(--primary)",
   texture: "plain",
+  cashBasis: false,
 });
 
 describe("planner summaries", () => {

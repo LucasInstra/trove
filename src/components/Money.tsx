@@ -1,4 +1,5 @@
 import { formatCents } from "../lib/format";
+import { isPrivate } from "../lib/privacy";
 import { useCountUp } from "../lib/useCountUp";
 
 interface MoneyProps {
@@ -14,15 +15,16 @@ interface MoneyProps {
  */
 export function Money({ cents, className, variant = "default" }: MoneyProps) {
   const animated = useCountUp(cents);
+  const hidden = isPrivate();
   const value = formatCents(Math.abs(animated));
   const cut = value.lastIndexOf(",");
   const withCents = cut > 0 ? value.slice(0, cut) : value;
   const rest = cut > 0 ? value.slice(cut) : "";
   // Intl puts a non-breaking space after the currency, so match any space.
-  const match = withCents.match(/^(.*?)[\s\u00a0]+([\d.]+)$/);
+  const match = withCents.match(/^(.*?)[\s\u00a0]+([\d.•]+)$/);
   const prefix = match ? match[1] : "";
   const whole = match ? match[2] : withCents;
-  const sign = animated < 0 ? "-" : "";
+  const sign = !hidden && animated < 0 ? "-" : "";
   return (
     <span
       className={["money", variant === "hero" ? "money-hero" : "", className ?? ""]

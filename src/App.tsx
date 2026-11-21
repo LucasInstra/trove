@@ -49,7 +49,7 @@ import { CategoriesScreen } from "./screens/CategoriesScreen";
 import { InvestmentsScreen } from "./screens/InvestmentsScreen";
 import { api, EMPTY_PLANNER } from "./lib/api";
 import { CryptoPrompt } from "./components/CryptoCard";
-import { LEDGER_EVENT, usePaidInvoices } from "./lib/paidInvoices";
+import { INVOICES_EVENT, LEDGER_EVENT, usePaidInvoices } from "./lib/paidInvoices";
 import { CRYPTO_EVENT, CRYPTO_SETTING } from "./domain/crypto";
 import type {
   Account,
@@ -771,6 +771,7 @@ export function App() {
   const clearMonth = async () => {
     if (!month) return;
     await mutateAndRefresh(() => api.clearMonth(month));
+    window.dispatchEvent(new Event(INVOICES_EVENT));
   };
 
   const withMonth = (input: IncomeInput): IncomeInput => (input.id ? { ...input, fromMonth: month ?? currentMonth() } : input);
@@ -1563,6 +1564,7 @@ export function App() {
                 onEditIncome={(income) => setDialog({ kind: "income", income })}
                 onSaveBill={(input) => void mutateAndRefresh(() => api.saveBill(input))}
                 onEditBill={(bill) => setDialog({ kind: "bill", bill })}
+                cards={planner.cards}
               />
             ) : null}
 

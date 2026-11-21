@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 23;
+pub const SCHEMA_VERSION: i64 = 24;
 
 /// Frozen snapshot of the schema that shipped in 0.1.0. Never edited: it is the
 /// starting point every migration builds on, and what the migration test replays
@@ -322,6 +322,69 @@ pub struct ImportReport {
     pub ledger_balance_on: Option<String>,
 }
 
+/// The date an entry counts on. A purchase on a card set to cash basis counts on the
+/// due date of the invoice it belongs to; everything else counts on `posted_on`.
+/// Same rule as `invoiceWindow` in the front: an invoice closes on `closing`
+/// (clamped to the month's last day) and is due on `due` of the same month,
+/// or of the next one when `due <= closing`.
+pub fn cash_date(posted_on: &str, closing: Option<i64>, due: Option<i64>) -> String {
+    let (Some(closing), Some(due)) = (closing, due) else {
+        return posted_on.to_string();
+    };
+    let Ok(date) = NaiveDate::parse_from_str(posted_on, "%Y-%m-%d") else {
+        return posted_on.to_string();
+    };
+    use chrono::Datelike;
+    let first = date.with_day(1).unwrap_or(date);
+    let last_day = |month: NaiveDate| -> i64 {
+        month
+            .checked_add_months(Months::new(1))
+            .map(|next| (next - month).num_days())
+            .unwrap_or(28)
+    };
+    let closing = closing.clamp(1, 31);
+    let closes_this_month = i64::from(date.day()) <= closing.min(last_day(first));
+    let mut due_month = if closes_this_month { first } else { first + Months::new(1) };
+    if due <= closing {
+        due_month = due_month + Months::new(1);
+    }
+    let day = due.clamp(1, 31).min(last_day(due_month));
+    due_month
+        .with_day(day as u32)
+        .map(|value| value.format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|| posted_on.to_string())
+}
+
+fn register_functions(connection: &Connection) -> Result<(), String> {
+    use rusqlite::functions::FunctionFlags;
+    connection
+        .create_scalar_function(
+            "cash_date",
+            3,
+            FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+            |context| {
+                let posted_on: String = context.get(0)?;
+                Ok(cash_date(&posted_on, context.get(1)?, context.get(2)?))
+            },
+        )
+        .map_err(|problem| problem.to_string())
+}
+
+/// The guide for AI assistants that edit the database by hand, shipped next to `trove.db`.
+pub const AI_GUIDE: &str = include_str!("ai_guide.md");
+pub const AI_GUIDE_FILE: &str = "LEIA-ME-PARA-IA.md";
+
+/// Writes the guide next to the database, rewriting it when the app changed it. A failure
+/// here never stops the app: the guide is a convenience.
+pub fn write_ai_guide(database: &Path) {
+    let Some(folder) = database.parent() else { return };
+    let text = AI_GUIDE.replace("{schema}", &SCHEMA_VERSION.to_string());
+    let target = folder.join(AI_GUIDE_FILE);
+    if std::fs::read_to_string(&target).ok().as_deref() != Some(text.as_str()) {
+        let _ = std::fs::write(&target, text);
+    }
+}
+
 pub fn open(path: &Path) -> Result<Connection, String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|problem| problem.to_string())?;
@@ -333,6 +396,7 @@ pub fn open(path: &Path) -> Result<Connection, String> {
     connection
         .pragma_update(None, "foreign_keys", "ON")
         .map_err(|problem| problem.to_string())?;
+    register_functions(&connection)?;
     connection
         .execute_batch(BOOTSTRAP)
         .map_err(|problem| problem.to_string())?;
@@ -436,8 +500,12 @@ pub fn open(path: &Path) -> Result<Connection, String> {
         migrate_to_v22(&connection)?;
         write_version(&connection, 22)?;
     }
-    if version < SCHEMA_VERSION {
+    if version < 23 {
         migrate_to_v23(&connection)?;
+        write_version(&connection, 23)?;
+    }
+    if version < SCHEMA_VERSION {
+        migrate_to_v24(&connection)?;
         write_version(&connection, SCHEMA_VERSION)?;
     }
 
@@ -640,6 +708,12 @@ fn migrate_to_v21(connection: &Connection) -> Result<(), String> {
 }
 
 /// v22 to v23: a holding can be a crypto position (symbol and quantity) whose value follows the price.
+/// v23 to v24: a card can count its purchases in the month its invoice is due
+/// (cash basis) instead of the month they were made. Off for every existing card.
+fn migrate_to_v24(connection: &Connection) -> Result<(), String> {
+    add_column(connection, "cards", "cash_basis", "integer not null default 0")
+}
+
 fn migrate_to_v23(connection: &Connection) -> Result<(), String> {
     add_column(connection, "holdings", "symbol", "text not null default ''")?;
     add_column(connection, "holdings", "units", "text not null default ''")
@@ -1241,8 +1315,8 @@ pub fn rename_account(connection: &Connection, id: i64, name: &str) -> Result<()
     Ok(())
 }
 
-/// Archives an account: it leaves every picker, but its history stays in the
-/// database and keeps counting wherever it already counted.
+/// Archives an account: it leaves every picker, ledger view and total, while
+/// keeping its rows intact in the database.
 pub fn archive_account(connection: &Connection, id: i64) -> Result<(), String> {
     let stamp = Utc::now().to_rfc3339();
     let affected = connection
@@ -2119,11 +2193,12 @@ pub fn recurrence_rows(
         .ok_or_else(|| "month window out of range".to_string())?;
     let mut statement = connection
         .prepare(
-            "select posted_on, merchant, description, amount_cents
-             from transactions
-             where posted_on >= ?1 and substr(posted_on, 1, 7) <= ?2
-               and transfer_group is null and deleted_at is null
-             order by posted_on asc",
+            "select t.posted_on, t.merchant, t.description, t.amount_cents
+             from transactions t
+             join accounts a on a.id = t.account_id
+             where t.posted_on >= ?1 and substr(t.posted_on, 1, 7) <= ?2
+               and t.transfer_group is null and t.deleted_at is null and a.deleted_at is null
+             order by t.posted_on asc",
         )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
@@ -2171,23 +2246,24 @@ pub fn daily_expense_in(
         .checked_add_months(Months::new(1))
         .map(|next| (next - first).num_days())
         .ok_or_else(|| "month out of range".to_string())?;
-    let prefix = format!("{month}%");
     let mut statement = connection
         .prepare(
-            "select posted_on,
-                    max(0, coalesce(sum(case when amount_cents > 0 and refund_of is null then amount_cents else 0 end), 0)
-                           - coalesce(sum(case when amount_cents < 0 and refund_of is not null then -amount_cents else 0 end), 0)),
-                    max(0, coalesce(sum(case when amount_cents < 0 and refund_of is null then -amount_cents else 0 end), 0)
-                           - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0))
-             from transactions
-             where posted_on like ?1 and transfer_group is null and deleted_at is null
-               and (?2 is null or account_id = ?2)
-             group by posted_on",
+            "select cash_date(t.posted_on, kc.closing_day, kc.due_day) as day,
+                    max(0, coalesce(sum(case when t.amount_cents > 0 and t.refund_of is null then t.amount_cents else 0 end), 0)
+                           - coalesce(sum(case when t.amount_cents < 0 and t.refund_of is not null then -t.amount_cents else 0 end), 0)),
+                    max(0, coalesce(sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end), 0)
+                           - coalesce(sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end), 0))
+             from transactions t
+             join accounts a on a.id = t.account_id
+             left join cards kc on kc.account_id = t.account_id and kc.deleted_at is null and kc.cash_basis = 1 and t.transfer_group is null
+             where substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) = ?1 and t.transfer_group is null and t.deleted_at is null and a.deleted_at is null
+               and (?2 is null or t.account_id = ?2)
+             group by day",
         )
         .map_err(|problem| problem.to_string())?;
     let mut by_day = std::collections::HashMap::new();
     let fetched = statement
-        .query_map(params![prefix, account], |row| {
+        .query_map(params![month, account], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
         })
         .map_err(|problem| problem.to_string())?;
@@ -2743,7 +2819,7 @@ pub fn list_transactions(
     let month_pattern = month
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
-        .map(|value| format!("{value}%"));
+        .map(|value| value.to_string());
 
     let mut statement = connection
         .prepare(
@@ -2753,6 +2829,7 @@ pub fn list_transactions(
                     exists(select 1 from transactions r where r.refund_of = t.id and r.deleted_at is null)
              from transactions t
              join accounts a on a.id = t.account_id
+             left join cards kc on kc.account_id = t.account_id and kc.deleted_at is null and kc.cash_basis = 1 and t.transfer_group is null
              left join categories c on c.id = t.category_id
              where (?1 is null
                     or t.description like ?1 collate nocase
@@ -2761,7 +2838,7 @@ pub fn list_transactions(
                     or exists (select 1 from transaction_tags tt
                                join tags tg on tg.id = tt.tag_id
                                where tt.transaction_id = t.id and tg.name like ?1 collate nocase))
-               and (?2 is null or t.posted_on like ?2)
+               and (?2 is null or substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) = ?2)
                and (?3 is null or t.account_id = ?3)
                and (?5 is null
                     or exists (select 1 from transaction_tags tt
@@ -3403,15 +3480,16 @@ pub fn account_month_results(connection: &Connection, month: &str) -> Result<Vec
         .prepare(
             "select a.id, coalesce(sum(t.amount_cents), 0)
              from accounts a
+             left join cards kc on kc.account_id = a.id and kc.deleted_at is null and kc.cash_basis = 1
              left join transactions t on t.account_id = a.id and t.deleted_at is null
-               and t.transfer_group is null and t.posted_on like ?1
+               and t.transfer_group is null and substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) = ?1
              where a.deleted_at is null
              group by a.id
              order by a.id",
         )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
-        .query_map(params![format!("{month}%")], |row| {
+        .query_map(params![month], |row| {
             Ok(AccountResult { account_id: row.get(0)?, result_cents: row.get(1)? })
         })
         .map_err(|problem| problem.to_string())?;
@@ -3573,14 +3651,37 @@ pub fn clear_month(connection: &mut Connection, month: &str) -> Result<ClearRepo
         .map_err(|problem| problem.to_string())?;
     let prefix = format!("{month}%");
     let now = Utc::now().to_rfc3339();
+    // Include paired transfer legs even if one leg landed across a month boundary,
+    // so a transfer never loses only one side.
     let cleared = "select id from transactions
-                   where posted_on like ?1 and source = 'manual' and deleted_at is null";
+                   where (posted_on like ?1
+                          or transfer_group in (
+                              select transfer_group from transactions
+                              where posted_on like ?1 and source = 'manual'
+                                and transfer_group is not null and deleted_at is null
+                          ))
+                     and source = 'manual' and deleted_at is null";
+    let removed_groups: Vec<String> = {
+        let mut statement = transaction
+            .prepare(
+                "select distinct transfer_group from transactions
+                 where posted_on like ?1 and source = 'manual'
+                   and transfer_group is not null and deleted_at is null",
+            )
+            .map_err(|problem| problem.to_string())?;
+        let rows = statement
+            .query_map(params![prefix], |row| row.get::<_, String>(0))
+            .map_err(|problem| problem.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|problem| problem.to_string())?
+    };
     // Manual refunds of a cleared purchase go with it; imported ones stay but
     // lose the link, since there is no purchase left to net against.
     transaction
         .execute(
             &format!(
-                "update transactions set deleted_at = ?2, updated_at = ?2
+                "update transactions
+                 set deleted_at = ?2, updated_at = ?2, dedupe_key = dedupe_key || ':del:' || uid
                  where refund_of in ({cleared}) and source = 'manual' and deleted_at is null"
             ),
             params![prefix, now],
@@ -3603,14 +3704,68 @@ pub fn clear_month(connection: &mut Connection, month: &str) -> Result<ClearRepo
         .map_err(|problem| problem.to_string())?;
     let manual_deleted = transaction
         .execute(
-            "update transactions set deleted_at = ?2, updated_at = ?2
-             where posted_on like ?1 and source = 'manual' and deleted_at is null",
+            &format!(
+                "update transactions
+                 set deleted_at = ?2, updated_at = ?2, dedupe_key = dedupe_key || ':del:' || uid
+                 where id in ({cleared})"
+            ),
             params![prefix, now],
         )
         .map_err(|problem| problem.to_string())?;
     let payments_cleared = transaction
         .execute("delete from bill_payments where month = ?1", params![month])
         .map_err(|problem| problem.to_string())?;
+    // Card invoices marked as paid in `month` (or paid via a transfer that just
+    // vanished with `month`) go back to open so `invoices_paid` never dangles.
+    let raw_invoices: Option<String> = transaction
+        .query_row(
+            "select value from settings where key = 'invoices_paid'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if let Some(raw) = raw_invoices {
+        let month_suffix = format!(":{month}");
+        if let Ok(mut parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
+            let changed = match &mut parsed {
+                serde_json::Value::Object(map) => {
+                    let before = map.len();
+                    map.retain(|key, entry| {
+                        if key.ends_with(&month_suffix) {
+                            return false;
+                        }
+                        let linked = entry
+                            .get("transferGroup")
+                            .and_then(|value| value.as_str())
+                            .is_some_and(|group| removed_groups.iter().any(|item| item == group));
+                        !linked
+                    });
+                    map.len() != before
+                }
+                serde_json::Value::Array(items) => {
+                    let before = items.len();
+                    items.retain(|item| {
+                        !item
+                            .as_str()
+                            .is_some_and(|key| key.ends_with(&month_suffix))
+                    });
+                    items.len() != before
+                }
+                _ => false,
+            };
+            if changed {
+                let serialized =
+                    serde_json::to_string(&parsed).map_err(|problem| problem.to_string())?;
+                transaction
+                    .execute(
+                        "update settings set value = ?1 where key = 'invoices_paid'",
+                        params![serialized],
+                    )
+                    .map_err(|problem| problem.to_string())?;
+            }
+        }
+    }
     transaction
         .commit()
         .map_err(|problem| problem.to_string())?;
@@ -3654,7 +3809,10 @@ pub fn list_imports(connection: &Connection, limit: i64) -> Result<Vec<ImportRow
 pub fn latest_month(connection: &Connection) -> Result<Option<String>, String> {
     connection
         .query_row(
-            "select max(substr(posted_on, 1, 7)) from transactions where deleted_at is null",
+            "select max(substr(t.posted_on, 1, 7))
+             from transactions t
+             join accounts a on a.id = t.account_id
+             where t.deleted_at is null and a.deleted_at is null",
             [],
             |row| row.get::<_, Option<String>>(0),
         )
@@ -3668,7 +3826,6 @@ pub fn month_totals(connection: &Connection, month: &str) -> Result<MonthTotals,
 /// `month_totals` for one account, or for all of them when `account` is `None`.
 pub fn month_totals_in(connection: &Connection, month: &str, account: Option<i64>) -> Result<MonthTotals, String> {
     check_month(month)?;
-    let prefix = format!("{month}%");
     // Transfers move money between own accounts, so both legs stay out of
     // income and spending. Refund legs net against their own side instead of
     // inflating the other: a returned purchase lowers spending, not raises
@@ -3676,15 +3833,18 @@ pub fn month_totals_in(connection: &Connection, month: &str, account: Option<i64
     let (income, expense, count): (i64, i64, i64) = connection
         .query_row(
             "select
-                coalesce(sum(case when amount_cents > 0 and refund_of is null then amount_cents else 0 end), 0)
-                - coalesce(sum(case when amount_cents < 0 and refund_of is not null then -amount_cents else 0 end), 0),
-                coalesce(sum(case when amount_cents < 0 and refund_of is null then -amount_cents else 0 end), 0)
-                - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0),
+                coalesce(sum(case when t.amount_cents > 0 and t.refund_of is null then t.amount_cents else 0 end), 0)
+                - coalesce(sum(case when t.amount_cents < 0 and t.refund_of is not null then -t.amount_cents else 0 end), 0),
+                coalesce(sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end), 0)
+                - coalesce(sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end), 0),
                 count(*)
-             from transactions
-             where posted_on like ?1 and transfer_group is null and deleted_at is null
-               and (?2 is null or account_id = ?2)",
-            params![prefix, account],
+             from transactions t
+             join accounts a on a.id = t.account_id
+             left join cards kc on kc.account_id = t.account_id and kc.deleted_at is null and kc.cash_basis = 1 and t.transfer_group is null
+             where substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) = ?1 and t.transfer_group is null
+               and t.deleted_at is null and a.deleted_at is null
+               and (?2 is null or t.account_id = ?2)",
+            params![month, account],
             |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
@@ -3723,7 +3883,6 @@ pub fn category_totals_in(
     account: Option<i64>,
 ) -> Result<Vec<CategoryTotal>, String> {
     check_month(month)?;
-    let prefix = format!("{month}%");
     let mut statement = connection
         .prepare(
             "with recursive roots(id, root_id) as (
@@ -3737,12 +3896,15 @@ pub fn category_totals_in(
                           - sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end)) as total,
                     max(g.budget_cents)
              from transactions t
+             join accounts a on a.id = t.account_id
+             left join cards kc on kc.account_id = t.account_id and kc.deleted_at is null and kc.cash_basis = 1 and t.transfer_group is null
              left join roots r on r.id = t.category_id
              left join categories g on g.id = coalesce(r.root_id, t.category_id)
-             where t.posted_on like ?1 and t.transfer_group is null
+             where substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) = ?1 and t.transfer_group is null
                and ((t.amount_cents < 0 and t.refund_of is null)
                     or (t.amount_cents > 0 and t.refund_of is not null))
                and t.deleted_at is null
+               and a.deleted_at is null
                and (?2 is null or t.account_id = ?2)
              group by coalesce(g.id, t.category_id)
              order by total desc",
@@ -3750,7 +3912,7 @@ pub fn category_totals_in(
         .map_err(|problem| problem.to_string())?;
 
     let rows = statement
-        .query_map(params![prefix, account], |row| {
+        .query_map(params![month, account], |row| {
             Ok(CategoryTotal {
                 category_id: row.get(0)?,
                 name: row.get(1)?,
@@ -3795,18 +3957,22 @@ pub fn category_month_series_in(
                union all
                select c.id, roots.root_id from categories c join roots on c.parent_id = roots.id
              )
-             select substr(t.posted_on, 1, 7) as month, coalesce(c.id, t.category_id),
+             select substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) as month, coalesce(c.id, t.category_id),
                     coalesce(c.name, 'Uncategorized'), coalesce(c.color, '#9aa3af'),
                     max(0, sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end)
                           - sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end)) as total
              from transactions t
+             join accounts a on a.id = t.account_id
+             left join cards kc on kc.account_id = t.account_id and kc.deleted_at is null and kc.cash_basis = 1 and t.transfer_group is null
              left join roots r on r.id = t.category_id
              left join categories c on c.id = coalesce(r.root_id, t.category_id)
-             where t.posted_on >= ?1 and substr(t.posted_on, 1, 7) <= ?2
+             where t.posted_on >= date(?1, '-3 months')
+               and substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) >= substr(?1, 1, 7) and substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) <= ?2
                and t.transfer_group is null
                and ((t.amount_cents < 0 and t.refund_of is null)
                     or (t.amount_cents > 0 and t.refund_of is not null))
                and t.deleted_at is null
+               and a.deleted_at is null
                and (?3 is null or t.account_id = ?3)
              group by month, coalesce(c.id, t.category_id)
              order by month, total desc",
@@ -3873,14 +4039,17 @@ pub fn month_series_in(
 
     let mut statement = connection
         .prepare(
-            "select substr(posted_on, 1, 7) as month,
-                    max(0, coalesce(sum(case when amount_cents > 0 and refund_of is null then amount_cents else 0 end), 0)
-                           - coalesce(sum(case when amount_cents < 0 and refund_of is not null then -amount_cents else 0 end), 0)),
-                    max(0, coalesce(sum(case when amount_cents < 0 and refund_of is null then -amount_cents else 0 end), 0)
-                           - coalesce(sum(case when amount_cents > 0 and refund_of is not null then amount_cents else 0 end), 0))
-             from transactions
-             where posted_on >= ?1 and transfer_group is null and deleted_at is null
-               and (?2 is null or account_id = ?2)
+            "select substr(cash_date(t.posted_on, kc.closing_day, kc.due_day), 1, 7) as month,
+                    max(0, coalesce(sum(case when t.amount_cents > 0 and t.refund_of is null then t.amount_cents else 0 end), 0)
+                           - coalesce(sum(case when t.amount_cents < 0 and t.refund_of is not null then -t.amount_cents else 0 end), 0)),
+                    max(0, coalesce(sum(case when t.amount_cents < 0 and t.refund_of is null then -t.amount_cents else 0 end), 0)
+                           - coalesce(sum(case when t.amount_cents > 0 and t.refund_of is not null then t.amount_cents else 0 end), 0))
+             from transactions t
+             join accounts a on a.id = t.account_id
+             left join cards kc on kc.account_id = t.account_id and kc.deleted_at is null and kc.cash_basis = 1 and t.transfer_group is null
+             where t.posted_on >= date(?1, '-3 months') and t.transfer_group is null
+               and t.deleted_at is null and a.deleted_at is null
+               and (?2 is null or t.account_id = ?2)
              group by month",
         )
         .map_err(|problem| problem.to_string())?;
@@ -5996,5 +6165,256 @@ mod tests {
         let (rows, issues) = crate::csv::parse_csv(&text, &mapping).expect("should parse csv");
         assert_eq!(rows.len(), 25);
         assert_eq!(issues.len(), 1);
+    }
+
+    #[test]
+    fn archived_accounts_leave_totals_series_and_recurrence() {
+        let path = temporary_database("archived-totals");
+        let connection = open(&path).expect("should open");
+        let active = create_manual_account(&connection, "Principal").expect("active account");
+        let archived = create_manual_account(&connection, "Antiga").expect("archived account");
+        let food = budget_category(&connection, "Alimentação");
+        set_category_budget(&connection, food, Some(20_000)).expect("budget");
+
+        spend(&connection, active, food, "2024-03-05", -3_000);
+        spend(&connection, archived, food, "2024-03-06", -9_000);
+        save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: archived,
+                posted_on: "2024-04-02".into(),
+                amount_cents: 50_000,
+                description: "Bônus".into(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("should save april row");
+
+        assert_eq!(latest_month(&connection).expect("latest"), Some("2024-04".to_string()));
+        assert_eq!(month_totals(&connection, "2024-03").expect("totals").expense_cents, 12_000);
+
+        archive_account(&connection, archived).expect("should archive");
+
+        assert_eq!(latest_month(&connection).expect("latest"), Some("2024-03".to_string()));
+        let totals = month_totals(&connection, "2024-03").expect("totals");
+        assert_eq!((totals.income_cents, totals.expense_cents, totals.transaction_count), (0, 3_000, 1));
+        let by_cat = category_totals(&connection, "2024-03").expect("category totals");
+        assert_eq!(by_cat.len(), 1);
+        assert_eq!(by_cat[0].total_cents, 3_000);
+        let status = budget_status(&connection, "2024-03").expect("budget status");
+        assert_eq!(status.lines[0].spent_cents, 3_000);
+        let series = month_series(&connection, "2024-04", 2).expect("series");
+        assert_eq!((series[0].expense_cents, series[1].income_cents), (3_000, 0));
+        let cat_series = category_month_series(&connection, "2024-04", 2).expect("cat series");
+        assert_eq!(cat_series.len(), 1);
+        assert_eq!(cat_series[0].total_cents, 3_000);
+        let days = daily_expense(&connection, "2024-03").expect("daily");
+        assert_eq!(days.iter().map(|d| d.expense_cents).sum::<i64>(), 3_000);
+        let recurring = recurrence_rows(&connection, "2024-04", 2).expect("recurrence");
+        assert_eq!(recurring.len(), 1);
+        assert_eq!(crate::planner::card_usage(&connection, archived, "2024-03-01", "2024-03-31").expect("usage"), 0);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn clear_month_tombstones_dedupe_keys_pairs_transfers_and_unmarks_paid_invoices() {
+        let path = temporary_database("clear-invariants");
+        let mut connection = open(&path).expect("should open");
+        let checking = create_manual_account(&connection, "Conta").expect("checking");
+        let card = create_manual_account(&connection, "Cartão").expect("card");
+
+        let group = save_transfer(
+            &mut connection,
+            &TransferInput {
+                from_account_id: checking,
+                to_account_id: card,
+                posted_on: "2024-03-10".into(),
+                amount_cents: 15_000,
+                description: "Fatura Cartão".into(),
+                notes: String::new(),
+            },
+        )
+        .expect("transfer");
+
+        crate::planner::set_setting(
+            &connection,
+            "invoices_paid",
+            &serde_json::json!({
+                "1:2024-02": { "amountCents": 15_000, "paidOn": "2024-03-10", "transferGroup": group },
+                "1:2024-03": { "amountCents": 8_000, "paidOn": "2024-03-15" },
+                "1:2024-04": { "amountCents": 9_000, "paidOn": "2024-04-10" }
+            })
+            .to_string(),
+        )
+        .expect("invoices_paid");
+
+        let report = clear_month(&mut connection, "2024-03").expect("clear");
+        assert_eq!(report.manual_deleted, 2);
+
+        let keys: Vec<String> = {
+            let mut stmt = connection
+                .prepare("select dedupe_key from transactions where deleted_at is not null")
+                .unwrap();
+            stmt.query_map([], |row| row.get(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        assert_eq!(keys.len(), 2);
+        assert!(keys.iter().all(|key| key.contains(":del:")));
+
+        let remaining = crate::planner::get_setting(&connection, "invoices_paid")
+            .expect("read setting")
+            .expect("present");
+        let parsed: serde_json::Value = serde_json::from_str(&remaining).expect("json");
+        let map = parsed.as_object().expect("object");
+        assert!(!map.contains_key("1:2024-02"), "invoice linked to cleared transfer is unmarked");
+        assert!(!map.contains_key("1:2024-03"), "invoice of cleared month is unmarked");
+        assert!(map.contains_key("1:2024-04"), "unrelated month stays paid");
+
+        let _ = std::fs::remove_file(&path);
+    }
+    #[test]
+    fn cash_date_follows_the_invoice_due_date() {
+        // Nubank: closes on 24, due on 1 of the next month.
+        assert_eq!(cash_date("2026-11-05", Some(24), Some(1)), "2026-12-01");
+        assert_eq!(cash_date("2026-11-24", Some(24), Some(1)), "2026-12-01");
+        assert_eq!(cash_date("2026-11-25", Some(24), Some(1)), "2027-01-01");
+        // Closes on 5, due on 12 of the same month.
+        assert_eq!(cash_date("2026-11-05", Some(5), Some(12)), "2026-11-12");
+        assert_eq!(cash_date("2026-11-06", Some(5), Some(12)), "2026-12-12");
+        // Closing on 31 means the last day of a short month; due 31 clamps too.
+        assert_eq!(cash_date("2026-02-28", Some(31), Some(10)), "2026-03-10");
+        assert_eq!(cash_date("2026-03-15", Some(20), Some(31)), "2026-03-31");
+        assert_eq!(cash_date("2026-01-25", Some(20), Some(31)), "2026-02-28");
+        // Year rollover, and no card means the purchase date.
+        assert_eq!(cash_date("2026-12-28", Some(24), Some(1)), "2027-02-01");
+        assert_eq!(cash_date("2026-11-05", None, None), "2026-11-05");
+    }
+
+    #[test]
+    fn cash_basis_cards_count_purchases_in_the_month_the_invoice_is_due() {
+        let path = temporary_database("cash-basis");
+        let mut connection = open(&path).expect("should open");
+        let checking = create_manual_account(&connection, "Conta").expect("checking");
+        let card = create_manual_account(&connection, "Nubank").expect("card");
+        let food = budget_category(&connection, "Mercado");
+        spend(&connection, card, food, "2026-10-10", -188_700);
+        spend(&connection, card, food, "2026-11-05", -30_000);
+        // The October invoice is paid from checking on 1 November, as a transfer.
+        save_transfer(
+            &mut connection,
+            &TransferInput {
+                from_account_id: checking,
+                to_account_id: card,
+                posted_on: "2026-11-01".into(),
+                amount_cents: 188_700,
+                description: "Fatura Nubank".into(),
+                notes: String::new(),
+            },
+        )
+        .expect("transfer");
+        let card_input = |cash_basis| crate::planner::CardInput {
+            id: None,
+            account_id: card,
+            brand: "Nubank".into(),
+            last4: String::new(),
+            limit_cents: 0,
+            closing_day: 24,
+            due_day: 1,
+            color: "#820ad1".into(),
+            texture: "plain".into(),
+            cash_basis,
+        };
+        let id = crate::planner::save_card(&connection, &card_input(false)).expect("card");
+
+        // By purchase date, as before.
+        assert_eq!(month_totals(&connection, "2026-10").unwrap().expense_cents, 188_700);
+        assert_eq!(month_totals(&connection, "2026-11").unwrap().expense_cents, 30_000);
+
+        crate::planner::save_card(&connection, &crate::planner::CardInput { id: Some(id), ..card_input(true) }).expect("cash basis");
+        assert!(crate::planner::list_cards(&connection).unwrap()[0].cash_basis);
+
+        // By due date: what left the account in November is the October invoice, once.
+        assert_eq!(month_totals(&connection, "2026-10").unwrap().expense_cents, 0);
+        assert_eq!(month_totals(&connection, "2026-11").unwrap().expense_cents, 188_700);
+        assert_eq!(month_totals(&connection, "2026-12").unwrap().expense_cents, 30_000);
+        assert_eq!(category_totals(&connection, "2026-12").unwrap()[0].total_cents, 30_000);
+        let series = month_series(&connection, "2026-12", 3).unwrap();
+        assert_eq!(series.iter().map(|point| point.expense_cents).collect::<Vec<_>>(), vec![0, 188_700, 30_000]);
+        let by_category = category_month_series(&connection, "2026-12", 3).unwrap();
+        assert_eq!(by_category.iter().map(|row| (row.month.as_str(), row.total_cents)).collect::<Vec<_>>(), vec![("2026-11", 188_700), ("2026-12", 30_000)]);
+        let days = daily_expense(&connection, "2026-12").unwrap();
+        assert_eq!(days[0].expense_cents, 30_000, "counts on the due day");
+        let december = list_transactions(&connection, None, Some("2026-12"), None, 100, None).unwrap();
+        assert_eq!(december.iter().map(|row| row.posted_on.as_str()).collect::<Vec<_>>(), vec!["2026-11-05"]);
+        let results = account_month_results(&connection, "2026-12").unwrap();
+        assert_eq!(results.iter().find(|row| row.account_id == card).unwrap().result_cents, -30_000);
+
+        let _ = std::fs::remove_file(&path);
+    }
+    #[test]
+    fn ai_guide_recipes_run_against_the_current_schema() {
+        let path = temporary_database("ai-guide");
+        let connection = open(&path).expect("should open");
+        let checking = create_manual_account(&connection, "Conta").expect("checking");
+        let card = create_manual_account(&connection, "Nubank").expect("card");
+        crate::planner::save_card(
+            &connection,
+            &crate::planner::CardInput {
+                id: None,
+                account_id: card,
+                brand: "Nubank".into(),
+                last4: String::new(),
+                limit_cents: 0,
+                closing_day: 24,
+                due_day: 1,
+                color: "#820ad1".into(),
+                texture: "plain".into(),
+                cash_basis: false,
+            },
+        )
+        .expect("card");
+        let payment = save_manual_transaction(
+            &connection,
+            &ManualInput {
+                account_id: checking,
+                posted_on: "2026-11-01".into(),
+                amount_cents: -188_700,
+                description: "Pagamento fatura".into(),
+                category_id: None,
+                notes: String::new(),
+            },
+        )
+        .expect("payment");
+        let guide = AI_GUIDE.replace("123", &payment.to_string());
+        let blocks: Vec<&str> = guide.split("```sql").skip(1).map(|block| block.split("```").next().unwrap_or("")).collect();
+        assert!(blocks.len() >= 7, "the guide keeps its recipes");
+        // The delete recipe would undo the conversion below; run it on its own copy of the id.
+        for block in blocks.iter().filter(|block| !block.contains("dedupe_key || ':del:'")) {
+            connection.execute_batch(block).unwrap_or_else(|problem| panic!("recipe failed: {problem}\n{block}"));
+        }
+        // The payment became a transfer: it no longer counts as spending, and both legs exist.
+        assert_eq!(month_totals(&connection, "2026-11").unwrap().expense_cents, 0, "the payment is a transfer now");
+        assert_eq!(month_totals(&connection, "2026-12").unwrap().expense_cents, 30_000, "the card purchase counts on its due date");
+        let legs: i64 = connection
+            .query_row("select count(*) from transactions where transfer_group is not null and deleted_at is null", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(legs, 2);
+        assert!(crate::planner::list_cards(&connection).unwrap()[0].cash_basis);
+        let delete = blocks.iter().find(|block| block.contains("dedupe_key || ':del:'")).expect("delete recipe");
+        let pharmacy: i64 = connection.query_row("select id from transactions where description = 'Farmácia'", [], |row| row.get(0)).unwrap();
+        connection.execute_batch(&delete.replace(&payment.to_string(), &pharmacy.to_string())).expect("delete recipe");
+        assert_eq!(month_totals(&connection, "2026-12").unwrap().expense_cents, 0);
+
+        let folder = path.with_extension("guide");
+        std::fs::create_dir_all(&folder).unwrap();
+        write_ai_guide(&folder.join("trove.db"));
+        let written = std::fs::read_to_string(folder.join(AI_GUIDE_FILE)).expect("guide written");
+        assert!(written.contains(&format!("Versão do esquema: {SCHEMA_VERSION}")));
+        let _ = std::fs::remove_dir_all(&folder);
+        let _ = std::fs::remove_file(&path);
     }
 }

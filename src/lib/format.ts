@@ -19,16 +19,26 @@ export function setDisplayCurrency(next: DisplayCurrency): void {
   brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency });
 }
 
+export function currencySymbol(code: DisplayCurrency = currency): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: code })
+    .format(0)
+    .replace(/[\d.,\s\u00a0]/g, "");
+}
+
 /** "BRL · R$ Real brasileiro" in the app's language, for the picker. */
 export function currencyLabel(code: DisplayCurrency, lang: Lang): string {
   const locale = lang === "pt" ? "pt-BR" : "en-GB";
   const name = new Intl.DisplayNames([locale], { type: "currency" }).of(code) ?? code;
-  const symbol = new Intl.NumberFormat("pt-BR", { style: "currency", currency: code }).format(0).replace(/[\d.,\s\u00a0]/g, "");
+  const symbol = currencySymbol(code);
   return `${code} · ${symbol} ${name}`;
 }
 
 export function displayCurrency(): DisplayCurrency {
   return currency;
+}
+
+export function maskedAmount(): string {
+  return currency === "BRL" ? MASK : `${currencySymbol(currency)} ••••`;
 }
 
 /** "R$ 1,00" with the sign tucked in after the currency: "R$ -1,00". */
@@ -41,7 +51,7 @@ function withSign(cents: number, plus: boolean): string {
 }
 
 export function formatCents(cents: number): string {
-  if (isPrivate()) return MASK;
+  if (isPrivate()) return maskedAmount();
   return withSign(cents, false);
 }
 
@@ -51,7 +61,7 @@ export function formatSignedCents(cents: number): string {
 
 /** An amount that always shows its direction, "R$ +85,00" or "R$ -85,00"; masked, no sign leaks. */
 export function formatDelta(cents: number): string {
-  if (isPrivate()) return MASK;
+  if (isPrivate()) return maskedAmount();
   return withSign(cents, true);
 }
 

@@ -64,6 +64,8 @@ pub struct CardMeta {
     pub due_day: i64,
     pub color: String,
     pub texture: String,
+    /// Purchases count in the month the invoice is due, not the month they were made.
+    pub cash_basis: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -223,6 +225,8 @@ pub struct CardInput {
     pub due_day: i64,
     pub color: String,
     pub texture: String,
+    #[serde(default)]
+    pub cash_basis: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -246,6 +250,99 @@ fn default_goal_icon() -> String {
 
 fn now() -> String {
     Utc::now().to_rfc3339()
+}
+
+fn current_month() -> String {
+    chrono::Local::now().format("%Y-%m").to_string()
+}
+
+fn check_day(day: i64, label: &str) -> Result<(), String> {
+    if !(1..=31).contains(&day) {
+        return Err(format!("{label} must be between 1 and 31"));
+    }
+    Ok(())
+}
+
+fn check_frequency(frequency: &str) -> Result<(), String> {
+    match frequency {
+        "monthly" | "once" | "yearly" => Ok(()),
+        other => Err(format!("unknown frequency: {other}")),
+    }
+}
+
+fn ensure_account_alive(connection: &Connection, id: i64) -> Result<(), String> {
+    let found: Option<i64> = connection
+        .query_row(
+            "select id from accounts where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if found.is_none() {
+        return Err(format!("account {id} does not exist"));
+    }
+    Ok(())
+}
+
+fn ensure_person_alive(connection: &Connection, id: i64) -> Result<(), String> {
+    let found: Option<i64> = connection
+        .query_row(
+            "select id from people where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if found.is_none() {
+        return Err(format!("person {id} does not exist"));
+    }
+    Ok(())
+}
+
+fn ensure_category_alive(connection: &Connection, id: i64) -> Result<(), String> {
+    let found: Option<i64> = connection
+        .query_row(
+            "select id from categories where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if found.is_none() {
+        return Err(format!("category {id} does not exist"));
+    }
+    Ok(())
+}
+
+fn ensure_goal_alive(connection: &Connection, id: i64) -> Result<(), String> {
+    let found: Option<i64> = connection
+        .query_row(
+            "select id from goals where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if found.is_none() {
+        return Err(format!("goal {id} does not exist"));
+    }
+    Ok(())
+}
+
+fn ensure_bill_alive(connection: &Connection, id: i64) -> Result<(), String> {
+    let found: Option<i64> = connection
+        .query_row(
+            "select id from bills where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
+    if found.is_none() {
+        return Err(format!("bill {id} does not exist"));
+    }
+    Ok(())
 }
 
 pub fn list_incomes(connection: &Connection) -> Result<Vec<Income>, String> {
@@ -289,18 +386,58 @@ fn previous_month(month: &str) -> Option<String> {
 }
 
 pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("income name must not be empty".to_string());
+    }
+    if name.chars().count() > 80 {
+        return Err("income name is too long".to_string());
+    }
+    if input.amount_cents < 0 {
+        return Err("income amount must not be negative".to_string());
+    }
+    check_frequency(&input.frequency)?;
+    check_day(input.pay_day, "pay day")?;
+    if let Some(account_id) = input.account_id {
+        ensure_account_alive(connection, account_id)?;
+    }
+    if let Some(person_id) = input.person_id {
+        ensure_person_alive(connection, person_id)?;
+    }
+    let from_month = input
+        .from_month
+        .as_deref()
+        .map(str::trim)
+        .filter(|month| !month.is_empty());
+    if let Some(from) = from_month {
+        crate::db::check_month(from)?;
+    }
+
     let stamp = now();
+    let rebalance_at = from_month
+        .map(str::to_string)
+        .unwrap_or_else(current_month);
+
     match input.id {
         Some(id) => {
-            if let Some(from) = input.from_month.as_deref().filter(|month| !month.is_empty()) {
-                let (starts, ends): (String, String) = connection
-                    .query_row(
-                        "select starts_on, ends_on from incomes where id = ?1",
-                        params![id],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
-                    )
-                    .map_err(|problem| problem.to_string())?;
-                if starts.as_str() < from {
+            let (starts, ends, old_person): (String, String, Option<i64>) = connection
+                .query_row(
+                    "select starts_on, ends_on, person_id from incomes where id = ?1 and deleted_at is null",
+                    params![id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()
+                .map_err(|problem| problem.to_string())?
+                .ok_or_else(|| format!("income {id} does not exist"))?;
+            if old_person != input.person_id {
+                if let Some(prev_id) = old_person {
+                    connection
+                        .execute("update people set income_cents = 0 where id = ?1", params![prev_id])
+                        .map_err(|problem| problem.to_string())?;
+                }
+            }
+            if let Some(from) = from_month {
+                if starts.as_str() < from && (ends.is_empty() || from <= ends.as_str()) {
                     if let Some(before) = previous_month(from) {
                         connection
                             .execute(
@@ -315,7 +452,7 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                                   person_id, visibility, created_at, updated_at, starts_on, ends_on)
                                  values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'shared', ?8, ?8, ?9, ?10)",
                                 params![
-                                    input.name,
+                                    name,
                                     input.amount_cents,
                                     input.frequency,
                                     input.pay_day,
@@ -328,8 +465,9 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                                 ],
                             )
                             .map_err(|problem| problem.to_string())?;
-                        rebalance_weights(connection, false)?;
-                        return Ok(connection.last_insert_rowid());
+                        let new_id = connection.last_insert_rowid();
+                        rebalance_weights_in(connection, false, &rebalance_at)?;
+                        return Ok(new_id);
                     }
                 }
             }
@@ -338,9 +476,9 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                     "update incomes
                      set name = ?1, amount_cents = ?2, frequency = ?3, pay_day = ?4,
                          account_id = ?5, active = ?6, person_id = ?7, updated_at = ?8
-                     where id = ?9",
+                     where id = ?9 and deleted_at is null",
                     params![
-                        input.name,
+                        name,
                         input.amount_cents,
                         input.frequency,
                         input.pay_day,
@@ -352,7 +490,7 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
-            rebalance_weights(connection, false)?;
+            rebalance_weights_in(connection, false, &rebalance_at)?;
             Ok(id)
         }
         None => {
@@ -363,7 +501,7 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                       person_id, visibility, created_at, updated_at)
                      values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'shared', ?8, ?8)",
                     params![
-                        input.name,
+                        name,
                         input.amount_cents,
                         input.frequency,
                         input.pay_day,
@@ -374,13 +512,22 @@ pub fn save_income(connection: &Connection, input: &IncomeInput) -> Result<i64, 
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
-            rebalance_weights(connection, false)?;
-            Ok(connection.last_insert_rowid())
+            let new_id = connection.last_insert_rowid();
+            rebalance_weights_in(connection, false, &rebalance_at)?;
+            Ok(new_id)
         }
     }
 }
 
 pub fn delete_income(connection: &Connection, id: i64) -> Result<(), String> {
+    let old_person: Option<Option<i64>> = connection
+        .query_row(
+            "select person_id from incomes where id = ?1 and deleted_at is null",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|problem| problem.to_string())?;
     let stamp = now();
     connection
         .execute(
@@ -388,6 +535,14 @@ pub fn delete_income(connection: &Connection, id: i64) -> Result<(), String> {
             params![stamp, id],
         )
         .map_err(|problem| problem.to_string())?;
+    if let Some(Some(person_id)) = old_person {
+        connection
+            .execute(
+                "update people set income_cents = 0 where id = ?1",
+                params![person_id],
+            )
+            .map_err(|problem| problem.to_string())?;
+    }
     rebalance_weights(connection, false)?;
     Ok(())
 }
@@ -453,18 +608,58 @@ pub fn list_bills(connection: &Connection) -> Result<Vec<Bill>, String> {
 }
 
 pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("bill name must not be empty".to_string());
+    }
+    if name.chars().count() > 80 {
+        return Err("bill name is too long".to_string());
+    }
+    if input.amount_cents < 0 {
+        return Err("bill amount must not be negative".to_string());
+    }
+    check_day(input.due_day, "due day")?;
+    check_frequency(&input.frequency)?;
+    crate::db::check_date(&input.starts_on)?;
+    let ends_on = input
+        .ends_on
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    if let Some(ref end) = ends_on {
+        crate::db::check_date(end)?;
+        if end.as_str() < input.starts_on.as_str() {
+            return Err("bill end date is before its start".to_string());
+        }
+    }
+    if let Some(total) = input.installments_total {
+        if !(1..=600).contains(&total) {
+            return Err("installments total is out of range".to_string());
+        }
+    }
+    if let Some(category_id) = input.category_id {
+        ensure_category_alive(connection, category_id)?;
+    }
+    if let Some(account_id) = input.account_id {
+        ensure_account_alive(connection, account_id)?;
+    }
+    if let Some(goal_id) = input.goal_id {
+        ensure_goal_alive(connection, goal_id)?;
+    }
+
     let stamp = now();
     match input.id {
         Some(id) => {
-            connection
+            let affected = connection
                 .execute(
                     "update bills
                      set name = ?1, amount_cents = ?2, due_day = ?3, frequency = ?4,
                          category_id = ?5, account_id = ?6, goal_id = ?7, starts_on = ?8,
                          ends_on = ?9, active = ?10, updated_at = ?11, installments_total = ?12
-                     where id = ?13",
+                     where id = ?13 and deleted_at is null",
                     params![
-                        input.name,
+                        name,
                         input.amount_cents,
                         input.due_day,
                         input.frequency,
@@ -472,7 +667,7 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                         input.account_id,
                         input.goal_id,
                         input.starts_on,
-                        input.ends_on,
+                        ends_on,
                         input.active as i64,
                         stamp,
                         input.installments_total,
@@ -480,6 +675,9 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
+            if affected == 0 {
+                return Err(format!("bill {id} does not exist"));
+            }
             Ok(id)
         }
         None => {
@@ -491,7 +689,7 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                      values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
                              'shared', ?12, ?12)",
                     params![
-                        input.name,
+                        name,
                         input.amount_cents,
                         input.due_day,
                         input.frequency,
@@ -499,7 +697,7 @@ pub fn save_bill(connection: &Connection, input: &BillInput) -> Result<i64, Stri
                         input.account_id,
                         input.goal_id,
                         input.starts_on,
-                        input.ends_on,
+                        ends_on,
                         input.active as i64,
                         input.installments_total,
                         stamp
@@ -557,6 +755,7 @@ pub fn set_bill_paid(
 ) -> Result<(), String> {
     crate::db::check_month(month)?;
     if paid {
+        ensure_bill_alive(connection, bill_id)?;
         let stamp = now();
         connection
             .execute(
@@ -565,7 +764,8 @@ pub fn set_bill_paid(
                  values (lower(hex(randomblob(16))), ?1, ?2, ?3,
                          (select amount_cents from bills where id = ?1), ?3, ?3)
                  on conflict (bill_id, month) do update
-                    set paid_on = excluded.paid_on, updated_at = excluded.updated_at",
+                    set paid_on = excluded.paid_on, amount_cents = excluded.amount_cents,
+                        updated_at = excluded.updated_at, deleted_at = null",
                 params![bill_id, month, stamp],
             )
             .map_err(|problem| problem.to_string())?;
@@ -584,7 +784,7 @@ pub fn list_cards(connection: &Connection) -> Result<Vec<CardMeta>, String> {
     let mut statement = connection
         .prepare(
             "select k.id, k.account_id, a.name, k.brand, k.last4, k.limit_cents,
-                    k.closing_day, k.due_day, k.color, k.texture
+                    k.closing_day, k.due_day, k.color, k.texture, k.cash_basis
              from cards k
              join accounts a on a.id = k.account_id
              where k.deleted_at is null and a.deleted_at is null
@@ -604,6 +804,7 @@ pub fn list_cards(connection: &Connection) -> Result<Vec<CardMeta>, String> {
                 due_day: row.get(7)?,
                 color: row.get(8)?,
                 texture: row.get(9)?,
+                cash_basis: row.get(10)?,
             })
         })
         .map_err(|problem| problem.to_string())?;
@@ -639,29 +840,67 @@ pub fn reorder_cards(connection: &Connection, ids: &[i64]) -> Result<(), String>
 }
 
 pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, String> {
+    ensure_account_alive(connection, input.account_id)?;
+    let brand = input.brand.trim();
+    if brand.chars().count() > 60 {
+        return Err("card brand is too long".to_string());
+    }
+    let last4 = input.last4.trim();
+    if last4.chars().count() > 4 || !last4.chars().all(|ch| ch.is_ascii_digit()) {
+        return Err("card last4 must be up to 4 digits".to_string());
+    }
+    if input.limit_cents < 0 {
+        return Err("card limit must not be negative".to_string());
+    }
+    check_day(input.closing_day, "closing day")?;
+    check_day(input.due_day, "due day")?;
+    let color = input.color.trim();
+    if color.is_empty() || color.chars().count() > 32 {
+        return Err("card color is invalid".to_string());
+    }
+    let texture = input.texture.trim();
+    if texture.is_empty() || texture.chars().count() > 40 {
+        return Err("card texture is invalid".to_string());
+    }
+
     let stamp = now();
     match input.id {
         Some(id) => {
-            connection
+            let conflicting: i64 = connection
+                .query_row(
+                    "select count(*) from cards where account_id = ?1 and id <> ?2 and deleted_at is null",
+                    params![input.account_id, id],
+                    |row| row.get(0),
+                )
+                .map_err(|problem| problem.to_string())?;
+            if conflicting > 0 {
+                return Err("this account already has a card".to_string());
+            }
+            let affected = connection
                 .execute(
                     "update cards
                      set account_id = ?1, brand = ?2, last4 = ?3, limit_cents = ?4,
-                         closing_day = ?5, due_day = ?6, color = ?7, texture = ?8, updated_at = ?9
-                     where id = ?10",
+                         closing_day = ?5, due_day = ?6, color = ?7, texture = ?8, updated_at = ?9,
+                         cash_basis = ?11
+                     where id = ?10 and deleted_at is null",
                     params![
                         input.account_id,
-                        input.brand,
-                        input.last4,
+                        brand,
+                        last4,
                         input.limit_cents,
                         input.closing_day,
                         input.due_day,
-                        input.color,
-                        input.texture,
+                        color,
+                        texture,
                         stamp,
-                        id
+                        id,
+                        input.cash_basis
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
+            if affected == 0 {
+                return Err(format!("card {id} does not exist"));
+            }
             Ok(id)
         }
         None => {
@@ -681,27 +920,28 @@ pub fn save_card(connection: &Connection, input: &CardInput) -> Result<i64, Stri
                 .execute(
                     "insert into cards
                      (uid, account_id, brand, last4, limit_cents, closing_day, due_day, color,
-                      texture, created_at, updated_at, position)
+                      texture, created_at, updated_at, position, cash_basis)
                      values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9,
                              (select coalesce(max(position) + 1, 0) from cards
-                              where deleted_at is null))
+                              where deleted_at is null), ?10)
                      on conflict (account_id) do update
                         set brand = excluded.brand, last4 = excluded.last4,
                             limit_cents = excluded.limit_cents,
                             closing_day = excluded.closing_day, due_day = excluded.due_day,
                             color = excluded.color, texture = excluded.texture,
                             updated_at = excluded.updated_at, deleted_at = null,
-                            position = excluded.position",
+                            position = excluded.position, cash_basis = excluded.cash_basis",
                     params![
                         input.account_id,
-                        input.brand,
-                        input.last4,
+                        brand,
+                        last4,
                         input.limit_cents,
                         input.closing_day,
                         input.due_day,
-                        input.color,
-                        input.texture,
-                        stamp
+                        color,
+                        texture,
+                        stamp,
+                        input.cash_basis
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
@@ -746,29 +986,61 @@ pub fn list_goals(connection: &Connection) -> Result<Vec<Goal>, String> {
 }
 
 pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("goal name must not be empty".to_string());
+    }
+    if name.chars().count() > 80 {
+        return Err("goal name is too long".to_string());
+    }
+    if !["reserve", "goal", "retirement"].contains(&input.kind.as_str()) {
+        return Err(format!("unknown goal kind: {}", input.kind));
+    }
+    if input.target_cents < 0 {
+        return Err("goal target must not be negative".to_string());
+    }
+    if input.monthly_cents < 0 {
+        return Err("goal monthly deposit must not be negative".to_string());
+    }
+    crate::db::check_date(&input.starts_on)?;
+    if let Some(account_id) = input.account_id {
+        ensure_account_alive(connection, account_id)?;
+    }
+    let color = input.color.trim();
+    if color.is_empty() || color.chars().count() > 32 {
+        return Err("goal color is invalid".to_string());
+    }
+    let icon = input.icon.trim();
+    if icon.chars().count() > 40 {
+        return Err("goal icon is invalid".to_string());
+    }
+
     let stamp = now();
     match input.id {
         Some(id) => {
-            connection
+            let affected = connection
                 .execute(
                     "update goals
                      set name = ?1, kind = ?2, target_cents = ?3, monthly_cents = ?4,
                          starts_on = ?5, account_id = ?6, color = ?7, icon = ?8, updated_at = ?9
-                     where id = ?10",
+                     where id = ?10 and deleted_at is null",
                     params![
-                        input.name,
+                        name,
                         input.kind,
                         input.target_cents,
                         input.monthly_cents,
                         input.starts_on,
                         input.account_id,
-                        input.color,
-                        input.icon,
+                        color,
+                        icon,
                         stamp,
                         id
                     ],
                 )
                 .map_err(|problem| problem.to_string())?;
+            if affected == 0 {
+                return Err(format!("goal {id} does not exist"));
+            }
             Ok(id)
         }
         None => {
@@ -779,14 +1051,14 @@ pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, Stri
                       visibility, created_at, updated_at)
                      values (lower(hex(randomblob(16))), ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'shared', ?9, ?9)",
                     params![
-                        input.name,
+                        name,
                         input.kind,
                         input.target_cents,
                         input.monthly_cents,
                         input.starts_on,
                         input.account_id,
-                        input.color,
-                        input.icon,
+                        color,
+                        icon,
                         stamp
                     ],
                 )
@@ -801,11 +1073,12 @@ pub fn save_goal(connection: &Connection, input: &GoalInput) -> Result<i64, Stri
 pub fn card_usage(connection: &Connection, account_id: i64, from: &str, to: &str) -> Result<i64, String> {
     connection
         .query_row(
-            "select coalesce(sum(case when amount_cents < 0 then -amount_cents else 0 end), 0)
-                    - coalesce(sum(case when amount_cents > 0 then amount_cents else 0 end), 0)
-             from transactions
-             where account_id = ?1 and posted_on > ?2 and posted_on <= ?3
-               and deleted_at is null",
+            "select coalesce(sum(case when t.amount_cents < 0 then -t.amount_cents else 0 end), 0)
+                    - coalesce(sum(case when t.amount_cents > 0 then t.amount_cents else 0 end), 0)
+             from transactions t
+             join accounts a on a.id = t.account_id
+             where t.account_id = ?1 and t.posted_on > ?2 and t.posted_on <= ?3
+               and t.deleted_at is null and a.deleted_at is null",
             params![account_id, from, to],
             |row| row.get::<_, i64>(0),
         )
@@ -893,18 +1166,16 @@ pub fn set_setting(connection: &Connection, key: &str, value: &str) -> Result<()
     Ok(())
 }
 
-/// The target split follows what each person earns. With anyone at zero it stays
-/// where it was, unless the household just changed (`reset`), when it goes back
-/// to equal shares. The first person takes the rounding remainder.
-fn rebalance_weights(connection: &Connection, reset: bool) -> Result<(), String> {
-    let people = list_people(connection)?;
+/// Computes target weights from `people`. With anyone at zero it returns `None`
+/// unless `reset` asks for equal shares. The first person takes the rounding remainder.
+fn compute_weights(people: &[Person], reset: bool) -> Option<Vec<i64>> {
     if people.len() < 2 {
-        return Ok(());
+        return None;
     }
     let total: i64 = people.iter().map(|person| person.income_cents).sum();
     let proportional = people.iter().all(|person| person.income_cents > 0);
     if !proportional && !reset {
-        return Ok(());
+        return None;
     }
     let count = people.len() as i64;
     let mut weights: Vec<i64> = people
@@ -919,12 +1190,27 @@ fn rebalance_weights(connection: &Connection, reset: bool) -> Result<(), String>
         .collect();
     let rest: i64 = weights.iter().skip(1).sum();
     weights[0] = 100 - rest;
+    Some(weights)
+}
+
+/// The target split follows what each person earns. With anyone at zero it stays
+/// where it was, unless the household just changed (`reset`), when it goes back
+/// to equal shares. The first person takes the rounding remainder.
+fn rebalance_weights_in(connection: &Connection, reset: bool, month: &str) -> Result<(), String> {
+    let people = list_people_in(connection, month)?;
+    let Some(weights) = compute_weights(&people, reset) else {
+        return Ok(());
+    };
     for (person, weight) in people.iter().zip(weights) {
         connection
             .execute("update people set weight_pct = ?1 where id = ?2", params![weight, person.id])
             .map_err(|problem| problem.to_string())?;
     }
     Ok(())
+}
+
+fn rebalance_weights(connection: &Connection, reset: bool) -> Result<(), String> {
+    rebalance_weights_in(connection, reset, &current_month())
 }
 
 const PERSON_COLORS: [&str; 6] = ["#2563eb", "#f43f5e", "#16a34a", "#f59e0b", "#7c3aed", "#0ea5e9"];
@@ -996,20 +1282,30 @@ pub fn delete_person(connection: &Connection, id: i64) -> Result<(), String> {
     rebalance_weights(connection, true)
 }
 
-pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
+pub fn list_people_in(connection: &Connection, month: &str) -> Result<Vec<Person>, String> {
     let mut statement = connection
         .prepare(
             "select id, name, color, is_self, weight_pct,
-                    coalesce((select sum(amount_cents) from incomes
-                              where person_id = people.id and active = 1 and deleted_at is null and ends_on = ''),
-                             income_cents)
+                    case
+                      when exists (select 1 from incomes where person_id = people.id)
+                      then coalesce((
+                          select sum(amount_cents) from incomes
+                          where person_id = people.id
+                            and active = 1
+                            and frequency = 'monthly'
+                            and deleted_at is null
+                            and (starts_on = '' or starts_on <= ?1)
+                            and (ends_on = '' or ends_on >= ?1)
+                      ), 0)
+                      else income_cents
+                    end
              from people
              where deleted_at is null
              order by is_self desc, id",
         )
         .map_err(|problem| problem.to_string())?;
     let rows = statement
-        .query_map([], |row| {
+        .query_map(params![month], |row| {
             Ok(Person {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -1020,14 +1316,25 @@ pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
             })
         })
         .map_err(|problem| problem.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|problem| problem.to_string())
+    let mut people = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|problem| problem.to_string())?;
+    if let Some(weights) = compute_weights(&people, false) {
+        for (person, weight) in people.iter_mut().zip(weights) {
+            person.weight_pct = weight;
+        }
+    }
+    Ok(people)
+}
+
+pub fn list_people(connection: &Connection) -> Result<Vec<Person>, String> {
+    list_people_in(connection, &current_month())
 }
 
 /// Two people are the whole model for now: me and whoever shares the house.
 /// Seeding is idempotent and happens on read, so the UI never has to guess.
-pub fn ensure_people(connection: &Connection) -> Result<Vec<Person>, String> {
-    let existing = list_people(connection)?;
+pub fn ensure_people_in(connection: &Connection, month: &str) -> Result<Vec<Person>, String> {
+    let existing = list_people_in(connection, month)?;
     if !existing.is_empty() {
         return Ok(existing);
     }
@@ -1044,7 +1351,11 @@ pub fn ensure_people(connection: &Connection) -> Result<Vec<Person>, String> {
             )
             .map_err(|problem| problem.to_string())?;
     }
-    list_people(connection)
+    list_people_in(connection, month)
+}
+
+pub fn ensure_people(connection: &Connection) -> Result<Vec<Person>, String> {
+    ensure_people_in(connection, &current_month())
 }
 
 /// Name and monthly income of one person. When both people have an income the
@@ -1105,13 +1416,15 @@ pub fn list_shares(connection: &Connection) -> Result<Vec<Share>, String> {
 
 /// One payer per bill: assigning the same bill twice replaces the payer.
 pub fn set_share(connection: &Connection, input: &ShareInput) -> Result<(), String> {
+    ensure_bill_alive(connection, input.bill_id)?;
+    ensure_person_alive(connection, input.person_id)?;
     let stamp = now();
     connection
         .execute(
             "insert into shares (uid, bill_id, person_id, percent, created_at, updated_at)
              values (lower(hex(randomblob(16))), ?1, ?2, 100, ?3, ?3)
              on conflict (bill_id) do update
-                set person_id = excluded.person_id, updated_at = excluded.updated_at",
+                set person_id = excluded.person_id, updated_at = excluded.updated_at, deleted_at = null",
             params![input.bill_id, input.person_id, stamp],
         )
         .map_err(|problem| problem.to_string())?;
@@ -1305,6 +1618,7 @@ pub fn save_deposit(connection: &Connection, input: &DepositInput) -> Result<i64
 }
 
 pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, String> {
+    crate::db::check_month(month)?;
     Ok(PlannerState {
         incomes: list_incomes(connection)?,
         bills: list_bills(connection)?,
@@ -1313,7 +1627,7 @@ pub fn state(connection: &Connection, month: &str) -> Result<PlannerState, Strin
         goals: list_goals(connection)?,
         goal_totals: goal_totals(connection)?,
         reads: list_reads(connection)?,
-        people: ensure_people(connection)?,
+        people: ensure_people_in(connection, month)?,
         shares: list_shares(connection)?,
         debts: list_debts(connection, month)?,
     })
@@ -1360,6 +1674,7 @@ mod tests {
             due_day: 12,
             color: "#2b2b2d".into(),
             texture: "plain".into(),
+            cash_basis: false,
         }
     }
 
@@ -1894,5 +2209,229 @@ mod tests {
         assert_eq!(list_people(&connection).expect("should list").len(), 2);
         assert!(list_incomes(&connection).expect("should list")[0].person_id.is_none());
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn monthly_incomes_drive_per_month_weights_and_deleting_resets_to_zero() {
+        let path = temporary_database("people_month_weights");
+        let connection = db::open(&path).expect("should open");
+        let people = ensure_people(&connection).expect("should seed");
+        let me = people[0].id;
+        let partner = people[1].id;
+
+        let my_salary = save_income(
+            &connection,
+            &IncomeInput {
+                id: None,
+                name: "Salário".into(),
+                amount_cents: 500_000,
+                frequency: "monthly".into(),
+                pay_day: 5,
+                account_id: None,
+                active: true,
+                person_id: Some(me),
+                from_month: None,
+            },
+        )
+        .expect("my salary");
+        save_income(
+            &connection,
+            &IncomeInput {
+                id: None,
+                name: "Salário Parceiro".into(),
+                amount_cents: 500_000,
+                frequency: "monthly".into(),
+                pay_day: 5,
+                account_id: None,
+                active: true,
+                person_id: Some(partner),
+                from_month: None,
+            },
+        )
+        .expect("partner salary");
+
+        // A one-off bonus must not skew the permanent household split.
+        save_income(
+            &connection,
+            &IncomeInput {
+                id: None,
+                name: "Bônus único".into(),
+                amount_cents: 1_000_000,
+                frequency: "once".into(),
+                pay_day: 15,
+                account_id: None,
+                active: true,
+                person_id: Some(me),
+                from_month: None,
+            },
+        )
+        .expect("once bonus");
+
+        let oct = state(&connection, "2026-10").expect("oct state");
+        assert_eq!((oct.people[0].income_cents, oct.people[1].income_cents), (500_000, 500_000));
+        assert_eq!((oct.people[0].weight_pct, oct.people[1].weight_pct), (50, 50));
+
+        // Future raise from December keeps October/November at 50/50 while December becomes 75/25.
+        let dec_salary = save_income(
+            &connection,
+            &IncomeInput {
+                id: Some(my_salary),
+                name: "Salário".into(),
+                amount_cents: 1_500_000,
+                frequency: "monthly".into(),
+                pay_day: 5,
+                account_id: None,
+                active: true,
+                person_id: Some(me),
+                from_month: Some("2026-12".into()),
+            },
+        )
+        .expect("december raise");
+
+        let nov = state(&connection, "2026-11").expect("nov state");
+        assert_eq!((nov.people[0].income_cents, nov.people[0].weight_pct), (500_000, 50));
+        let dec = state(&connection, "2026-12").expect("dec state");
+        assert_eq!((dec.people[0].income_cents, dec.people[0].weight_pct), (1_500_000, 75));
+
+        // Saving profile name/colour stores a snapshot in `people.income_cents`, yet
+        // deleting the income sources still drops the person's monthly income back to 0.
+        save_person(
+            &connection,
+            &PersonInput { id: me, name: "Você".into(), income_cents: 1_500_000, color: None },
+        )
+        .expect("save person");
+        delete_income(&connection, my_salary).expect("delete old");
+        delete_income(&connection, dec_salary).expect("delete new");
+        let after_delete = state(&connection, "2026-12").expect("state after delete");
+        assert_eq!(after_delete.people[0].income_cents, 0);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn planner_inputs_refuse_invalid_names_days_amounts_and_links() {
+        let path = temporary_database("planner_guards");
+        let connection = db::open(&path).expect("should open");
+        let account = db::create_manual_account(&connection, "Conta").expect("account");
+        let people = ensure_people(&connection).expect("seed");
+
+        let good_income = IncomeInput {
+            id: None,
+            name: "Salário".into(),
+            amount_cents: 100_000,
+            frequency: "monthly".into(),
+            pay_day: 5,
+            account_id: Some(account),
+            active: true,
+            person_id: Some(people[0].id),
+            from_month: None,
+        };
+        assert!(save_income(&connection, &IncomeInput { name: "  ".into(), ..good_income_clone(&good_income) }).is_err());
+        assert!(save_income(&connection, &IncomeInput { amount_cents: -1, ..good_income_clone(&good_income) }).is_err());
+        assert!(save_income(&connection, &IncomeInput { pay_day: 0, ..good_income_clone(&good_income) }).is_err());
+        assert!(save_income(&connection, &IncomeInput { pay_day: 32, ..good_income_clone(&good_income) }).is_err());
+        assert!(save_income(&connection, &IncomeInput { frequency: "weekly".into(), ..good_income_clone(&good_income) }).is_err());
+        assert!(save_income(&connection, &IncomeInput { account_id: Some(999_999), ..good_income_clone(&good_income) }).is_err());
+        assert!(save_income(&connection, &IncomeInput { person_id: Some(999_999), ..good_income_clone(&good_income) }).is_err());
+        // Zero amount is allowed for spreadsheet placeholder rows.
+        assert!(save_income(&connection, &IncomeInput { amount_cents: 0, ..good_income_clone(&good_income) }).is_ok());
+
+        let base_bill = bill_input();
+        assert!(save_bill(&connection, &BillInput { name: " ".into(), ..bill_clone(&base_bill) }).is_err());
+        assert!(save_bill(&connection, &BillInput { amount_cents: -10, ..bill_clone(&base_bill) }).is_err());
+        assert!(save_bill(&connection, &BillInput { due_day: 32, ..bill_clone(&base_bill) }).is_err());
+        assert!(save_bill(&connection, &BillInput { starts_on: "bad".into(), ..bill_clone(&base_bill) }).is_err());
+        assert!(save_bill(&connection, &BillInput { ends_on: Some("2025-01-01".into()), ..bill_clone(&base_bill) }).is_err());
+        assert!(save_bill(&connection, &BillInput { installments_total: Some(0), ..bill_clone(&base_bill) }).is_err());
+        assert!(set_bill_paid(&connection, 999_999, "2026-11", true).is_err());
+
+        let base_card = card_input(account, "visa");
+        assert!(save_card(&connection, &CardInput { account_id: 999_999, ..card_clone(&base_card) }).is_err());
+        assert!(save_card(&connection, &CardInput { last4: "12ab".into(), ..card_clone(&base_card) }).is_err());
+        assert!(save_card(&connection, &CardInput { limit_cents: -1, ..card_clone(&base_card) }).is_err());
+        assert!(save_card(&connection, &CardInput { closing_day: 0, ..card_clone(&base_card) }).is_err());
+        assert!(save_card(&connection, &CardInput { due_day: 40, ..card_clone(&base_card) }).is_err());
+
+        let base_goal = GoalInput {
+            id: None,
+            name: "Reserva".into(),
+            kind: "reserve".into(),
+            target_cents: 10_000,
+            monthly_cents: 1_000,
+            starts_on: "2026-01-01".into(),
+            account_id: Some(account),
+            color: "#16a34a".into(),
+            icon: "target".into(),
+        };
+        assert!(save_goal(&connection, &GoalInput { name: "".into(), ..goal_clone(&base_goal) }).is_err());
+        assert!(save_goal(&connection, &GoalInput { kind: "crypto".into(), ..goal_clone(&base_goal) }).is_err());
+        assert!(save_goal(&connection, &GoalInput { target_cents: -1, ..goal_clone(&base_goal) }).is_err());
+        assert!(save_goal(&connection, &GoalInput { monthly_cents: -1, ..goal_clone(&base_goal) }).is_err());
+        assert!(save_goal(&connection, &GoalInput { starts_on: "soon".into(), ..goal_clone(&base_goal) }).is_err());
+        assert!(save_goal(&connection, &GoalInput { account_id: Some(999_999), ..goal_clone(&base_goal) }).is_err());
+
+        assert!(set_share(&connection, &ShareInput { bill_id: 999_999, person_id: people[0].id }).is_err());
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    fn good_income_clone(input: &IncomeInput) -> IncomeInput {
+        IncomeInput {
+            id: input.id,
+            name: input.name.clone(),
+            amount_cents: input.amount_cents,
+            frequency: input.frequency.clone(),
+            pay_day: input.pay_day,
+            account_id: input.account_id,
+            active: input.active,
+            person_id: input.person_id,
+            from_month: input.from_month.clone(),
+        }
+    }
+
+    fn bill_clone(input: &BillInput) -> BillInput {
+        BillInput {
+            id: input.id,
+            name: input.name.clone(),
+            amount_cents: input.amount_cents,
+            due_day: input.due_day,
+            frequency: input.frequency.clone(),
+            category_id: input.category_id,
+            account_id: input.account_id,
+            goal_id: input.goal_id,
+            starts_on: input.starts_on.clone(),
+            ends_on: input.ends_on.clone(),
+            installments_total: input.installments_total,
+            active: input.active,
+        }
+    }
+
+    fn card_clone(input: &CardInput) -> CardInput {
+        CardInput {
+            id: input.id,
+            account_id: input.account_id,
+            brand: input.brand.clone(),
+            last4: input.last4.clone(),
+            limit_cents: input.limit_cents,
+            closing_day: input.closing_day,
+            due_day: input.due_day,
+            color: input.color.clone(),
+            texture: input.texture.clone(),
+            cash_basis: input.cash_basis,
+        }
+    }
+
+    fn goal_clone(input: &GoalInput) -> GoalInput {
+        GoalInput {
+            id: input.id,
+            name: input.name.clone(),
+            kind: input.kind.clone(),
+            target_cents: input.target_cents,
+            monthly_cents: input.monthly_cents,
+            starts_on: input.starts_on.clone(),
+            account_id: input.account_id,
+            color: input.color.clone(),
+            icon: input.icon.clone(),
+        }
     }
 }

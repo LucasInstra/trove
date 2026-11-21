@@ -523,7 +523,21 @@ fn restore_database(app: tauri::AppHandle, path: String) -> Result<(), String> {
     if source == dest {
         return Err("backup and live database are the same file".to_string());
     }
-    std::fs::copy(&source, &dest).map_err(|problem| problem.to_string())?;
+    let mut temp_name = dest.file_name().unwrap_or_default().to_os_string();
+    temp_name.push(".restore.tmp");
+    let temp = dest.with_file_name(temp_name);
+    let _ = std::fs::remove_file(&temp);
+    std::fs::copy(&source, &temp).map_err(|problem| problem.to_string())?;
+    for suffix in ["-wal", "-shm", "-journal"] {
+        let mut stale = dest.clone().into_os_string();
+        stale.push(suffix);
+        let _ = std::fs::remove_file(stale);
+    }
+    if let Err(problem) = std::fs::rename(&temp, &dest) {
+        let copy_result = std::fs::copy(&temp, &dest);
+        let _ = std::fs::remove_file(&temp);
+        copy_result.map_err(|_| problem.to_string())?;
+    }
     for suffix in ["-wal", "-shm", "-journal"] {
         let mut stale = dest.clone().into_os_string();
         stale.push(suffix);
@@ -693,22 +707,31 @@ fn mark_notifications_read(app: tauri::AppHandle, keys: Vec<String>) -> Result<(
 }
 
 /// Fetches the current prices for the user's crypto holdings and updates their value.
-/// Does nothing unless crypto was turned on in Settings.
+/// Does nothing unless crypto was turned on in Settings. Runs on a blocking worker
+/// thread so slow HTTP calls never stall the UI loop.
 #[tauri::command]
-fn refresh_crypto_prices(app: tauri::AppHandle) -> Result<usize, String> {
-    let ids = {
-        let connection = connection(&app)?;
-        if planner::get_setting(&connection, crypto::SETTING)?.as_deref() != Some("on") {
+async fn refresh_crypto_prices(app: tauri::AppHandle) -> Result<usize, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let ids = {
+            let connection = connection(&app)?;
+            if planner::get_setting(&connection, crypto::SETTING)?.as_deref() != Some("on") {
+                return Ok(0);
+            }
+            crypto::wanted_coins(&connection)?
+        };
+        if ids.is_empty() {
             return Ok(0);
         }
-        crypto::wanted_coins(&connection)?
-    };
-    if ids.is_empty() {
-        return Ok(0);
-    }
-    let prices = crypto::fetch_prices(&ids)?;
-    let connection = connection(&app)?;
-    crypto::apply_prices(&connection, &prices, &chrono::Local::now().format("%Y-%m-%d").to_string())
+        let prices = crypto::fetch_prices(&ids)?;
+        let connection = connection(&app)?;
+        crypto::apply_prices(
+            &connection,
+            &prices,
+            &chrono::Local::now().format("%Y-%m-%d").to_string(),
+        )
+    })
+    .await
+    .map_err(|problem| problem.to_string())?
 }
 
 #[tauri::command]
@@ -787,6 +810,7 @@ pub fn run() {
         .setup(|app| {
             let path = database_path(app.handle())?;
             db::open(&path)?;
+            db::write_ai_guide(&path);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

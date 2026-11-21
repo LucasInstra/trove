@@ -12,6 +12,13 @@ const KNOWN: Array<[RegExp, string]> = [
   [/holding maturity is before its start/, "errors.holdingMaturity"],
   [/holding (\d+ )?does not exist/, "errors.holdingMissing"],
   [/a holding with this name already exists/, "errors.holdingDuplicate"],
+  [/(income|bill|goal) name must not be empty/, "errors.nameEmpty"],
+  [/(income|bill|goal|card brand) (name )?is too long/, "errors.nameLong"],
+  [/(income|bill|card|goal) .*must not be negative/, "errors.amountNegative"],
+  [/(pay|due|closing) day must be between 1 and 31/, "errors.dayRange"],
+  [/bill end date is before its start/, "errors.billEndBeforeStart"],
+  [/card last4 must be up to 4 digits/, "errors.cardLast4"],
+  [/this account already has a card/, "errors.cardAccountTaken"],
 ];
 
 /**

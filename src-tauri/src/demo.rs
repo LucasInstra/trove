@@ -321,6 +321,7 @@ fn fill(connection: &Connection) -> Result<(), String> {
                 due_day: due,
                 color: color.to_string(),
                 texture: texture.to_string(),
+                cash_basis: false,
             },
         )?;
     }

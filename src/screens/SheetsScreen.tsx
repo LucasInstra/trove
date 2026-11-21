@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { BudgetCharts } from "../components/BudgetCharts";
 import { BudgetSheet } from "../components/BudgetSheet";
 import { TransactionsCharts } from "../components/TransactionsSheet";
-import type { Bill, BillInput, BillPayment, IncomeInput, Share, Holding, HoldingInput, Income, Person, TransactionRow } from "../lib/api";
+import type { Bill, BillInput, BillPayment, CardMeta, IncomeInput, Share, Holding, HoldingInput, Income, Person, TransactionRow } from "../lib/api";
 import { useLanguage } from "../lib/language";
 import { InvestmentsCharts, InvestmentsSheet } from "./InvestmentsSheet";
 
@@ -48,9 +48,11 @@ export function SheetsScreen({
   onEditIncome,
   onSaveBill,
   onEditBill,
+  cards,
 }: {
   /** The month shown in the top bar, as YYYY-MM. */
   month: string;
+  cards: CardMeta[];
   tab: SheetTab;
   onTab: (tab: SheetTab) => void;
   people: Person[];
@@ -172,6 +174,7 @@ export function SheetsScreen({
           onEditIncome={onEditIncome}
           onSaveBill={onSaveBill}
           onEditBill={onEditBill}
+          cards={cards}
         />
           {partnerMode ? <BudgetCharts month={month} people={people} incomes={incomes} bills={bills} payments={payments} shares={shares} /> : null}
           {CHARTS_INLINE ? <TransactionsCharts rows={rows} /> : null}

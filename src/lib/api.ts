@@ -366,6 +366,8 @@ export interface CardMeta {
   dueDay: number;
   color: string;
   texture: string;
+  /** Purchases count in the month the invoice is due, not the month they were made. */
+  cashBasis: boolean;
 }
 
 export interface Goal {
@@ -490,6 +492,7 @@ export interface CardInput {
   dueDay: number;
   color: string;
   texture: string;
+  cashBasis: boolean;
 }
 
 export interface GoalInput {

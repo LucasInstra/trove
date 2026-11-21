@@ -3,7 +3,11 @@ import { SortHeader } from "./SortHeader";
 import { nextSort, sortRows, type SortState } from "../domain/sort";
 import { useState } from "react";
 import { Icon } from "./Icons";
-import type { Bill, BillInput, BillPayment, Income, IncomeInput, Person, Share, TransactionRow } from "../lib/api";
+import type { Bill, BillInput, BillPayment, CardMeta, Income, IncomeInput, Person, Share, TransactionRow } from "../lib/api";
+import { splitCardEntries } from "../domain/sheetInvoices";
+import { dateInMonth } from "../domain/month";
+import { usePaidInvoices } from "../lib/paidInvoices";
+import { PayInvoiceDialog } from "./PayInvoiceDialog";
 import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { isDueIn } from "../domain/projection";
@@ -103,8 +107,11 @@ export function BudgetSheet({
   onEditIncome,
   onSaveBill,
   onEditBill,
+  cards = [],
 }: {
   month: string;
+  /** Cards set to cash basis show their month as one invoice row, paid through a transfer. */
+  cards?: CardMeta[];
   incomes: Income[];
   /** The month's ledger entries: what was really earned and spent, shown next to the planned rows. */
   entries: TransactionRow[];
@@ -237,7 +244,16 @@ export function BudgetSheet({
     });
   const sources = applyOrder(incomes.filter((income) => income.active), order.incomes);
   const recurringCents = incomes.filter((income) => income.active && income.frequency === "monthly").reduce((sum, income) => sum + income.amountCents, 0);
-  const realEntries = entries.filter((entry) => entry.transferGroup == null);
+  const invoicesPaid = usePaidInvoices();
+  const [openInvoices, setOpenInvoices] = useState<number[]>([]);
+  const [paying, setPaying] = useState<{ card: CardMeta; amountCents: number } | null>(null);
+  const { invoices: sheetInvoices, rest: realEntries } = splitCardEntries(
+    entries.filter((entry) => entry.transferGroup == null),
+    cards,
+  );
+  const invoiceIsPaid = (card: CardMeta) => invoicesPaid.isPaid(card.id, month);
+  const invoiceCents = sheetInvoices.reduce((sum, invoice) => sum + invoice.totalCents, 0);
+  const invoicePaidCents = sheetInvoices.filter((invoice) => invoiceIsPaid(invoice.card)).reduce((sum, invoice) => sum + invoice.totalCents, 0);
   const entryIncome = realEntries.filter((entry) => entry.amountCents > 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
   const entryExpense = realEntries.filter((entry) => entry.amountCents < 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
   const entryIncomeCents = entryIncome.reduce((sum, entry) => sum + entry.amountCents, 0);
@@ -245,8 +261,8 @@ export function BudgetSheet({
   const entryExpenseCents = entryExpense.reduce((sum, entry) => sum - entry.amountCents, 0);
   const entryPaidCents = entryExpense.filter((entry) => !isPending(entry)).reduce((sum, entry) => sum - entry.amountCents, 0);
   const totalIncomeCents = recurringCents + entryIncomeCents;
-  const expenses = due.reduce((sum, bill) => sum + bill.amountCents, 0) + entryExpenseCents;
-  const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryPaidCents;
+  const expenses = due.reduce((sum, bill) => sum + bill.amountCents, 0) + entryExpenseCents + invoiceCents;
+  const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryPaidCents + invoicePaidCents;
   const paidCount = due.filter((bill) => paidOf.has(bill.id)).length;
   const paidPct = expenses > 0 ? Math.min(100, Math.round((paid / expenses) * 100)) : 0;
   const unpaid = dueByDay.filter((bill) => !paidOf.has(bill.id));
@@ -517,8 +533,53 @@ export function BudgetSheet({
                     </tr>
                   );
                 })}
+                {sheetInvoices
+                  .filter((invoice) => filter === "all" || (filter === "paid") === invoiceIsPaid(invoice.card))
+                  .map((invoice) => {
+                    const isOpen = openInvoices.includes(invoice.card.id);
+                    const isPaid = invoiceIsPaid(invoice.card);
+                    const name = t("budget.invoice", { card: invoice.card.brand || invoice.card.accountName });
+                    const [, dueMonth, dueDay] = dateInMonth(month, invoice.card.dueDay).split("-");
+                    return [
+                      <tr key={`invoice-${invoice.card.id}`} className={isPaid ? "is-paid is-invoice" : "is-invoice"}>
+                        <td className="budget-grip" />
+                        <td>
+                          <button
+                            type="button"
+                            className="link"
+                            aria-expanded={isOpen}
+                            title={t("budget.invoiceLines")}
+                            onClick={() => setOpenInvoices((current) => (isOpen ? current.filter((id) => id !== invoice.card.id) : [...current, invoice.card.id]))}
+                          >
+                            <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={13} /> {name}
+                          </button>{" "}
+                          <small className="muted">
+                            {t("budget.invoiceDue", { date: `${dueDay}/${dueMonth}` })} · {invoice.lines.length}
+                          </small>
+                        </td>
+                        <td className="num">{plain(invoice.totalCents)}</td>
+                        {partnerMode ? <td /> : null}
+                        <td className="num">
+                          <label className="budget-paid">
+                            <input
+                              type="checkbox"
+                              checked={isPaid}
+                              aria-label={`${t("budget.paid")}: ${name}`}
+                              onChange={() => {
+                                if (isPaid) void invoicesPaid.unmarkPaid(invoice.card.id, month);
+                                else setPaying({ card: invoice.card, amountCents: invoice.totalCents });
+                              }}
+                            />
+                            <span>{isPaid ? formatCents(invoice.totalCents) : "—"}</span>
+                          </label>
+                        </td>
+                        <td className="budget-actions" />
+                      </tr>,
+                      ...(isOpen ? invoice.lines.map((line) => entryRow(line, false)) : []),
+                    ];
+                  })}
                 {entryExpense.filter((entry) => filter === "all" || (filter === "paid") === !isPending(entry)).map((entry) => entryRow(entry, true))}
-                {due.length === 0 && entryExpense.length === 0 ? (
+                {due.length === 0 && entryExpense.length === 0 && sheetInvoices.length === 0 ? (
                   <tr>
                     <td colSpan={partnerMode ? 6 : 5} className="muted">
                       {t("budget.noBills")}
@@ -530,6 +591,15 @@ export function BudgetSheet({
           </div>
         </article>
       </div>
+      {paying ? (
+        <PayInvoiceDialog
+          card={paying.card}
+          month={month}
+          amountCents={paying.amountCents}
+          onPaid={(record) => void invoicesPaid.markPaid(paying.card.id, month, record)}
+          onClose={() => setPaying(null)}
+        />
+      ) : null}
     </div>
   );
 }

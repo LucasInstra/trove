@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 
 const SETTING = "invoices_paid";
-const EVENT = "trove:invoices";
+export const INVOICES_EVENT = "trove:invoices";
 /** Raised when a payment entry was created or removed, so the ledger reloads. */
 export const LEDGER_EVENT = "trove:ledger";
 
@@ -44,14 +44,14 @@ export function usePaidInvoices() {
         .catch(() => {});
     };
     read();
-    window.addEventListener(EVENT, read);
-    return () => window.removeEventListener(EVENT, read);
+    window.addEventListener(INVOICES_EVENT, read);
+    return () => window.removeEventListener(INVOICES_EVENT, read);
   }, []);
 
   const save = useCallback(async (next: Records) => {
     setRecords(next);
     await api.setSetting(SETTING, JSON.stringify(next));
-    window.dispatchEvent(new Event(EVENT));
+    window.dispatchEvent(new Event(INVOICES_EVENT));
   }, []);
 
   const isPaid = useCallback((cardId: number, month: string) => keyOf(cardId, month) in records, [records]);

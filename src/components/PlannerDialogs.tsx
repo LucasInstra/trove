@@ -4,7 +4,7 @@ import { BankMark } from "./CreditCardArt";
 import { Dialog } from "./Dialog";
 import { GoalIconPicker } from "./GoalIcon";
 import type { BillInput, CardInput, Category, DepositInput, GoalInput, IncomeInput, Bill, Income, CardMeta, Goal, Person } from "../lib/api";
-import { monthLabel, todayIso } from "../lib/format";
+import { currencySymbol, monthLabel, todayIso } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 
@@ -222,6 +222,7 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
   const [dueDay, setDueDay] = useState(card?.dueDay ?? 12);
   const [color, setColor] = useState(card?.color ?? "#2b2b2d");
   const [texture, setTexture] = useState(card?.texture ?? "plain");
+  const [cashBasis, setCashBasis] = useState(card?.cashBasis ?? false);
   const chosen = designOf(color, texture);
   const bank = bankByTexture(texture);
   // A new card takes the look of the bank its name points at, until a look is picked by hand.
@@ -243,6 +244,7 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
             dueDay,
             color,
             texture,
+            cashBasis,
           });
         }}
       >
@@ -279,6 +281,11 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
         <Field label={t("planner.dueDay")}>
           <input type="number" min={1} max={31} value={dueDay} onChange={(event) => setDueDay(Number(event.target.value))} />
         </Field>
+        <label className="check">
+          <input type="checkbox" checked={cashBasis} onChange={(event) => setCashBasis(event.target.checked)} />
+          {t("planner.cashBasis")}
+        </label>
+        <p className="muted small">{t("planner.cashBasisHint")}</p>
         <Field label={t("planner.bank")}>
           <div className="design-picker" role="radiogroup">
             {BANKS.map((entry) => (
@@ -536,7 +543,7 @@ export function BudgetDialog({
       >
         <Field label={t("planner.amount")}>
           <span className="input-affix">
-            <span>R$</span>
+            <span>{currencySymbol()}</span>
             <input
               value={raw}
               onChange={(event) => setRaw(event.target.value)}
@@ -548,7 +555,7 @@ export function BudgetDialog({
         </Field>
         <Field label={`${t("budgets.monthly")} · ${monthLabel(month, lang)}`}>
           <span className="input-affix">
-            <span>R$</span>
+            <span>{currencySymbol()}</span>
             <input
               value={monthRaw}
               onChange={(event) => setMonthRaw(event.target.value)}
