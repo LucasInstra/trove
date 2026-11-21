@@ -817,6 +817,7 @@ export function OverviewScreen({
                   <span className="recent-meta">
                     {(row.categoryName ? categoryName(t, row.categoryName) : null) ?? t("ledger.noCategory")} · {formatDate(row.postedOn)}
                   </span>
+                  {row.notes ? <span className="recent-note" title={row.notes}>{row.notes}</span> : null}
                 </span>
                 <span className={row.amountCents < 0 ? "recent-amount out" : "recent-amount in"}>
                   {formatCents(row.amountCents)}

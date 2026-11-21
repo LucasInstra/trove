@@ -57,6 +57,8 @@ import {
 } from "../lib/format";
 import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
+import { setCashBasisAll } from "../lib/cardBasis";
+import { CashBasisNote } from "../components/CashBasisNote";
 
 /** Paid against worth now for crypto holdings, as a gain or a loss. */
 function CryptoGain({ holdings, total = false }: { holdings: Holding[]; total?: boolean }) {
@@ -169,6 +171,25 @@ export function CardsScreen({
           </span>
         </article>
       </div>
+
+      {cards.length > 0 ? (() => {
+        const on = cards.filter(({ meta }) => meta.cashBasis);
+        const sample = (on[0] ?? cards[0]).meta;
+        return (
+          <article className="card cash-basis-card">
+            <label className="cash-basis-switch">
+              <input type="checkbox" role="switch" checked={on.length > 0} onChange={(event) => void setCashBasisAll(cards.map(({ meta }) => meta), event.target.checked)} />
+              <span>
+                {t("planner.cashBasisAll")}
+                <CashBasisNote closingDay={sample.closingDay} dueDay={sample.dueDay} on={on.length > 0} />
+                {on.length > 0 && on.length < cards.length ? (
+                  <small className="cash-basis-note">{t("planner.cashBasisSome", { on: String(on.length), total: String(cards.length) })}</small>
+                ) : null}
+              </span>
+            </label>
+          </article>
+        );
+      })() : null}
 
       {cards.length === 0 ? (
         <EmptyList label={t("planner.noCards")} action={onAdd} />

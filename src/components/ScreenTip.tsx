@@ -21,6 +21,14 @@ export async function resetTips() {
   window.dispatchEvent(new Event(TIPS_EVENT));
 }
 
+const ROUTES = ["overview", "transactions", "flow", "cards", "goals", "house", "patrimony", "sheets", "categories", "import", "settings"];
+
+/** Hides the tip of every screen at once. */
+export async function hideTips() {
+  await api.setSetting(SETTING, JSON.stringify(ROUTES));
+  window.dispatchEvent(new Event(TIPS_EVENT));
+}
+
 /**
  * A short explanation at the top of a screen. "Got it" hides it for good, and
  * redoing the introduction in Settings brings every tip back.

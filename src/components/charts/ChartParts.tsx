@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { displayCurrency } from "../../lib/format";
+import { displayCurrency, formatCents } from "../../lib/format";
+import { useCountUp } from "../../lib/useCountUp";
 import { Donut } from "../Donut";
 import { BarList, ShowAll, foldRows, type BarListRow } from "./BarList";
 
@@ -13,13 +14,18 @@ export function compactMoney(cents: number, lang: string): string {
 }
 
 /** A row of headline numbers above the charts. */
-export function StatTiles({ items }: { items: { label: string; value: string; note?: string }[] }) {
+/** A money figure that counts to its new value, like the other screens. */
+export function CountingCents({ cents }: { cents: number }) {
+  return <>{formatCents(useCountUp(cents))}</>;
+}
+
+export function StatTiles({ items }: { items: { label: string; value: string; note?: string; cents?: number }[] }) {
   return (
     <div className="stat-tiles">
       {items.map((item) => (
         <article key={item.label} className="card stat-tile">
           <span className="stat-tile-label">{item.label}</span>
-          <strong className="stat-tile-value">{item.value}</strong>
+          <strong className="stat-tile-value">{item.cents === undefined ? item.value : <CountingCents cents={item.cents} />}</strong>
           {item.note ? <span className="stat-tile-note">{item.note}</span> : null}
         </article>
       ))}

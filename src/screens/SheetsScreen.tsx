@@ -49,7 +49,9 @@ export function SheetsScreen({
   onSaveBill,
   onEditBill,
   cards,
+  onAddEntry,
 }: {
+  onAddEntry: () => void;
   /** The month shown in the top bar, as YYYY-MM. */
   month: string;
   cards: CardMeta[];
@@ -175,6 +177,7 @@ export function SheetsScreen({
           onSaveBill={onSaveBill}
           onEditBill={onEditBill}
           cards={cards}
+          onAddEntry={onAddEntry}
         />
           {partnerMode ? <BudgetCharts month={month} people={people} incomes={incomes} bills={bills} payments={payments} shares={shares} /> : null}
           {CHARTS_INLINE ? <TransactionsCharts rows={rows} /> : null}

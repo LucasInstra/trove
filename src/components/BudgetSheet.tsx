@@ -1,4 +1,5 @@
-import { StatTiles } from "./charts/ChartParts";
+import { categoryName } from "../lib/i18n";
+import { CountingCents, StatTiles } from "./charts/ChartParts";
 import { SortHeader } from "./SortHeader";
 import { nextSort, sortRows, type SortState } from "../domain/sort";
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { splitCardEntries } from "../domain/sheetInvoices";
 import { dateInMonth } from "../domain/month";
 import { usePaidInvoices } from "../lib/paidInvoices";
 import { PayInvoiceDialog } from "./PayInvoiceDialog";
+import { setCashBasis } from "../lib/cardBasis";
 import { formatCents } from "../lib/format";
 import { useLanguage } from "../lib/language";
 import { isDueIn } from "../domain/projection";
@@ -108,7 +110,10 @@ export function BudgetSheet({
   onSaveBill,
   onEditBill,
   cards = [],
+  onAddEntry,
 }: {
+  /** Opens the dialog for a one-off entry (not a monthly bill). */
+  onAddEntry?: () => void;
   month: string;
   /** Cards set to cash basis show their month as one invoice row, paid through a transfer. */
   cards?: CardMeta[];
@@ -252,6 +257,20 @@ export function BudgetSheet({
     cards,
   );
   const invoiceIsPaid = (card: CardMeta) => invoicesPaid.isPaid(card.id, month);
+  // Cards still counted by purchase date that have entries this month: the sheet offers the switch.
+  const [hiddenTips, setHiddenTips] = useState<number[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("trove:cash-basis-tip") ?? "[]") as number[];
+    } catch {
+      return [];
+    }
+  });
+  const tipCards = cards.filter((card) => !card.cashBasis && !hiddenTips.includes(card.id) && entries.some((entry) => entry.accountId === card.accountId && entry.transferGroup == null));
+  const hideTip = (id: number) => {
+    const next = [...hiddenTips, id];
+    setHiddenTips(next);
+    localStorage.setItem("trove:cash-basis-tip", JSON.stringify(next));
+  };
   const invoiceCents = sheetInvoices.reduce((sum, invoice) => sum + invoice.totalCents, 0);
   const invoicePaidCents = sheetInvoices.filter((invoice) => invoiceIsPaid(invoice.card)).reduce((sum, invoice) => sum + invoice.totalCents, 0);
   const entryIncome = realEntries.filter((entry) => entry.amountCents > 0).sort((a, b) => a.postedOn.localeCompare(b.postedOn));
@@ -263,9 +282,32 @@ export function BudgetSheet({
   const totalIncomeCents = recurringCents + entryIncomeCents;
   const expenses = due.reduce((sum, bill) => sum + bill.amountCents, 0) + entryExpenseCents + invoiceCents;
   const paid = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryPaidCents + invoicePaidCents;
+  // The balance is the money that actually left this month: an invoice counts on the day it was
+  // paid, so one paid in another month moves out of this balance and into that month's.
+  const paidOut = due.reduce((sum, bill) => sum + (paidOf.get(bill.id) ?? 0), 0) + entryPaidCents + invoicesPaid.paidOutIn(month);
   const paidCount = due.filter((bill) => paidOf.has(bill.id)).length;
   const paidPct = expenses > 0 ? Math.min(100, Math.round((paid / expenses) * 100)) : 0;
   const unpaid = dueByDay.filter((bill) => !paidOf.has(bill.id));
+  // What is left to pay this month, bills and card invoices together, by due day. A due date
+  // already behind today is late: the same moment the notifications warn about it.
+  const todayIso = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  })();
+  const toPay = [
+    ...unpaid.map((bill) => ({ key: `bill-${bill.id}`, day: bill.dueDay, name: bill.name, cents: bill.amountCents, due: dateInMonth(month, bill.dueDay) })),
+    ...sheetInvoices
+      .filter((invoice) => !invoiceIsPaid(invoice.card) && invoice.totalCents > 0)
+      .map((invoice) => ({
+        key: `invoice-${invoice.card.id}`,
+        day: Number(dateInMonth(month, invoice.card.dueDay).slice(8)),
+        name: t("budget.invoice", { card: invoice.card.brand || invoice.card.accountName }),
+        cents: invoice.totalCents,
+        due: dateInMonth(month, invoice.card.dueDay),
+      })),
+  ]
+    .map((item) => ({ ...item, late: item.due < todayIso }))
+    .sort((a, b) => a.day - b.day);
   const shownIncomes = sortRows(sources, incomeSort, (income, key) => (key === "name" ? income.name : key === "value" ? income.amountCents : null));
   const shownBills = sortRows(
     due.filter((bill) => filter === "all" || (filter === "paid") === paidOf.has(bill.id)),
@@ -280,8 +322,9 @@ export function BudgetSheet({
     return (
       <tr key={`entry-${entry.id}`} className={expense ? (isPending(entry) ? "is-entry" : "is-paid is-entry") : "is-entry"}>
         <td className="budget-grip" />
-        <td title={entry.postedOn}>
+        <td title={entry.notes ? `${entry.postedOn} · ${entry.notes}` : entry.postedOn}>
           {title} <small className="muted">{day}/{month}</small>
+          {entry.notes ? <span className="sheet-note">{entry.notes}</span> : null}
         </td>
         <td className="num">{plain(Math.abs(entry.amountCents))}</td>
         {partnerMode ? <td /> : null}
@@ -311,11 +354,11 @@ export function BudgetSheet({
     <div className="budget">
       <StatTiles
         items={[
-          { label: t("budget.totalIncome"), value: formatCents(totalIncomeCents) },
-          { label: t("budget.totalExpenses"), value: formatCents(expenses) },
-          { label: t("budget.paidExpenses"), value: formatCents(paid) },
-          { label: t("budget.balance"), value: formatCents(totalIncomeCents - paid) },
-          { label: t("budget.expected"), value: formatCents(totalIncomeCents - expenses) },
+          { label: t("budget.totalIncome"), value: formatCents(totalIncomeCents), cents: totalIncomeCents },
+          { label: t("budget.totalExpenses"), value: formatCents(expenses), cents: expenses },
+          { label: t("budget.paidExpenses"), value: formatCents(paidOut), cents: paidOut },
+          { label: t("budget.balance"), value: formatCents(totalIncomeCents - paidOut), cents: totalIncomeCents - paidOut },
+          { label: t("budget.expected"), value: formatCents(totalIncomeCents - expenses), cents: totalIncomeCents - expenses },
         ]}
       />
       <div className={partnerMode ? "budget-tables partner" : "budget-tables"}>
@@ -411,7 +454,7 @@ export function BudgetSheet({
           <dl className="budget-facts">
             <div>
               <dt>{t("budget.pending")}</dt>
-              <dd>{formatCents(expenses - paid)}</dd>
+              <dd><CountingCents cents={expenses - paid} /></dd>
             </div>
             <div>
               <dt>{t("budget.committed")}</dt>
@@ -430,14 +473,19 @@ export function BudgetSheet({
           <h3 className="budget-subtitle">{t("budget.toPay")}</h3>
           <div className="budget-pending">
             <ul>
-              {unpaid.map((bill) => (
-                <li key={bill.id}>
-                  <span className="budget-day">{String(bill.dueDay).padStart(2, "0")}</span>
-                  <span className="budget-pending-name">{bill.name}</span>
-                  <strong>{formatCents(bill.amountCents)}</strong>
+              {toPay.map((item) => (
+                <li key={item.key} className={item.late ? "is-late" : undefined}>
+                  <span className="budget-day" title={item.late ? t("budget.late") : undefined}>
+                    {String(item.day).padStart(2, "0")}
+                  </span>
+                  <span className="budget-pending-name">
+                    {item.name}
+                    {item.late ? <small className="budget-late"> · {t("budget.late")}</small> : null}
+                  </span>
+                  <strong>{formatCents(item.cents)}</strong>
                 </li>
               ))}
-              {unpaid.length === 0 ? <li className="muted">{t("budget.allPaid")}</li> : null}
+              {toPay.length === 0 ? <li className="muted">{t("budget.allPaid")}</li> : null}
             </ul>
           </div>
         </article>
@@ -455,11 +503,31 @@ export function BudgetSheet({
                 </button>
               ))}
             </div>
-            <button type="button" className="primary" onClick={addBill}>
+            {onAddEntry ? (
+              <button type="button" className="ghost" onClick={onAddEntry} title={t("budget.addEntryHint")}>
+                <Icon name="plus" size={16} />
+                {t("budget.addEntry")}
+              </button>
+            ) : null}
+            <button type="button" className="primary" onClick={addBill} title={t("budget.addBillHint")}>
               <Icon name="plus" size={16} />
               {t("budget.addBill")}
             </button>
           </header>
+          {tipCards.map((card) => (
+            <div key={card.id} className="cash-basis-tip" style={{ "--card": card.color } as React.CSSProperties}>
+              <span className="invoice-chip" aria-hidden="true">
+                <Icon name="card" size={14} />
+              </span>
+              <p>{t("budget.cashBasisTip", { card: card.brand || card.accountName })}</p>
+              <button type="button" className="primary" onClick={() => void setCashBasis(card, true)}>
+                {t("budget.cashBasisOn")}
+              </button>
+              <button type="button" className="ghost" onClick={() => hideTip(card.id)}>
+                {t("budget.cashBasisHide")}
+              </button>
+            </div>
+          ))}
           <div className="sheet-wrap">
             <table className="sheet-table">
               <thead>
@@ -538,26 +606,37 @@ export function BudgetSheet({
                   .map((invoice) => {
                     const isOpen = openInvoices.includes(invoice.card.id);
                     const isPaid = invoiceIsPaid(invoice.card);
-                    const name = t("budget.invoice", { card: invoice.card.brand || invoice.card.accountName });
+                    const cardName = invoice.card.brand || invoice.card.accountName;
+                    const name = t("budget.invoice", { card: cardName });
                     const [, dueMonth, dueDay] = dateInMonth(month, invoice.card.dueDay).split("-");
+                    const toggle = () => setOpenInvoices((current) => (isOpen ? current.filter((id) => id !== invoice.card.id) : [...current, invoice.card.id]));
                     return [
-                      <tr key={`invoice-${invoice.card.id}`} className={isPaid ? "is-paid is-invoice" : "is-invoice"}>
+                      <tr key={`invoice-${invoice.card.id}`} className={isPaid ? "is-paid is-invoice" : "is-invoice"} style={{ "--card": invoice.card.color } as React.CSSProperties}>
                         <td className="budget-grip" />
                         <td>
-                          <button
-                            type="button"
-                            className="link"
-                            aria-expanded={isOpen}
-                            title={t("budget.invoiceLines")}
-                            onClick={() => setOpenInvoices((current) => (isOpen ? current.filter((id) => id !== invoice.card.id) : [...current, invoice.card.id]))}
-                          >
-                            <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={13} /> {name}
-                          </button>{" "}
-                          <small className="muted">
-                            {t("budget.invoiceDue", { date: `${dueDay}/${dueMonth}` })} · {invoice.lines.length}
-                          </small>
+                          <button type="button" className="invoice-toggle" aria-expanded={isOpen} title={t("budget.invoiceLines")} onClick={toggle}>
+                            <span className="invoice-chip" aria-hidden="true">
+                              <Icon name="card" size={14} />
+                            </span>
+                            <span className="invoice-text">
+                              <strong>{name}</strong>
+                              <small>
+                                {t("budget.invoiceBadge")}{invoice.card.last4 ? ` •••• ${invoice.card.last4}` : ""} · {t("budget.invoiceDue", { date: `${dueDay}/${dueMonth}` })} · {t("budget.invoiceCount", { count: String(invoice.lines.length) })}
+                                {(() => {
+                                  const paidOn = invoicesPaid.paidInvoice(invoice.card.id, month)?.paidOn ?? "";
+                                  return paidOn && paidOn.slice(0, 7) !== month ? (
+                                    <span className="invoice-paid-elsewhere">
+                                      {" · "}
+                                      {t("budget.invoicePaidOn", { date: `${paidOn.slice(8, 10)}/${paidOn.slice(5, 7)}` })}
+                                    </span>
+                                  ) : null;
+                                })()}
+                              </small>
+                            </span>
+                            <Icon name={isOpen ? "chevron-up" : "chevron-down"} size={15} />
+                          </button>
                         </td>
-                        <td className="num">{plain(invoice.totalCents)}</td>
+                        <td className="num invoice-total">{plain(invoice.totalCents)}</td>
                         {partnerMode ? <td /> : null}
                         <td className="num">
                           <label className="budget-paid">
@@ -575,7 +654,47 @@ export function BudgetSheet({
                         </td>
                         <td className="budget-actions" />
                       </tr>,
-                      ...(isOpen ? invoice.lines.map((line) => entryRow(line, false)) : []),
+                      isOpen ? (
+                        <tr key={`invoice-lines-${invoice.card.id}`} className="invoice-lines-row" style={{ "--card": invoice.card.color } as React.CSSProperties}>
+                          <td className="budget-grip" />
+                          <td colSpan={(partnerMode ? 6 : 5) - 1}>
+                            <ul className="invoice-lines">
+                              {invoice.lines.map((line) => {
+                                const [, lineMonth, lineDay] = line.postedOn.split("-");
+                                return (
+                                  <li key={line.id}>
+                                    <span className="invoice-line-day">{lineDay}/{lineMonth}</span>
+                                    <span className="invoice-line-main">
+                                      <span className="invoice-line-title">{line.merchant || line.description}</span>
+                                      <span className="invoice-line-meta">
+                                        {line.categoryName ? (
+                                          <span className="cat-chip" style={{ "--chip": line.categoryColor ?? "var(--faint)" } as React.CSSProperties}>
+                                            {categoryName(t, line.categoryName)}
+                                          </span>
+                                        ) : null}
+                                        {line.notes ? <span className="sheet-note">{line.notes}</span> : null}
+                                      </span>
+                                    </span>
+                                    <span className={line.amountCents > 0 ? "invoice-line-amount credit" : "invoice-line-amount"}>
+                                      {line.amountCents > 0 ? "−" : ""}
+                                      {plain(Math.abs(line.amountCents))}
+                                    </span>
+                                    <button type="button" className="icon-button" title={t("common.edit")} aria-label={`${t("common.edit")}: ${line.merchant || line.description}`} onClick={() => onEditEntry(line)}>
+                                      <Icon name="pencil" size={14} />
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                              <li className="invoice-lines-total">
+                                <span />
+                                <span className="invoice-line-main">{t("budget.invoiceTotal")}</span>
+                                <span className="invoice-line-amount">{plain(invoice.totalCents)}</span>
+                                <span />
+                              </li>
+                            </ul>
+                          </td>
+                        </tr>
+                      ) : null,
                     ];
                   })}
                 {entryExpense.filter((entry) => filter === "all" || (filter === "paid") === !isPending(entry)).map((entry) => entryRow(entry, true))}

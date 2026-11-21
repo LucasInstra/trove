@@ -32,6 +32,17 @@ function parse(value: string | null): Records {
   }
 }
 
+/**
+ * Sum of the invoice payments made in a month, by payment date. A record without a date (the
+ * first version) counts in the invoice's own month.
+ */
+export function invoicePaymentsIn(records: Record<string, PaidInvoice>, month: string): number {
+  return Object.entries(records).reduce((sum, [key, record]) => {
+    const when = record.paidOn ? record.paidOn.slice(0, 7) : key.slice(key.indexOf(":") + 1);
+    return when === month ? sum + record.amountCents : sum;
+  }, 0);
+}
+
 /** Which card invoices were marked as paid, kept in the settings by "cardId:YYYY-MM". */
 export function usePaidInvoices() {
   const [records, setRecords] = useState<Records>({});
@@ -55,6 +66,8 @@ export function usePaidInvoices() {
   }, []);
 
   const isPaid = useCallback((cardId: number, month: string) => keyOf(cardId, month) in records, [records]);
+  /** Invoice payments whose money leaves in this month, whatever month the invoice belongs to. */
+  const paidOutIn = useCallback((month: string) => invoicePaymentsIn(records, month), [records]);
   const paidInvoice = useCallback((cardId: number, month: string) => records[keyOf(cardId, month)] ?? null, [records]);
 
   const markPaid = useCallback(
@@ -79,5 +92,5 @@ export function usePaidInvoices() {
     [records, save],
   );
 
-  return { isPaid, paidInvoice, markPaid, unmarkPaid };
+  return { isPaid, paidInvoice, paidOutIn, markPaid, unmarkPaid };
 }

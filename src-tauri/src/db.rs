@@ -371,6 +371,8 @@ fn register_functions(connection: &Connection) -> Result<(), String> {
 }
 
 /// The guide for AI assistants that edit the database by hand, shipped next to `trove.db`.
+// When a release changes how data is counted or recorded, add an entry to the guide's
+// "Mudanças de comportamento e dados antigos" section: what changed, how to spot old data, the new form.
 pub const AI_GUIDE: &str = include_str!("ai_guide.md");
 pub const AI_GUIDE_FILE: &str = "LEIA-ME-PARA-IA.md";
 
@@ -378,7 +380,7 @@ pub const AI_GUIDE_FILE: &str = "LEIA-ME-PARA-IA.md";
 /// here never stops the app: the guide is a convenience.
 pub fn write_ai_guide(database: &Path) {
     let Some(folder) = database.parent() else { return };
-    let text = AI_GUIDE.replace("{schema}", &SCHEMA_VERSION.to_string());
+    let text = AI_GUIDE.replace("{schema}", &SCHEMA_VERSION.to_string()).replace("{version}", env!("CARGO_PKG_VERSION"));
     let target = folder.join(AI_GUIDE_FILE);
     if std::fs::read_to_string(&target).ok().as_deref() != Some(text.as_str()) {
         let _ = std::fs::write(&target, text);
@@ -6393,18 +6395,25 @@ mod tests {
         let blocks: Vec<&str> = guide.split("```sql").skip(1).map(|block| block.split("```").next().unwrap_or("")).collect();
         assert!(blocks.len() >= 7, "the guide keeps its recipes");
         // The delete recipe would undo the conversion below; run it on its own copy of the id.
-        for block in blocks.iter().filter(|block| !block.contains("dedupe_key || ':del:'")) {
+        for block in blocks.iter().filter(|block| !block.contains("not exists (select 1 from transactions r")) {
             connection.execute_batch(block).unwrap_or_else(|problem| panic!("recipe failed: {problem}\n{block}"));
         }
         // The payment became a transfer: it no longer counts as spending, and both legs exist.
         assert_eq!(month_totals(&connection, "2026-11").unwrap().expense_cents, 0, "the payment is a transfer now");
         assert_eq!(month_totals(&connection, "2026-12").unwrap().expense_cents, 30_000, "the card purchase counts on its due date");
-        let legs: i64 = connection
-            .query_row("select count(*) from transactions where transfer_group is not null and deleted_at is null", [], |row| row.get(0))
-            .unwrap();
-        assert_eq!(legs, 2);
+        let legs: Vec<(i64, String, String)> = {
+            let mut statement = connection
+                .prepare("select amount_cents, trntype, dedupe_key from transactions where transfer_group is not null and deleted_at is null order by amount_cents")
+                .unwrap();
+            statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).unwrap().collect::<Result<_, _>>().unwrap()
+        };
+        assert_eq!(legs.len(), 2);
+        assert_eq!((legs[0].0, legs[0].1.as_str()), (-188_700, "DEBIT"));
+        assert!(legs[0].2.ends_with(":out") && legs[1].2.ends_with(":in"));
+        let original: Option<String> = connection.query_row("select deleted_at from transactions where id = ?1", [payment], |row| row.get(0)).unwrap();
+        assert!(original.is_some(), "the expense row is soft-deleted");
         assert!(crate::planner::list_cards(&connection).unwrap()[0].cash_basis);
-        let delete = blocks.iter().find(|block| block.contains("dedupe_key || ':del:'")).expect("delete recipe");
+        let delete = blocks.iter().find(|block| block.contains("not exists (select 1 from transactions r")).expect("delete recipe");
         let pharmacy: i64 = connection.query_row("select id from transactions where description = 'Farmácia'", [], |row| row.get(0)).unwrap();
         connection.execute_batch(&delete.replace(&payment.to_string(), &pharmacy.to_string())).expect("delete recipe");
         assert_eq!(month_totals(&connection, "2026-12").unwrap().expense_cents, 0);

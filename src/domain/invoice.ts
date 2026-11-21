@@ -66,3 +66,31 @@ export function invoiceDifference(
   const left = inLedger || record.amountCents <= 0 ? usageCents : usageCents - record.amountCents;
   return Math.max(left, 0);
 }
+
+/**
+ * The date a purchase counts on when its card is on cash basis: the due date of the invoice it
+ * belongs to. Mirrors `cash_date` in the Rust core, which the totals use.
+ */
+export function cashDate(postedOn: string, closingDay: number, dueDay: number): string {
+  const month = postedOn.slice(0, 7);
+  const day = Number(postedOn.slice(8, 10));
+  const closing = Math.min(Math.max(1, closingDay), 31);
+  const closesThisMonth = day <= Number(dateInMonth(month, closing).slice(8, 10));
+  const closingMonth = closesThisMonth ? month : addMonths(month, 1);
+  const dueMonth = dueDay <= closing ? addMonths(closingMonth, 1) : closingMonth;
+  return dateInMonth(dueMonth, Math.min(Math.max(1, dueDay), 31));
+}
+
+/** Two sample purchases for explaining cash basis: one on the 5th (or the closing day), one just after closing. */
+export function cashBasisExample(closingDay: number, dueDay: number, month: string) {
+  const firstDay = Math.min(5, Math.max(1, closingDay));
+  const before = dateInMonth(month, firstDay);
+  const closesOn = dateInMonth(month, closingDay);
+  const lastDay = Number(dateInMonth(month, 31).slice(8, 10));
+  const afterDay = Number(closesOn.slice(8, 10)) + 1;
+  const after = afterDay <= lastDay ? dateInMonth(month, afterDay) : dateInMonth(addMonths(month, 1), 1);
+  return {
+    before: { on: before, counts: cashDate(before, closingDay, dueDay) },
+    after: { on: after, counts: cashDate(after, closingDay, dueDay) },
+  };
+}

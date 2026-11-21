@@ -1,6 +1,6 @@
 import { CryptoCard } from "../components/CryptoCard";
 import { ONBOARDING_EVENT } from "../components/Onboarding";
-import { resetTips } from "../components/ScreenTip";
+import { hideTips, resetTips } from "../components/ScreenTip";
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -287,12 +287,17 @@ export function SettingsScreen({
             </div>
           </header>
           <p className="muted small">{t("onboard.redoDesc")}</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button type="button" className="outline-button" onClick={() => {
               void resetTips();
               window.dispatchEvent(new Event(ONBOARDING_EVENT));
             }}>
             {t("onboard.redo")}
           </button>
+          <button type="button" className="outline-button" onClick={() => void hideTips()}>
+            {t("onboard.hideTips")}
+          </button>
+          </div>
         </article>
       </div>
 

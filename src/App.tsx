@@ -1565,6 +1565,7 @@ export function App() {
                 onSaveBill={(input) => void mutateAndRefresh(() => api.saveBill(input))}
                 onEditBill={(bill) => setDialog({ kind: "bill", bill })}
                 cards={planner.cards}
+                onAddEntry={() => setDialog({ kind: "manual", entry: null })}
               />
             ) : null}
 

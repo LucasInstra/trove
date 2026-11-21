@@ -281,11 +281,10 @@ export function CardDialog({ card, accounts, takenAccountIds, onClose, onSave, o
         <Field label={t("planner.dueDay")}>
           <input type="number" min={1} max={31} value={dueDay} onChange={(event) => setDueDay(Number(event.target.value))} />
         </Field>
-        <label className="check">
+        <label className="check cash-basis-check">
           <input type="checkbox" checked={cashBasis} onChange={(event) => setCashBasis(event.target.checked)} />
-          {t("planner.cashBasis")}
+          {t("planner.cashBasisThisCard")}
         </label>
-        <p className="muted small">{t("planner.cashBasisHint")}</p>
         <Field label={t("planner.bank")}>
           <div className="design-picker" role="radiogroup">
             {BANKS.map((entry) => (
