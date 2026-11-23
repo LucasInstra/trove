@@ -59,6 +59,7 @@ import { categoryName } from "../lib/i18n";
 import { useLanguage } from "../lib/language";
 import { setCashBasisAll } from "../lib/cardBasis";
 import { CashBasisNote } from "../components/CashBasisNote";
+import { CardInvoiceButton } from "../components/CardInvoiceButton";
 
 /** Paid against worth now for crypto holdings, as a gain or a loss. */
 function CryptoGain({ holdings, total = false }: { holdings: Holding[]; total?: boolean }) {
@@ -195,7 +196,7 @@ export function CardsScreen({
         <EmptyList label={t("planner.noCards")} action={onAdd} />
       ) : (
         <div className="entity-list">
-          {cards.map(({ meta, usageCents }, position) => {
+          {cards.map(({ meta, usageCents, window }, position) => {
             const { availableCents, usedPct } = cardLimitUsage(meta, usageCents);
             return (
               <article
@@ -213,6 +214,7 @@ export function CardsScreen({
                       </span>
                     </div>
                     <div className="entity-actions">
+                      <CardInvoiceButton card={meta} month={month} window={window} usageCents={usageCents} />
                       <button
                         type="button"
                         className="round-button static"
