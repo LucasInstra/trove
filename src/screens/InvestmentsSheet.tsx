@@ -7,7 +7,7 @@ import { Icon } from "../components/Icons";
 import { InvestmentRates, RATES_CHANGED } from "../components/InvestmentRates";
 import { HoldingDialog } from "./PlannerScreens";
 import { parseCents } from "../components/PlannerDialogs";
-import { PRODUCTS, maturityOf, reconcileTerm, sheetLine, type SheetLine } from "../domain/investmentSheet";
+import { PRODUCTS, addMonthsIso, asOfDate, maturityOf, reconcileTerm, sheetLine, type SheetLine } from "../domain/investmentSheet";
 import { DateCell, brDate } from "../components/DateField";
 import { nextSort, sortRows, type SortState } from "../domain/sort";
 import { DEFAULT_RATES, type RateAssumptions } from "../domain/patrimony";
@@ -537,18 +537,9 @@ export function InvestmentsSheet({
   );
 }
 
-/** The date the figures are worked out for: today in the current month, the month's last day otherwise. */
+/** The date the figures are worked out for: today in the current month, the same day of the month otherwise. */
 export function asOfMonth(month: string): string {
-  const today = todayIso();
-  if (month === today.slice(0, 7)) return today;
-  const [year, mon] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, mon, 0)).toISOString().slice(0, 10);
-}
-
-function addMonths(iso: string, months: number): string {
-  const date = new Date(`${iso}T12:00:00`);
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().slice(0, 10);
+  return asOfDate(month, todayIso());
 }
 
 /** The investment charts: headline numbers, the money regrouped, its growth, returns and maturities. */
@@ -626,7 +617,7 @@ export function InvestmentsCharts({
 
   const horizon = [0, 3, 6, 12, 18, 24, 36];
   const projection: Column[] = horizon.map((months) => {
-    const date = addMonths(today, months);
+    const date = addMonthsIso(today, months);
     const cents = rows.reduce((sum, row) => sum + sheetLine(row.holding, rates, date).valueCents, 0);
     const name = months === 0 ? t("investments.sheet.now") : t("investments.sheet.monthsAhead", { count: months });
     return { key: String(months), cents, tick: name, tip: `${name}: ${formatCents(cents)}` };

@@ -2030,6 +2030,14 @@ select.tx-category {
   box-shadow: var(--shadow-card);
 }
 
+[data-theme="dark"] .dropzone {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .dropzone:hover:not(:disabled) {
+  background: var(--primary-soft);
+}
+
 [data-theme="dark"] .alert {
   border-color: #5a2c28;
   background: #2a1c1a;

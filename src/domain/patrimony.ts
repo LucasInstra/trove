@@ -1,5 +1,10 @@
 import type { MonthPoint } from "../lib/api";
 
+/** Today in the user's own calendar; toISOString() would give tomorrow after 21h in Brazil. */
+export function localToday(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export interface WealthPoint extends MonthPoint {
   netCents: number;
   runningCents: number;
@@ -159,7 +164,7 @@ export interface InvestmentSummary {
 export function investmentLines(
   holdings: InvestmentInput[],
   rates: RateAssumptions = DEFAULT_RATES,
-  today: string = new Date().toISOString().slice(0, 10),
+  today: string = localToday(),
 ): InvestmentLine[] {
   const investments = holdings.filter((holding) => holding.kind === "investment");
   const total = investments.reduce((sum, holding) => sum + holding.amountCents, 0);

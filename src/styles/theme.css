@@ -1772,6 +1772,8 @@ button:active:not(:disabled) {
 .sheet-table th.typed { color: var(--primary-text, #1d4ed8); background: var(--primary-soft); border-bottom-color: var(--primary); }
 .sheet-table th.calc { color: var(--ink); background: var(--bg-sunken); border-bottom-color: var(--ink); }
 .sheet-table th:first-child { border-top-left-radius: 10px; }
+/* Dark theme: one dark header band; typed columns still read as typed by their blue text and underline. */
+[data-theme="dark"] .sheet-table th.typed { background: var(--bg-sunken); }
 .sheet-table th:last-child { border-top-right-radius: 10px; background: transparent; border-bottom-color: transparent; }
 .sheet-table th .sheet-sort { justify-content: center; width: 100%; }
 .sheet-table th .sheet-sort:hover { text-decoration: none; opacity: 0.8; }

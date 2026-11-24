@@ -1,4 +1,4 @@
-import { annualRate, DEFAULT_RATES, type RateAssumptions } from "./patrimony";
+import { annualRate, DEFAULT_RATES, localToday, type RateAssumptions } from "./patrimony";
 
 export interface SheetHolding {
   amountCents: number;
@@ -32,6 +32,21 @@ export interface SheetLine {
 
 const DAY_MS = 86_400_000;
 
+/**
+ * The date a month's figures are worked out for: today in the current month, the same day
+ * of the month elsewhere (clamped to a shorter month), so 24 Nov → 24 Dec counts 30 days.
+ */
+export function asOfDate(month: string, today: string = localToday()): string {
+  if (month === today.slice(0, 7)) return today;
+  const day = Math.min(Number(today.slice(8, 10)), daysIn(month));
+  return `${month}-${String(day).padStart(2, "0")}`;
+}
+
+function daysIn(month: string): number {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
 function toUtc(iso: string): number | null {
   const [y, m, d] = iso.split("-").map(Number);
   if (![y, m, d].every(Number.isFinite)) return null;
@@ -50,10 +65,8 @@ export function daysBetween(from: string, to: string): number | null {
 export function maturityOf(holding: Pick<SheetHolding, "maturityOn" | "startedOn" | "termMonths">): string {
   if (holding.maturityOn) return holding.maturityOn;
   if (!holding.startedOn || !holding.termMonths || holding.termMonths <= 0) return "";
-  const [y, m, d] = holding.startedOn.split("-").map(Number);
-  if (![y, m, d].every(Number.isFinite)) return "";
-  const date = new Date(Date.UTC(y, m - 1 + holding.termMonths, d));
-  return date.toISOString().slice(0, 10);
+  // Same rule as reconcileTerm: 31 Jan + 1 month is 28/29 Feb, not 3 Mar.
+  return addMonthsIso(holding.startedOn, holding.termMonths);
 }
 
 /** Regressive income tax by days held: 22.5% up to 180, 20% to 360, 17.5% to 720, 15% above. */
@@ -73,7 +86,7 @@ export function irRateFor(days: number): number {
 export function sheetLine(
   holding: SheetHolding,
   rates: RateAssumptions = DEFAULT_RATES,
-  today: string = new Date().toISOString().slice(0, 10),
+  today: string = localToday(),
 ): SheetLine {
   const maturity = maturityOf(holding);
   const daysElapsed = holding.startedOn ? daysBetween(holding.startedOn, today) : null;

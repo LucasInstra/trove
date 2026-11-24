@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonthsIso, daysBetween, irRateFor, maturityOf, monthsBetweenIso, reconcileTerm, sheetLine } from "./investmentSheet";
+import { addMonthsIso, asOfDate, daysBetween, irRateFor, maturityOf, monthsBetweenIso, reconcileTerm, sheetLine } from "./investmentSheet";
 
 describe("sheetLine", () => {
   const example = {
@@ -48,6 +48,18 @@ describe("helpers", () => {
     expect(daysBetween("x", "2026-11-15")).toBeNull();
     expect(maturityOf({ startedOn: "2024-03-10", termMonths: 24 })).toBe("2026-03-10");
     expect(maturityOf({})).toBe("");
+  });
+});
+
+describe("dates", () => {
+  it("counts a month ahead as the same day of that month", () => {
+    expect(asOfDate("2026-12", "2026-11-24")).toBe("2026-12-24");
+    expect(daysBetween("2026-11-24", asOfDate("2026-12", "2026-11-24"))).toBe(30);
+    expect(asOfDate("2026-11", "2026-11-24")).toBe("2026-11-24");
+    expect(asOfDate("2027-02", "2026-11-30")).toBe("2027-02-28");
+  });
+  it("clamps a term ending past a shorter month", () => {
+    expect(maturityOf({ startedOn: "2026-01-31", termMonths: 1 })).toBe("2026-02-28");
   });
 });
 
